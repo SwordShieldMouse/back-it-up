@@ -13,7 +13,6 @@ class ReverseKL_Network_Manager(BaseNetwork_Manager):
     def __init__(self, config):
         super(ReverseKL_Network_Manager, self).__init__(config)
 
-        # self.logger = EpochLogger()
         self.rng = np.random.RandomState(config.random_seed)
 
         self.sample_for_eval = False

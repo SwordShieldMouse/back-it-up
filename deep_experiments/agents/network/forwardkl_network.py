@@ -1,5 +1,6 @@
 from agents.network.base_network import BaseNetwork
 import numpy as np
+import environments
 
 import torch
 import torch.nn as nn
@@ -24,12 +25,6 @@ class ForwardKLNetwork(BaseNetwork):
             self.use_true_q = True
 
         self.rng = np.random.RandomState(config.random_seed)
-
-        self.actor_l1_dim = config.actor_l1_dim
-        self.actor_l2_dim = config.actor_l2_dim
-        self.critic_l1_dim = config.critic_l1_dim
-        self.critic_l2_dim = config.critic_l2_dim
-
         self.entropy_scale = config.entropy_scale
 
         # create network
@@ -61,7 +56,6 @@ class ForwardKLNetwork(BaseNetwork):
 
             scheme = quadpy.line_segment.clenshaw_curtis(self.N)
             # cut off endpoints since they should be zero but numerically might give nans
-            # self.intgrl_actions = torch.tensor(scheme.points[1:-1], dtype=dtype).unsqueeze(-1) * self.action_max
             self.intgrl_actions = (torch.tensor(scheme.points[1:-1], dtype=dtype).unsqueeze(-1) * torch.Tensor(self.action_max)).to(
                 torch.float32)
             self.intgrl_weights = torch.tensor(scheme.weights[1:-1], dtype=dtype)
@@ -69,7 +63,7 @@ class ForwardKLNetwork(BaseNetwork):
             self.intgrl_actions_len = np.shape(self.intgrl_actions)[0]
 
         else:
-            self.l = config.l_param  # 5
+            self.l = config.l_param
 
             n_points = [1]
             for i in range(1, self.l):
@@ -160,7 +154,7 @@ class ForwardKLNetwork(BaseNetwork):
 
             if self.use_true_q:
                 # predict_true_q
-                intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions))
+                intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
             else:
                 intgrl_q_val = self.q_net(stacked_state_batch, self.stacked_intgrl_actions)
             tiled_intgrl_q_val = intgrl_q_val.reshape(-1, self.intgrl_actions_len) / self.entropy_scale
@@ -181,6 +175,9 @@ class ForwardKLNetwork(BaseNetwork):
 
             integrands = boltzmann_prob * tiled_intgrl_logprob
             policy_loss = (-(integrands * self.tiled_intgrl_weights).sum(-1)).mean(-1)
+
+        else:
+            raise ValueError("Invalid optim_type")
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()
@@ -205,9 +202,16 @@ class ForwardKLNetwork(BaseNetwork):
         return lambda action: (self.q_net(torch.FloatTensor(state).to(self.device).unsqueeze(-1),
                                          torch.FloatTensor([action]).to(self.device).unsqueeze(-1))).detach().numpy()
 
+    def getTrueQFunction(self, state):
+        return lambda action: self.predict_true_q(np.expand_dims(state, 0), np.expand_dims([action], 0))
+
+    # bandit setting
+    def predict_true_q(self, inputs, action):
+        q_val_batch = [getattr(environments.environments, self.config.env_name).reward_func(a[0]) for a in action]
+        return np.expand_dims(q_val_batch, -1)
+
     def getPolicyFunction(self, state):
 
-        # mean, logstd = self.pi_net(torch.FloatTensor(state).to(self.device).unsqueeze(-1))
         _, _, _, mean, log_std = self.pi_net.evaluate(torch.FloatTensor(state).to(self.device).unsqueeze(-1))
         mean = mean.detach().numpy()
         std = (log_std.exp()).detach().numpy()
@@ -310,11 +314,8 @@ class PolicyNetwork(nn.Module):
 
     def get_logprob(self, states, tiled_actions, epsilon=1e-6):
 
-        # states; (32, 3)
-        # tiled_actions: (32, 254, 1)
-
-        normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale  # (254, 32, 1)
-        atanh_actions = self.atanh(normalized_actions)  # (254, 32, 1)
+        normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale
+        atanh_actions = self.atanh(normalized_actions)
 
         mean, log_std = self.forward(states)
         std = log_std.exp()
@@ -402,11 +403,8 @@ class LinearPolicyNetwork(nn.Module):
 
     def get_logprob(self, states, tiled_actions, epsilon=1e-6):
 
-        # states; (32, 3)
-        # tiled_actions: (32, 254, 1)
-
-        normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale  # (254, 32, 1)
-        atanh_actions = self.atanh(normalized_actions)  # (254, 32, 1)
+        normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale
+        atanh_actions = self.atanh(normalized_actions)
 
         mean, log_std = self.forward(states)
         std = log_std.exp()

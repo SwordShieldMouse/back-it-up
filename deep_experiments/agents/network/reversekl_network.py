@@ -10,6 +10,7 @@ from torch.distributions import MultivariateNormal
 import quadpy
 import itertools
 from scipy.special import binom
+import environments
 
 
 class ReverseKLNetwork(BaseNetwork):
@@ -25,11 +26,6 @@ class ReverseKLNetwork(BaseNetwork):
             self.use_true_q = True
 
         self.rng = np.random.RandomState(config.random_seed)
-
-        self.actor_l1_dim = config.actor_l1_dim
-        self.actor_l2_dim = config.actor_l2_dim
-        self.critic_l1_dim = config.critic_l1_dim
-        self.critic_l2_dim = config.critic_l2_dim
         self.entropy_scale = config.entropy_scale
 
         # create network
@@ -61,7 +57,6 @@ class ReverseKLNetwork(BaseNetwork):
 
             scheme = quadpy.line_segment.clenshaw_curtis(self.N)
             # cut off endpoints since they should be zero but numerically might give nans
-            # self.intgrl_actions = torch.tensor(scheme.points[1:-1], dtype=dtype).unsqueeze(-1) * self.action_max
             self.intgrl_actions = (torch.tensor(scheme.points[1:-1], dtype=dtype).unsqueeze(-1) * torch.Tensor(self.action_max)).to(
                 torch.float32)
             self.intgrl_weights = torch.tensor(scheme.weights[1:-1], dtype=dtype)
@@ -168,7 +163,7 @@ class ReverseKLNetwork(BaseNetwork):
             stacked_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, self.state_dim)
 
             if self.use_true_q:
-                intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions))
+                intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
 
                 intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
 
@@ -206,6 +201,14 @@ class ReverseKLNetwork(BaseNetwork):
     def getQFunction(self, state):
         return lambda action: (self.q_net(torch.FloatTensor(state).to(self.device).unsqueeze(-1),
                                          torch.FloatTensor([action]).to(self.device).unsqueeze(-1))).detach().numpy()
+
+    def getTrueQFunction(self, state):
+        return lambda action: self.predict_true_q(np.expand_dims(state, 0), np.expand_dims([action], 0))
+
+    # bandit setting
+    def predict_true_q(self, inputs, action):
+        q_val_batch = [getattr(environments.environments, self.config.env_name).reward_func(a[0]) for a in action]
+        return np.expand_dims(q_val_batch, -1)
 
     def getPolicyFunction(self, state):
 
@@ -312,11 +315,8 @@ class PolicyNetwork(nn.Module):
 
     def get_logprob(self, states, tiled_actions, epsilon=1e-6):
 
-        # states; (32, 3)
-        # tiled_actions: (32, 254, 1)
-
-        normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale  # (254, 32, 1)
-        atanh_actions = self.atanh(normalized_actions)  # (254, 32, 1)
+        normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale
+        atanh_actions = self.atanh(normalized_actions)
 
         mean, log_std = self.forward(states)
         std = log_std.exp()
@@ -410,11 +410,8 @@ class LinearPolicyNetwork(nn.Module):
 
     def get_logprob(self, states, tiled_actions, epsilon=1e-6):
 
-        # states; (32, 3)
-        # tiled_actions: (32, 254, 1)
-
-        normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale  # (254, 32, 1)
-        atanh_actions = self.atanh(normalized_actions)  # (254, 32, 1)
+        normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale
+        atanh_actions = self.atanh(normalized_actions)
 
         mean, log_std = self.forward(states)
         std = log_std.exp()
@@ -438,8 +435,6 @@ class LinearPolicyNetwork(nn.Module):
             normal = MultivariateNormal(mean, torch.diag_embed(std))
 
         return normal
-
-
 
     def atanh(self, x):
         return (torch.log(1 + x) - torch.log(1 - x)) / 2

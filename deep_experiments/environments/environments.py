@@ -1,6 +1,5 @@
 import gym
 import numpy as np
-import random
 import math
 
 import os
@@ -9,8 +8,6 @@ if os.environ.get('DISPLAY','') == '':
     print('no display found. Using non-interactive Agg backend')
     mpl.use('Agg')
 mpl.use('Agg')
-
-import matplotlib.pyplot as plt
 
 
 def create_environment(env_params):
@@ -61,7 +58,6 @@ class ContinuousEnvironment(object):
     def set_random_seed(self, random_seed):
         self.instance.seed(random_seed)
 
-
     # Reset the environment for a new episode. return the initial state
     def reset(self):
         state = self.instance.reset()
@@ -100,9 +96,7 @@ class ContinuousEnvironment(object):
 
     # Return action ranges
     def get_action_max(self):
-        #print self.instance.action_space.dtype
         if hasattr(self.instance.action_space, 'high'):
-            #self.action_space = spaces.Box(low=self.instance.action_space.low, high=self.instance.action_space.high, shape=self.instance.action_space.low.shape, dtype = np.float64)
             return self.instance.action_space.high
         return self.instance.action_space.n - 1    
 
@@ -148,9 +142,6 @@ class ContinuousBandits(object):
 
         # state info
         self.state_dim = 1
-        # self.state_range = np.array([10.])
-        # self.state_min = np.array([-5.])
-        # self.state_max = np.array([5.])
         self.state_range = np.array([4.])
         self.state_min = np.array([-2.])
         self.state_max = np.array([2.])
@@ -158,24 +149,9 @@ class ContinuousBandits(object):
 
         # action info
         self.action_dim = 1
-        # self.action_range = np.array([10.])
-        # self.action_min = np.array([-5.])
-        # self.action_max = np.array([5.])
         self.action_range = np.array([4.])
         self.action_min = np.array([-2.])
         self.action_max = np.array([2.])
-
-        # DEBUG
-        # print('stateDim:',self.stateDim)
-        # print('stateRange:', self.stateRange)
-        # print('stateMin:', self.stateMin)
-        # print("stateBounded :: ", self.stateBounded)
-
-        # print("actionDim", self.actionDim)
-        # print('actRange', self.actRange)
-        # print("actionBound :: ", self.actionBound)
-        # print('actMin', self.actMin)
-        # exit()
 
     def set_random_seed(self, random_seed):
         pass
@@ -198,8 +174,8 @@ class ContinuousBandits(object):
     @staticmethod
     def reward_func(action):
 
-        maxima1 = -0.6
-        maxima2 = 0.6
+        maxima1 = -1.0
+        maxima2 = 1.0
 
         stddev1 = 0.2
         stddev2 = 0.2
@@ -207,7 +183,7 @@ class ContinuousBandits(object):
         # Reward function.
         # Two gaussian functions.
         modal1 = 1. * math.exp(-0.5 * ((action - maxima1) / stddev1) ** 2)
-        modal2 = 1. * math.exp(-0.5 * ((action - maxima2) / stddev2) ** 2)
+        modal2 = 1.5 * math.exp(-0.5 * ((action - maxima2) / stddev2) ** 2)
 
         return modal1 + modal2
 

@@ -36,11 +36,9 @@ class BaseAgent(object):
         return self.take_action(state, is_train, is_start=False)
 
     def take_action(self, state, is_train, is_start):
-        # Warmup step not really used
-        if self.replay_buffer.get_size() < self.warmup_steps:
 
-            # use random seed
-            # action = (np.random.random_sample(size=self.action_dim) - 0.5) * 2 * self.action_max[0]
+        if self.replay_buffer.get_size() < self.warmup_steps:
+            # Currently not using warmup steps
             raise NotImplementedError
         else:
             action = self.network_manager.take_action(state, is_train, is_start)
@@ -60,24 +58,6 @@ class BaseAgent(object):
                 self.replay_buffer.add(state, action, reward, next_state, 0.0)
 
         self.learn()
-
-        # if not using replay buffer
-        # if not is_truncated:
-        #
-        #     state = np.expand_dims(state, 0)
-        #     next_state = np.expand_dims(next_state, 0)
-        #     action = np.expand_dims(action, 0)
-        #     reward = np.expand_dims(reward, 0)
-        #
-        #     if not is_terminal:
-        #         # self.replay_buffer.add(state, action, reward, next_state, self.gamma)
-        #         self.network_manager.update_network(state, action, next_state, reward, [self.gamma])
-        #     else:
-        #         # self.replay_buffer.add(state, action, reward, next_state, 0.0)
-        #         self.network_manager.update_network(state, action, next_state, reward, [0.0])
-        #
-        # if self.norm_type != 'none':
-        #     self.network_manager.input_norm.update(state)
 
     def learn(self):
         if self.replay_buffer.get_size() > max(self.warmup_steps, self.batch_size):

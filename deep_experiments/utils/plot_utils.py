@@ -54,7 +54,7 @@ def plotFunction(agent_name, func_list, state, greedy_action, expl_action, x_min
             for i in range(len(greedy_action)):
                 mode_string += "{:.2f}".format(np.squeeze(greedy_action[i]))
 
-            ax[0].set_title("Action-values, argmax Q(S,A): {:.2f}".format(max_point_x))
+            ax[0].set_title("Action-values, argmax Q(S,A): {:.2f}".format(max_point_x[0]))
             ax[1].set_title("Policy, mean: {}".format(mode_string))
 
     # common

@@ -1,0 +1,23 @@
+{
+    "agent": "ReverseKL",
+    "sweeps": {
+        "actor_l1_dim": [200],
+        "actor_l2_dim": [200],
+        "critic_l1_dim": [200],
+        "critic_l2_dim": [200],
+
+        "pi_lr": [1e-2],
+        "qf_vf_lr": [0],
+
+        "sample_for_eval": ["False"],
+        "use_true_q": ["True"],
+
+        "entropy_scale": [1, 0.5, 0.01],
+
+        "l_param": [6],
+        "N_param": [64],
+        "optim_type": ["intg"],
+        "q_update_type": ["sac"],
+        "batch_size": [1]
+    }
+}

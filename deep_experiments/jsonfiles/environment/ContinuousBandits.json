@@ -1,0 +1,9 @@
+{
+    "environment": "ContinuousBandits",
+
+    "TotalMilSteps": 0.0005,
+    "EpisodeSteps": 1,
+
+    "EvalIntervalMilSteps": 0.00001,
+    "EvalEpisodes": 1
+}

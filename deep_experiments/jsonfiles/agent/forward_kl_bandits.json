@@ -6,11 +6,11 @@
         "critic_l1_dim": [200],
         "critic_l2_dim": [200],
 
-        "pi_lr": [1e-1],
-        "qf_vf_lr": [0],
+        "pi_lr": [1e-1, 1e-2, 1e-3],
+        "qf_vf_lr": [1e-1, 1e-2, 1e-3],
 
         "sample_for_eval": ["False"],
-        "use_true_q": ["True"],
+        "use_true_q": ["False"],
 
         "entropy_scale": [1, 0.5, 0.01],
 

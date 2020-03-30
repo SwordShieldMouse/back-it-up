@@ -1,10 +1,7 @@
 {
     "agent": "ReverseKL",
     "sweeps": {
-        "actor_l1_dim": [200],
-        "actor_l2_dim": [200],
-        "critic_l1_dim": [200],
-        "critic_l2_dim": [200],
+        "actor_critic_dim": [200],
 
         "pi_lr": [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5],
         "qf_vf_lr": [1e-0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5],

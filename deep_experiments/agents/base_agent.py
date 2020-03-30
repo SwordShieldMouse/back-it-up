@@ -73,10 +73,14 @@ class BaseAgent(object):
     def learn(self, state=None, action=None, reward=None, next_state=None, gamma=None):
 
         # if using replay, overwrite with batches
-        if self.use_replay and self.replay_buffer.get_size() > max(self.warmup_steps, self.batch_size):
-            state, action, reward, next_state, gamma = self.replay_buffer.sample_batch(self.batch_size)
+        if self.use_replay:
+            if self.replay_buffer.get_size() > max(self.warmup_steps, self.batch_size):
+                state, action, reward, next_state, gamma = self.replay_buffer.sample_batch(self.batch_size)
 
-        self.network_manager.update_network(state, action, next_state, reward, gamma)
+                self.network_manager.update_network(state, action, next_state, reward, gamma)
+        else:
+            assert state is not None
+            self.network_manager.update_network(state, action, next_state, reward, gamma)
 
 
     # Resets the agent between episodes. Should primarily be used to clear traces or other temporally linked parameters

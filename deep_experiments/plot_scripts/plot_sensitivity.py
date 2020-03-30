@@ -18,10 +18,11 @@ value_lr_curve_data = {}
 
 
 # Pendulum
-env_name = 'ContinuousBandits'
+env_name = 'Swimmer-v2'
 # plt_yticks = [-1600, -1200, -800, -400, -200, 0]
 
-for agent_filename in ['forward_kl_bandits', 'reverse_kl_bandits']:
+# for agent_filename in ['forward_kl_bandits', 'reverse_kl_bandits']:
+for agent_filename in ['forward_kl', 'reverse_kl']:
 
     sweep_params = ['pi_lr', 'qf_vf_lr', 'entropy_scale', 'batch_size']
 

@@ -18,7 +18,6 @@ class ReverseKLNetwork(BaseNetwork):
         super(ReverseKLNetwork, self).__init__(config, [config.pi_lr, config.qf_vf_lr])
 
         self.config = config
-
         self.optim_type = config.optim_type
 
         self.use_true_q = False
@@ -37,12 +36,12 @@ class ReverseKLNetwork(BaseNetwork):
         if config.env_name == 'ContinuousBandits':
             self.pi_net = LinearPolicyNetwork(self.state_dim, self.action_dim, self.action_max[0])
         else:
-            self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_l1_dim, config.actor_l2_dim, self.action_max[0])
+            self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
 
-        self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.critic_l1_dim, config.critic_l2_dim)
+        self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim)
 
-        self.v_net = ValueNetwork(self.state_dim, config.critic_l1_dim, config.critic_l2_dim)
-        self.target_v_net = ValueNetwork(self.state_dim, config.critic_l1_dim, config.critic_l2_dim)
+        self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
+        self.target_v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
 
         # copy to target_v_net
         for target_param, param in zip(self.target_v_net.parameters(), self.v_net.parameters()):
@@ -223,12 +222,12 @@ class ReverseKLNetwork(BaseNetwork):
         return lambda action: 1/(std * np.sqrt(2 * np.pi)) * np.exp(- (action - mean)**2 / (2 * std**2))
 
 class ValueNetwork(nn.Module):
-    def __init__(self, state_dim, l1_dim, l2_dim, init_w=3e-3):
+    def __init__(self, state_dim, layer_dim, init_w=3e-3):
         super(ValueNetwork, self).__init__()
 
-        self.linear1 = nn.Linear(state_dim, l1_dim)
-        self.linear2 = nn.Linear(l1_dim, l2_dim)
-        self.linear3 = nn.Linear(l2_dim, 1)
+        self.linear1 = nn.Linear(state_dim, layer_dim)
+        self.linear2 = nn.Linear(layer_dim, layer_dim)
+        self.linear3 = nn.Linear(layer_dim, 1)
 
         self.linear3.weight.data.uniform_(-init_w, init_w)
         self.linear3.bias.data.uniform_(-init_w, init_w)
@@ -243,12 +242,12 @@ class ValueNetwork(nn.Module):
 
 
 class SoftQNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim, l1_dim, l2_dim, init_w=3e-3):
+    def __init__(self, state_dim, action_dim, layer_dim, init_w=3e-3):
         super(SoftQNetwork, self).__init__()
 
-        self.linear1 = nn.Linear(state_dim + action_dim, l1_dim)
-        self.linear2 = nn.Linear(l1_dim, l2_dim)
-        self.linear3 = nn.Linear(l2_dim, 1)
+        self.linear1 = nn.Linear(state_dim + action_dim, layer_dim)
+        self.linear2 = nn.Linear(layer_dim, layer_dim)
+        self.linear3 = nn.Linear(layer_dim, 1)
 
         self.linear3.weight.data.uniform_(-init_w, init_w)
         self.linear3.bias.data.uniform_(-init_w, init_w)
@@ -264,20 +263,20 @@ class SoftQNetwork(nn.Module):
 
 
 class PolicyNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim, l1_dim, l2_dim, action_scale, init_w=3e-3, log_std_min=-20, log_std_max=2):
+    def __init__(self, state_dim, action_dim, layer_dim, action_scale, init_w=3e-3, log_std_min=-20, log_std_max=2):
         super(PolicyNetwork, self).__init__()
 
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
 
-        self.linear1 = nn.Linear(state_dim, l1_dim)
-        self.linear2 = nn.Linear(l1_dim, l2_dim)
+        self.linear1 = nn.Linear(state_dim, layer_dim)
+        self.linear2 = nn.Linear(layer_dim, layer_dim)
 
-        self.mean_linear = nn.Linear(l2_dim, action_dim)
+        self.mean_linear = nn.Linear(layer_dim, action_dim)
         self.mean_linear.weight.data.uniform_(-init_w, init_w)
         self.mean_linear.bias.data.uniform_(-init_w, init_w)
 
-        self.log_std_linear = nn.Linear(l2_dim, action_dim)
+        self.log_std_linear = nn.Linear(layer_dim, action_dim)
         self.log_std_linear.weight.data.uniform_(-init_w, init_w)
         self.log_std_linear.bias.data.uniform_(-init_w, init_w)
 
@@ -316,7 +315,6 @@ class PolicyNetwork(nn.Module):
         mean *= self.action_scale
 
         return action, log_prob, z, mean, log_std
-
 
     def get_logprob(self, states, tiled_actions, epsilon=1e-6):
 

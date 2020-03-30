@@ -16,7 +16,11 @@ class BaseAgent(object):
         self.action_min = config.action_min
         self.action_max = config.action_max
 
-        self.replay_buffer = ReplayBuffer(config.buffer_size, config.random_seed)
+        self.use_replay = config.use_replay
+        if self.use_replay:
+            self.replay_buffer = ReplayBuffer(config.buffer_size, config.random_seed)
+        else:
+            self.replay_buffer = None
         self.batch_size = config.batch_size
         self.warmup_steps = config.warmup_steps
         self.gamma = config.gamma
@@ -37,7 +41,7 @@ class BaseAgent(object):
 
     def take_action(self, state, is_train, is_start):
 
-        if self.replay_buffer.get_size() < self.warmup_steps:
+        if self.use_replay and self.replay_buffer.get_size() < self.warmup_steps:
             # Currently not using warmup steps
             raise NotImplementedError
         else:
@@ -49,22 +53,31 @@ class BaseAgent(object):
     
     def update(self, state, next_state, reward, action, is_terminal, is_truncated):
 
-        # if using replay buffer
         if not is_truncated:
 
-            if not is_terminal:
-                self.replay_buffer.add(state, action, reward, next_state, self.gamma)
+            # if using replay buffer
+            if self.use_replay:
+                if not is_terminal:
+                    self.replay_buffer.add(state, action, reward, next_state, self.gamma)
+                else:
+                    self.replay_buffer.add(state, action, reward, next_state, 0.0)
+                self.learn()
+
+            # if not using replay buffer
             else:
-                self.replay_buffer.add(state, action, reward, next_state, 0.0)
+                if not is_terminal:
+                    self.learn([state], [action], [reward], [next_state], [self.gamma])
+                else:
+                    self.learn([state], [action], [reward], [next_state], [0.0])
 
-        self.learn()
+    def learn(self, state=None, action=None, reward=None, next_state=None, gamma=None):
 
-    def learn(self):
-        if self.replay_buffer.get_size() > max(self.warmup_steps, self.batch_size):
+        # if using replay, overwrite with batches
+        if self.use_replay and self.replay_buffer.get_size() > max(self.warmup_steps, self.batch_size):
             state, action, reward, next_state, gamma = self.replay_buffer.sample_batch(self.batch_size)
-            self.network_manager.update_network(state, action, next_state, reward, gamma)
-        else:
-            return
+
+        self.network_manager.update_network(state, action, next_state, reward, gamma)
+
 
     # Resets the agent between episodes. Should primarily be used to clear traces or other temporally linked parameters
     def reset(self):

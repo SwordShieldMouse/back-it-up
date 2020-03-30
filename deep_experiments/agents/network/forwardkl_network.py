@@ -27,6 +27,11 @@ class ForwardKLNetwork(BaseNetwork):
         self.rng = np.random.RandomState(config.random_seed)
         self.entropy_scale = config.entropy_scale
 
+        if config.use_replay:
+            self.batch_size = config.batch_size
+        else:
+            self.batch_size = 1
+
         # create network
         if config.env_name == 'ContinuousBandits':
             self.pi_net = LinearPolicyNetwork(self.state_dim, self.action_dim, self.action_max[0])
@@ -93,9 +98,9 @@ class ForwardKLNetwork(BaseNetwork):
             self.intgrl_actions = torch.stack(self.intgrl_actions) * self.action_max
             self.intgrl_actions_len = np.shape(self.intgrl_actions)[0]
 
-        self.tiled_intgrl_actions = self.intgrl_actions.unsqueeze(0).repeat(self.config.batch_size, 1, 1)
+        self.tiled_intgrl_actions = self.intgrl_actions.unsqueeze(0).repeat(self.batch_size, 1, 1)
         self.stacked_intgrl_actions = self.tiled_intgrl_actions.reshape(-1, self.action_dim)  # (32 x 254, 1)
-        self.tiled_intgrl_weights = self.intgrl_weights.unsqueeze(0).repeat(self.config.batch_size, 1)
+        self.tiled_intgrl_weights = self.intgrl_weights.unsqueeze(0).repeat(self.batch_size, 1)
 
         print("Num. Integration points: {}".format(self.intgrl_actions_len))
 
@@ -171,7 +176,7 @@ class ForwardKLNetwork(BaseNetwork):
             boltzmann_prob = intgrl_exp_q_val / tiled_z
 
             intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
-            tiled_intgrl_logprob = intgrl_logprob.reshape(self.config.batch_size, self.intgrl_actions_len)
+            tiled_intgrl_logprob = intgrl_logprob.reshape(self.batch_size, self.intgrl_actions_len)
 
             integrands = boltzmann_prob * tiled_intgrl_logprob
             policy_loss = (-(integrands * self.tiled_intgrl_weights).sum(-1)).mean(-1)

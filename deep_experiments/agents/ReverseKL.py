@@ -74,6 +74,7 @@ class ReverseKL_Network_Manager(BaseNetwork_Manager):
         _ = self.network.update_network(state_batch, action_batch, next_state_batch, reward_batch, gamma_batch)
 
         # Update target networks
+        # if not using target network, tau=1.0 in base_network.py
         self.network.update_target_network()
 
 

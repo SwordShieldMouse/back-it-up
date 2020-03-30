@@ -28,6 +28,11 @@ class ReverseKLNetwork(BaseNetwork):
         self.rng = np.random.RandomState(config.random_seed)
         self.entropy_scale = config.entropy_scale
 
+        if config.use_replay:
+            self.batch_size = config.batch_size
+        else:
+            self.batch_size = 1
+
         # create network
         if config.env_name == 'ContinuousBandits':
             self.pi_net = LinearPolicyNetwork(self.state_dim, self.action_dim, self.action_max[0])
@@ -95,9 +100,9 @@ class ReverseKLNetwork(BaseNetwork):
             self.intgrl_actions = torch.stack(self.intgrl_actions) * self.action_max
             self.intgrl_actions_len = np.shape(self.intgrl_actions)[0]
 
-        self.tiled_intgrl_actions = self.intgrl_actions.unsqueeze(0).repeat(self.config.batch_size, 1, 1)
+        self.tiled_intgrl_actions = self.intgrl_actions.unsqueeze(0).repeat(self.batch_size, 1, 1)
         self.stacked_intgrl_actions = self.tiled_intgrl_actions.reshape(-1, self.action_dim)
-        self.tiled_intgrl_weights = self.intgrl_weights.unsqueeze(0).repeat(self.config.batch_size, 1)
+        self.tiled_intgrl_weights = self.intgrl_weights.unsqueeze(0).repeat(self.batch_size, 1)
 
 
     def sample_action(self, state_batch):
@@ -177,7 +182,7 @@ class ReverseKLNetwork(BaseNetwork):
 
                 integrands = - torch.exp(intgrl_logprob.squeeze()) * ((intgrl_q_val.squeeze() - intgrl_v_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
 
-            policy_loss = (integrands * self.intgrl_weights.repeat(self.config.batch_size)).reshape(self.config.batch_size, -1).sum(-1).mean(-1)
+            policy_loss = (integrands * self.intgrl_weights.repeat(self.batch_size)).reshape(self.batch_size, -1).sum(-1).mean(-1)
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()

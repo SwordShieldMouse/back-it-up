@@ -19,7 +19,11 @@ class BaseNetwork(object):
         self.action_max = config.action_max
 
         self.learning_rate = learning_rate
-        self.tau = config.tau
+
+        if config.use_target:
+            self.tau = config.tau
+        else:
+            self.tau = 1.0
 
 
     def set_session(self, session):

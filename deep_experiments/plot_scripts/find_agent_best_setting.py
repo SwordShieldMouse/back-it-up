@@ -23,7 +23,7 @@ import os
 # Use if you want to plot specific settings, put the idx of the setting below.
 # You can also see *_Params.txt to see the idx for each setting.
 
-parse_type = 'batch_size'
+parse_type = 'entropy_scale'
 show_plot = False
 
 plot_each_runs = True
@@ -40,6 +40,14 @@ def get_xyrange(envname):
     if envname == 'ContinuousBandits':
         ymin = [-0.5, -0.5]
         ymax = [2.0, 2.0]
+
+    elif envname == 'Pendulum-v0':
+        ymin = [-1400, -1400]
+        ymax = [-100, -100]
+
+    elif envname == 'Reacher-v2':
+        ymin = [-50, -20]
+        ymax = [0, 0]
 
     elif envname == "Swimmer-v2":
         ymin = [20, 20]

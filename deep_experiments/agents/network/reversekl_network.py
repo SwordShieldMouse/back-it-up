@@ -50,9 +50,9 @@ class ReverseKLNetwork(BaseNetwork):
         self.device = torch.device("cpu")
 
         # optimizer
-        self.pi_optimizer = optim.Adam(self.pi_net.parameters(), lr=self.learning_rate[0])
-        self.q_optimizer = optim.Adam(self.q_net.parameters(), lr=self.learning_rate[1])
-        self.v_optimizer = optim.Adam(self.v_net.parameters(), lr=self.learning_rate[1])
+        self.pi_optimizer = optim.RMSprop(self.pi_net.parameters(), lr=self.learning_rate[0])
+        self.q_optimizer = optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate[1])
+        self.v_optimizer = optim.RMSprop(self.v_net.parameters(), lr=self.learning_rate[1])
 
         dtype = torch.float32
 

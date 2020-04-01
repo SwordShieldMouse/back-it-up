@@ -32,6 +32,8 @@ class ReverseKLNetwork(BaseNetwork):
         else:
             self.batch_size = 1
 
+        self.use_target = config.use_target
+
         # create network
         if config.env_name == 'ContinuousBandits':
             self.pi_net = LinearPolicyNetwork(self.state_dim, self.action_dim, self.action_max[0])
@@ -41,11 +43,13 @@ class ReverseKLNetwork(BaseNetwork):
         self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim)
 
         self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
-        self.target_v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
 
-        # copy to target_v_net
-        for target_param, param in zip(self.target_v_net.parameters(), self.v_net.parameters()):
-            target_param.data.copy_(param.data)
+        if self.use_target:
+            self.target_v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
+
+            # copy to target_v_net
+            for target_param, param in zip(self.target_v_net.parameters(), self.v_net.parameters()):
+                target_param.data.copy_(param.data)
 
         self.device = torch.device("cpu")
 
@@ -136,7 +140,7 @@ class ReverseKLNetwork(BaseNetwork):
             new_action, log_prob, z, mean, log_std = self.pi_net.evaluate(state_batch)
 
             # q_loss, v_loss
-            target_next_v_val = self.target_v_net(next_state_batch)
+            target_next_v_val = self.target_v_net(next_state_batch) if self.use_target else self.v_net(next_state_batch)
             target_q_val = reward_batch + gamma_batch * target_next_v_val
             q_value_loss = nn.MSELoss()(q_val, target_q_val.detach())
 

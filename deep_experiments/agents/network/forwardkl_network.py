@@ -27,6 +27,8 @@ class ForwardKLNetwork(BaseNetwork):
         self.rng = np.random.RandomState(config.random_seed)
         self.entropy_scale = config.entropy_scale
 
+        self.use_target = config.use_target
+
         if config.use_replay:
             self.batch_size = config.batch_size
         else:
@@ -41,11 +43,13 @@ class ForwardKLNetwork(BaseNetwork):
         self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim)
 
         self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
-        self.target_v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
 
-        # copy to target_v_net
-        for target_param, param in zip(self.target_v_net.parameters(), self.v_net.parameters()):
-            target_param.data.copy_(param.data)
+        if self.use_target:
+            self.target_v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
+
+            # copy to target_v_net
+            for target_param, param in zip(self.target_v_net.parameters(), self.v_net.parameters()):
+                target_param.data.copy_(param.data)
 
         self.device = torch.device("cpu")
 
@@ -134,7 +138,7 @@ class ForwardKLNetwork(BaseNetwork):
             new_action, log_prob, z, mean, log_std = self.pi_net.evaluate(state_batch)
 
             # q_loss, v_loss
-            target_next_v_val = self.target_v_net(next_state_batch)
+            target_next_v_val = self.target_v_net(next_state_batch) if self.use_target else self.v_net(next_state_batch)
             target_q_val = reward_batch + gamma_batch * target_next_v_val
             q_value_loss = nn.MSELoss()(q_val, target_q_val.detach())
 

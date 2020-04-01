@@ -23,7 +23,7 @@ class BaseNetwork(object):
         if config.use_target:
             self.tau = config.tau
         else:
-            self.tau = 1.0
+            self.tau = None
 
 
     def set_session(self, session):

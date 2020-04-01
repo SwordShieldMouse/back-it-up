@@ -23,6 +23,8 @@ class ReverseKL_Network_Manager(BaseNetwork_Manager):
         if config.use_true_q == "True":
             self.use_true_q = True
 
+        self.use_target = config.use_target
+
         # define network
         self.network = reversekl_network.ReverseKLNetwork(config)
 
@@ -75,7 +77,8 @@ class ReverseKL_Network_Manager(BaseNetwork_Manager):
 
         # Update target networks
         # if not using target network, tau=1.0 in base_network.py
-        self.network.update_target_network()
+        if self.use_target:
+            self.network.update_target_network()
 
 
 class ReverseKL(BaseAgent):

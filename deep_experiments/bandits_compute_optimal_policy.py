@@ -1,5 +1,5 @@
 
-
+import argparse
 import numpy as np
 import json
 from collections import OrderedDict
@@ -17,29 +17,24 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-# MEAN_NUM_POINTS = 200
-# STD_NUM_POINTS = 200
 
 INC = 0.01  # 0.01
-MEAN_MIN, MEAN_MAX = -1, 1
-STD_MIN, STD_MAX = 0.001, 1.2
+MEAN_MIN, MEAN_MAX = -0.5, 0.5
+STD_MIN, STD_MAX = 0.01, 1.2
+KL_UPPER_LIMIT = 20
 
-KL_UPPER_LIMIT = 5
 clip_kl_upper_bound = True
+save_plot = True
 
-compute_forward = True
-compute_reverse = True
-save_plot = False
-compute_custom = False
+env_name = 'ContinuousBanditsNormalized'
 
-save_dir = './results/heatmaps'
-
+# dummy agent, just using params from this json
 agent_name = 'forward_kl'
 agent_params = {
 
-    "entropy_scale": [1.0, 0.1, 0.01], # 1.0, 0.5, 0.01
+    "entropy_scale": [1.0, 0.1, 0.01],  # 1.0, 0.5, 0.01
     "l_param": 6,
-    "N_param": 1024,
+    "N_param": 128,
     "optim_type": "intg",
 
     "actor_critic_dim": 200,
@@ -58,6 +53,7 @@ agent_params = {
     "write_log": None
 }
 
+
 def compute_pi_logprob(mean, std, action_arr):
 
     dist = norm(mean, std)
@@ -69,7 +65,7 @@ def compute_pi_logprob(mean, std, action_arr):
 
 
 def forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_p, mu, std):
-    pi_logprob = compute_pi_logprob(mu, std, intgrl_actions)  # (1, 62)
+    pi_logprob = compute_pi_logprob(mu, std, intgrl_actions)
 
     # ignoring boltzmann entropy
     # integrands = -boltzmann_p * pi_logprob
@@ -87,9 +83,44 @@ def reverse_kl_loss(intgrl_weights, intgrl_actions, intgrl_q_val, mu, std, z):
 
     return loss
 
+def compute_plot(kl_type, entropy_arr, y_arr, x_arr, kl_arr, save_dir):
+
+    # plot settings
+    xticks = range(0, len(x_arr), 10)
+    xticklabels = np.around(x_arr[::10], decimals=2)
+    yticks = range(0, len(y_arr), 10)
+    yticklabels = np.around(y_arr[::10], decimals=2)
+
+    if clip_kl_upper_bound:
+        forward_kl_arr = np.clip(kl_arr, -np.inf, KL_UPPER_LIMIT)
+
+    # Plot heatmap per entropy per kl
+    for t_idx, tau in enumerate(entropy_arr):
+
+        ax = sns.heatmap(kl_arr[t_idx])
+
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(yticklabels)
+
+        ax.set_title("{} KL Heatmap (truncated KL upper limit: {})".format(kl_type, KL_UPPER_LIMIT if clip_kl_upper_bound else False))
+
+        plt.savefig('{}/{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
+        plt.clf()
+
 
 def main():
-    env_json_path = './jsonfiles/environment/ContinuousBandits.json'
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--compute_kl_type', type=str)
+    parser.add_argument('--save_dir', type=str)
+
+
+    args = parser.parse_args()
+
+
+    env_json_path = './jsonfiles/environment/{}.json'.format(env_name)
     agent_json_path = './jsonfiles/agent/{}.json'.format(agent_name)
 
     # read env/agent json
@@ -140,18 +171,13 @@ def main():
     print("std: {} points".format(STD_NUM_POINTS))
     print("Total combinations: {}".format(len(all_candidates)))
 
-    forward_kl_arr = np.zeros((len(agent_network.entropy_scale), MEAN_NUM_POINTS, STD_NUM_POINTS))
-    reverse_kl_arr = np.zeros((len(agent_network.entropy_scale), MEAN_NUM_POINTS, STD_NUM_POINTS))
 
-    # plot settings
-    xticks = range(0, len(std_candidates), 10)
-    xticklabels = np.around(std_candidates[::10], decimals=2)
-    yticks = range(0, len(mean_candidates), 10)
-    yticklabels = np.around(mean_candidates[::10], decimals=2)
 
     ## Forward KL
-    if compute_forward:
+    if args.compute_kl_type == 'forward':
         print("== Forward KL ==")
+        forward_kl_arr = np.zeros((len(agent_network.entropy_scale), MEAN_NUM_POINTS, STD_NUM_POINTS))
+
         for t_idx, tau in enumerate(agent_network.entropy_scale):
 
             start_run = datetime.now()
@@ -180,12 +206,16 @@ def main():
 
             print("Time taken: {}".format(end_run - start_run))
 
-            np.save('{}/forward_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(save_dir, agent_network.N_param, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, tau), forward_kl_arr)
+            np.save('{}/forward_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, agent_network.N, tau), forward_kl_arr[t_idx])
 
+        if save_plot:
+            compute_plot(args.compute_kl_type, agent_network.entropy_scale, mean_candidates, std_candidates, forward_kl_arr, args.save_dir)
 
     ## Reverse KL
-    if compute_reverse:
+    if args.compute_kl_type == 'reverse':
         print("== Reverse KL ==")
+        reverse_kl_arr = np.zeros((len(agent_network.entropy_scale), MEAN_NUM_POINTS, STD_NUM_POINTS))
+
         for t_idx, tau in enumerate(agent_network.entropy_scale):
 
             start_run = datetime.now()
@@ -207,121 +237,11 @@ def main():
             end_run = datetime.now()
             print("Time taken: {}".format(end_run - start_run))
 
-            np.save('{}/reverse_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(save_dir, agent_network.N_param, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, tau), reverse_kl_arr)
+            np.save('{}/reverse_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, agent_network.N, tau), reverse_kl_arr[t_idx])
 
-    if save_plot:
-        if clip_kl_upper_bound:
-            forward_kl_arr = np.clip(forward_kl_arr, -np.inf, KL_UPPER_LIMIT)
-            reverse_kl_arr = np.clip(reverse_kl_arr, -np.inf, KL_UPPER_LIMIT)
-
-        # Plot heatmap per entropy per kl
-        for t_idx, tau in enumerate(agent_network.entropy_scale):
-
-            # Forward KL
-            if compute_forward:
-                ax = sns.heatmap(forward_kl_arr[t_idx])
-
-                ax.set_xticks(xticks)
-                ax.set_xticklabels(xticklabels)
-                ax.set_yticks(yticks)
-                ax.set_yticklabels(yticklabels)
-
-                plt.savefig('{}/forward_kl_{}_tau={}.png'.format(save_dir, t_idx, tau))
-                plt.clf()
-
-            # Reverse KL
-            if compute_reverse:
-                ax = sns.heatmap(reverse_kl_arr[t_idx])
-                ax.set_xticks(xticks)
-                ax.set_xticklabels(xticklabels)
-                ax.set_yticks(yticks)
-                ax.set_yticklabels(yticklabels)
-
-                plt.savefig('{}/reverse_kl_{}_tau={}.png'.format(save_dir, t_idx, tau))
-                plt.clf()
-
-    if compute_custom:
-
-        forward_kl_arr = np.load('{}/forward_kl_201_points.npy'.format('results/heatmaps/3_201pts_heatmap_[-1,1]_[0.001,1.2]_N512'))
-        reverse_kl_arr = np.load('./reverse_kl_201_points.npy')
-
-        for t_idx, tau in enumerate(agent_network.entropy_scale):
-
-            # print stats
-            mean_idx, std_idx = np.unravel_index(forward_kl_arr[t_idx].argmin(), forward_kl_arr[t_idx].shape)
-            mean, std = mean_candidates[mean_idx], std_candidates[std_idx]
-            print("argmin forwardKL for tau {}: mean {}, std {}".format(tau, round(mean, 3), round(std, 3)))
-
-            # mean_idx, std_idx = np.unravel_index(reverse_kl_arr[t_idx].argmin(), reverse_kl_arr[t_idx].shape)
-            # mean, std = mean_candidates[mean_idx], std_candidates[std_idx]
-            # print("argmin reverseKL for tau {}: mean {}, std {}".format(tau, round(mean, 3), round(std, 3)))
-
-
-            # ax = sns.heatmap(np.clip(forward_kl_arr[t_idx], -np.inf, 5))
-            # ax.set_xticks(xticks)
-            # ax.set_xticklabels(xticklabels)
-            # ax.set_yticks(yticks)
-            # ax.set_yticklabels(yticklabels)
-            #
-            # ax.set(title="Forward KL heatmap",
-            #        xlabel="std",
-            #        ylabel="mean", )
-            # plt.savefig('{}/forward_kl_{}_tau={}.png'.format(save_dir, t_idx, tau))
-            # plt.clf()
-
-            # ax = sns.heatmap(reverse_kl_arr[t_idx])
-            # ax.set_xticks(xticks)
-            # ax.set_xticklabels(xticklabels)
-            # ax.set_yticks(yticks)
-            # ax.set_yticklabels(yticklabels)
-            #
-            # ax.set(title="Reverse KL heatmap",
-            #        xlabel="std",
-            #        ylabel="mean", )
-            #
-            # plt.savefig('{}/reverse_kl_{}_tau={}.png'.format(save_dir, t_idx, tau))
-            # plt.clf()
-
-        #
-        # mu = 1.0
-        # std = 0.001
-        # pi_logprob = np.array(compute_pi_logprob(mu, std, tiled_intgrl_actions))  # (1, 62)
-        # integrands = - np.exp(pi_logprob) * (tiled_intgrl_q_val - tau * pi_logprob)
-        # loss1 = np.sum(integrands * tiled_intgrl_weights)
-        #
-        # print('mu: {}, std:{} -- loss: {}'.format(mu, std, loss1))
-        #
-        # mu = 0.91457286
-        # std = 0.001
-        # pi_logprob = np.array(compute_pi_logprob(mu, std, tiled_intgrl_actions))  # (1, 62)
-        # integrands = - np.exp(pi_logprob) * (tiled_intgrl_q_val - tau * pi_logprob)
-        # loss2 = np.sum(integrands * tiled_intgrl_weights)
-        #
-        # print('mu: {}, std:{} -- loss: {}'.format(mu, std, loss2))
-        #
-        # mu = 0.99497487
-        # std = 0.001
-        # pi_logprob = np.array(compute_pi_logprob(mu, std, tiled_intgrl_actions))  # (1, 62)
-        # integrands = - np.exp(pi_logprob) * (tiled_intgrl_q_val - tau * pi_logprob)
-        # loss3 = np.sum(integrands * tiled_intgrl_weights)
-        #
-        # print('mu: {}, std:{} -- loss: {}'.format(mu, std, loss3))
-        #
-
-        # forward_kl_arr = []
-        # reverse_kl_arr = []
-        # tau = 0.01
-        # std = 0.001
-        #
-        # tiled_intgrl_q_val = (agent_network.predict_true_q(None, intgrl_actions)).reshape(-1, intgrl_actions_len)
-        # for mu in np.linspace(0.9, 1.1, 100):
-        #     loss = reverse_kl_loss(tiled_intgrl_weights, tiled_intgrl_actions, tiled_intgrl_q_val, mu, std, tau)
-        #     reverse_kl_arr.append(loss)
-        #
-        # plt.plot(np.linspace(0.9, 1.1, 100), reverse_kl_arr)
-        # # plt.show()
-        #
-        # plt.savefig('reverse_kl_tau={}_mean_sensitivity.png'.format(tau))
+        if save_plot:
+            compute_plot(args.compute_kl_type, agent_network.entropy_scale, mean_candidates, std_candidates,
+                         reverse_kl_arr, args.save_dir)
 
 
 if __name__ == '__main__':

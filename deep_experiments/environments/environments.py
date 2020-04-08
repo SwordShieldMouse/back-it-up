@@ -15,6 +15,8 @@ def create_environment(env_params):
 
     if env_name == 'ContinuousBandits':
         return ContinuousBandits(env_params)
+    elif env_name == 'ContinuousBanditsNormalized':
+        return ContinuousBanditsNormalized(env_params)
     else:
         return ContinuousEnvironment(env_params)
 
@@ -190,3 +192,74 @@ class ContinuousBandits(object):
     # Close the environment and clear memory
     def close(self):
         pass
+
+
+class ContinuousBanditsNormalized(object):
+    def __init__(self, env_params):
+
+        self.name = env_params['environment']
+        self.eval_interval = env_params['EvalIntervalMilSteps'] * 1000000
+        self.eval_episodes = env_params['EvalEpisodes']
+
+        # total number of steps allowed in a run
+        self.TOTAL_STEPS_LIMIT = env_params['TotalMilSteps'] * 1000000
+
+        # maximum number of steps allowed for each episode
+        # if -1 takes default setting from gym
+        if env_params['EpisodeSteps'] != -1:
+            self.EPISODE_STEPS_LIMIT = env_params['EpisodeSteps']
+
+        else:
+            self.EPISODE_STEPS_LIMIT = 1  # only one state env
+
+        # state info
+        self.state_dim = 1
+        self.state_range = np.array([0.])
+        self.state_min = np.array([0.])
+        self.state_max = np.array([0.])
+        self.state_bounded = True
+
+        # action info
+        self.action_dim = 1
+        self.action_range = np.array([2.])
+        self.action_min = np.array([-1.])
+        self.action_max = np.array([1.])
+
+    def set_random_seed(self, random_seed):
+        pass
+
+    # Reset the environment for a new episode. return the initial state
+    def reset(self):
+
+        # starts at 0.
+        self.state = np.array([0.])
+        return self.state
+
+    def step(self, action):
+        self.state = self.state + action  # terminal state
+        reward = self.reward_func(action)
+        done = True
+        info = {}
+
+        return self.state, reward, done, info
+
+    @staticmethod
+    def reward_func(action):
+
+        maxima1 = -1.0
+        maxima2 = 1.0
+
+        stddev1 = 0.2
+        stddev2 = 0.2
+
+        # Reward function.
+        # Two gaussian functions.
+        modal1 = 1. * math.exp(-0.5 * ((2 * action - maxima1) / stddev1) ** 2)
+        modal2 = 1.5 * math.exp(-0.5 * ((2 * action - maxima2) / stddev2) ** 2)
+
+        return modal1 + modal2
+
+    # Close the environment and clear memory
+    def close(self):
+        pass
+

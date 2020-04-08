@@ -15,6 +15,7 @@ import time
 
 import matplotlib
 matplotlib.use('TkAgg')
+from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
 
 
@@ -34,7 +35,7 @@ agent_params = {
 
     "entropy_scale": [1.0, 0.1, 0.01],  # 1.0, 0.5, 0.01
     "l_param": 6,
-    "N_param": 128,
+    "N_param": 64,
     "optim_type": "intg",
 
     "actor_critic_dim": 200,
@@ -92,19 +93,29 @@ def compute_plot(kl_type, entropy_arr, y_arr, x_arr, kl_arr, save_dir):
     yticklabels = np.around(y_arr[::10], decimals=2)
 
     if clip_kl_upper_bound:
-        forward_kl_arr = np.clip(kl_arr, -np.inf, KL_UPPER_LIMIT)
+        kl_arr = np.clip(kl_arr, -np.inf, KL_UPPER_LIMIT)
 
     # Plot heatmap per entropy per kl
     for t_idx, tau in enumerate(entropy_arr):
 
         ax = sns.heatmap(kl_arr[t_idx])
 
+        best_idx = np.argmin(kl_arr[t_idx])
+        best_mean_idx = int(best_idx/len(x_arr))
+        best_std_idx = best_idx%len(x_arr)
+        best_param = (y_arr[best_mean_idx], x_arr[best_std_idx])
+        print("tau {} best param - mean: {}, std: {}".format(tau, best_param[0], best_param[1]))
+
+        # highlight minimum point
+        ax.add_patch(Rectangle((best_std_idx, best_mean_idx), 1, 1, fill=False, edgecolor='blue', lw=1))
+
+
         ax.set_xticks(xticks)
         ax.set_xticklabels(xticklabels)
         ax.set_yticks(yticks)
         ax.set_yticklabels(yticklabels)
 
-        ax.set_title("{} KL Heatmap (truncated KL upper limit: {})".format(kl_type, KL_UPPER_LIMIT if clip_kl_upper_bound else False))
+        ax.set_title("{} KL Heatmap (truncated KL upper limit: {})\n best param - mean: {}, std: {}".format(kl_type, KL_UPPER_LIMIT if clip_kl_upper_bound else False, best_param[0], best_param[1]))
 
         plt.savefig('{}/{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
         plt.clf()

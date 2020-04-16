@@ -34,6 +34,8 @@ class ForwardKLNetwork(BaseNetwork):
         else:
             self.batch_size = 1
 
+        self.use_hard_policy = config.use_hard_policy
+
         # create network
         if config.env_name == 'ContinuousBandits':
             self.pi_net = LinearPolicyNetwork(self.state_dim, self.action_dim, self.action_max[0])
@@ -154,39 +156,54 @@ class ForwardKLNetwork(BaseNetwork):
             value_loss = nn.MSELoss()(v_val, target_v_val.detach())
 
         # pi_loss
-        if self.optim_type == 'll':
-            raise NotImplementedError
+        if not self.use_hard_policy:
+            if self.optim_type == 'll':
+                raise NotImplementedError
 
-        elif self.optim_type == 'intg':
-            tiled_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1)
-            stacked_state_batch = tiled_state_batch.reshape(-1, self.state_dim)
+            elif self.optim_type == 'intg':
+                tiled_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1)
+                stacked_state_batch = tiled_state_batch.reshape(-1, self.state_dim)
 
-            if self.use_true_q:
-                # predict_true_q
-                intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
+                if self.use_true_q:
+                    # predict_true_q
+                    intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
+                else:
+                    intgrl_q_val = self.q_net(stacked_state_batch, self.stacked_intgrl_actions)
+
+
+                tiled_intgrl_q_val = intgrl_q_val.reshape(-1, self.intgrl_actions_len) / self.entropy_scale
+
+                # compute Z
+                constant_shift, _ = torch.max(tiled_intgrl_q_val, -1, keepdim=True)
+                tiled_constant_shift = constant_shift.repeat(1, self.intgrl_actions_len)
+
+                intgrl_exp_q_val = torch.exp(tiled_intgrl_q_val - tiled_constant_shift).detach()
+
+                z = (intgrl_exp_q_val * self.tiled_intgrl_weights).sum(-1).detach()
+                tiled_z = z.unsqueeze(-1).repeat(1, self.intgrl_actions_len).detach()
+
+                boltzmann_prob = intgrl_exp_q_val / tiled_z
+
+                intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
+                tiled_intgrl_logprob = intgrl_logprob.reshape(self.batch_size, self.intgrl_actions_len)
+
+                integrands = boltzmann_prob * tiled_intgrl_logprob
+                policy_loss = (-(integrands * self.tiled_intgrl_weights).sum(-1)).mean(-1)
+
             else:
-                intgrl_q_val = self.q_net(stacked_state_batch, self.stacked_intgrl_actions)
-            tiled_intgrl_q_val = intgrl_q_val.reshape(-1, self.intgrl_actions_len) / self.entropy_scale
-
-            # compute Z
-            constant_shift, _ = torch.max(tiled_intgrl_q_val, -1, keepdim=True)
-            tiled_constant_shift = constant_shift.repeat(1, self.intgrl_actions_len)
-
-            intgrl_exp_q_val = torch.exp(tiled_intgrl_q_val - tiled_constant_shift).detach()
-
-            z = (intgrl_exp_q_val * self.tiled_intgrl_weights).sum(-1).detach()
-            tiled_z = z.unsqueeze(-1).repeat(1, self.intgrl_actions_len).detach()
-
-            boltzmann_prob = intgrl_exp_q_val / tiled_z
-
-            intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
-            tiled_intgrl_logprob = intgrl_logprob.reshape(self.batch_size, self.intgrl_actions_len)
-
-            integrands = boltzmann_prob * tiled_intgrl_logprob
-            policy_loss = (-(integrands * self.tiled_intgrl_weights).sum(-1)).mean(-1)
-
+                raise ValueError("Invalid optim_type")
         else:
-            raise ValueError("Invalid optim_type")
+            if self.use_true_q:
+
+                # 1x1x1
+                dummy_state_batch = torch.FloatTensor([0]).to(self.device).unsqueeze(-1).unsqueeze(-1)
+                dummy_action_batch = torch.FloatTensor([getattr(environments.environments, self.config.env_name).get_max()]).to(self.device).unsqueeze(-1).unsqueeze(-1)
+
+                print()
+                policy_loss = (-self.pi_net.get_logprob(dummy_state_batch, dummy_action_batch)).mean()
+
+            else:
+                raise ValueError("Need to find explicit maximum, and need trueQ")
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()

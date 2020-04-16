@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 INC = 0.01  # 0.01
 MEAN_MIN, MEAN_MAX = -0.5, 0.5
-STD_MIN, STD_MAX = 0.01, 1.2
+STD_MIN, STD_MAX = 0.01, 0.8
 KL_UPPER_LIMIT = 20
 
 clip_kl_upper_bound = True
@@ -108,7 +108,6 @@ def compute_plot(kl_type, entropy_arr, y_arr, x_arr, kl_arr, save_dir):
 
         # highlight minimum point
         ax.add_patch(Rectangle((best_std_idx, best_mean_idx), 1, 1, fill=False, edgecolor='blue', lw=1))
-
 
         ax.set_xticks(xticks)
         ax.set_xticklabels(xticklabels)

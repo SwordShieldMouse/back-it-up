@@ -259,6 +259,10 @@ class ContinuousBanditsNormalized(object):
 
         return modal1 + modal2
 
+    @staticmethod
+    def get_max():
+        return 0.5
+
     # Close the environment and clear memory
     def close(self):
         pass

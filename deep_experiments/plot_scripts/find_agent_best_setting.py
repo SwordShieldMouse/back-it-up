@@ -23,7 +23,6 @@ import os
 # Use if you want to plot specific settings, put the idx of the setting below.
 # You can also see *_Params.txt to see the idx for each setting.
 
-parse_type = 'entropy_scale'
 show_plot = False
 
 plot_each_runs = True
@@ -50,8 +49,8 @@ def get_xyrange(envname):
         ymax = [0, 0]
 
     elif envname == "Swimmer-v2":
-        ymin = [20, 20]
-        ymax = [120, 120]
+        ymin = [0, 0]
+        ymax = [50, 50]
 
     else:
         raise ValueError("Invalid environment name")
@@ -64,8 +63,8 @@ def get_xyrange(envname):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 7:
-        raise ValueError('Invalid input. \nCorrect Usage: find_agent_best_setting.py merged_result_loc, root_dir, env_name, agent_name, num_runs custom_save_name')
+    if len(sys.argv) != 8:
+        raise ValueError('Invalid input. \nCorrect Usage: find_agent_best_setting.py merged_result_loc, root_dir, env_name, agent_name, num_runs custom_save_name parse_type')
 
 
     root_dir = str(sys.argv[2])
@@ -79,6 +78,7 @@ if __name__ == "__main__":
     num_runs = int(sys.argv[5])
 
     custom_save_name = str(sys.argv[6])
+    parse_type = str(sys.argv[7])
 
     with open(env_json_dir, 'r') as env_dat:
         env_json = json.load(env_dat, object_pairs_hook=OrderedDict)
@@ -121,14 +121,14 @@ if __name__ == "__main__":
     EVAL_EPISODES = env_json['EvalEpisodes']
 
      # Plot type
-    result_type = ['EvalEpisode']
+    result_type = ['TrainEpisode', 'EvalEpisode']
 
     title = "%s, %s: %s (%d runs)" % (env_name, agent_name, custom_save_name, num_runs)
 
-    plt.figure(figsize=(12, 6))
-    plt.title(title)
-
     for result_idx, result in enumerate(result_type):
+
+        plt.figure(figsize=(12, 6))
+        plt.title(title)
 
         lcfilename = merged_result_dir + env_name + '_' + agent_name + '_' + result + 'MeanRewardsLC.txt'
         print('Reading lcfilename.. ' + lcfilename)
@@ -144,6 +144,7 @@ if __name__ == "__main__":
         files = glob.glob(paramfile)
         params = np.loadtxt(files[0], delimiter=',', dtype='str')
 
+        print("{} lc dim: {} x {}".format(result, len(lc), len(lc[0])))
         # default xmax
         xmax = np.shape(lc)[-1]
 
@@ -153,7 +154,7 @@ if __name__ == "__main__":
 
         last_N = int(last_N_ratio * xmax)
         if result == 'TrainEpisode':
-            raise NotImplementedError
+            plt.xlabel('Training Steps (per 1000 steps)')
 
         elif result == 'EvalEpisode':
             plt.xlabel('Training Steps (per 1000 steps)')
@@ -240,7 +241,7 @@ if __name__ == "__main__":
         if show_plot:
             plt.show()
         else:
-            plt.savefig("{}_{}_{}.png".format(env_name, agent_name, custom_save_name))
+            plt.savefig("{}_{}_{}.png".format(env_name, agent_name, result + '_' + custom_save_name))
         plt.close()
 
         savelc = bestlc
@@ -253,12 +254,12 @@ if __name__ == "__main__":
         np.save(savefilename_se, savelcse)
 
 
-    # just call plot_Bimodal.py
-    if plot_each_runs:
+        # just call plot_Bimodal.py
+        if plot_each_runs:
 
-        for i in range(num_type):
-            print("*** plotting each run for {}: {} --- {}".format(parse_type, type_arr[i], int(type_best_arr[i])))
-            os.system("python3 {}/plot_scripts/plot_Bimodal.py {}results {}/jsonfiles/environment/{}.json {} {} {} {}_{}_{}_runs".format(
-                root_dir, env_name, root_dir, env_name, num_runs, agent_name, int(type_best_arr[i]), custom_save_name, parse_type, type_arr[i]))
+            for i in range(num_type):
+                print("*** plotting each run for {}: {} --- {}".format(parse_type, type_arr[i], int(type_best_arr[i])))
+                os.system("python3 {}/plot_scripts/plot_Bimodal.py {}results {}/jsonfiles/environment/{}.json {} {} {} {}_{}_{} {}".format(
+                    root_dir, env_name, root_dir, env_name, num_runs, agent_name, int(type_best_arr[i]), custom_save_name, parse_type, type_arr[i], result))
 
 

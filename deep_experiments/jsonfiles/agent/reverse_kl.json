@@ -3,7 +3,7 @@
     "sweeps": {
         "actor_critic_dim": [64, 128, 256],
 
-        "pi_lr": [1e-3, 1e-4, 1e-5],
+        "pi_lr": [1e-2, 1e-3, 1e-4],
         "qf_vf_lr": [1e-2, 1e-3, 1e-4],
 
         "sample_for_eval": ["False"],
@@ -17,6 +17,9 @@
         "q_update_type": ["non_sac", "sac"],
         "use_replay": [true],
         "use_target": [false],
-        "batch_size": [32]
+        "batch_size": [32],
+
+        "use_hard_policy": [false]
+
     }
 }

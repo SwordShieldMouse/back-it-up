@@ -7,27 +7,30 @@ from pathlib import Path
 from collections import OrderedDict
 import json
 
-root_dir = str(sys.argv[1])
-store_dir = str(sys.argv[2])
+# list of agent.json names
+agents = ['ForwardKL', 'ReverseKL']
+params = ['actor_critic_dim', 'pi_lr', 'qf_vf_lr', 'entropy_scale', 'q_update_type']
+
+store_dir = str(sys.argv[1])
+env_name = str(sys.argv[2])
 
 eval_last_N = True
 last_N_ratio = 0.5
 
-policy_lr_curve_data = {}
-value_lr_curve_data = {}
-
-
 # Pendulum
-env_name = 'Swimmer-v2'
 # plt_yticks = [-1600, -1200, -800, -400, -200, 0]
 
-# for agent_filename in ['forward_kl_bandits', 'reverse_kl_bandits']:
-for agent_filename in ['forward_kl', 'reverse_kl']:
+dicts = {}
+for p in params:
+    dicts[p] = {}
 
-    sweep_params = ['pi_lr', 'qf_vf_lr', 'entropy_scale', 'batch_size']
+# for agent_filename in ['forward_kl_bandits', 'reverse_kl_bandits']:
+for agent_name in agents:
+
+    sweep_params = params
 
     # load json
-    json_dir = '{}/jsonfiles/agent/{}.json'.format(root_dir, agent_filename)
+    json_dir = '{}/merged{}results/{}_{}_agent_Params.json'.format(store_dir, env_name, env_name, agent_name)
 
     with open(json_dir, 'r') as agent_dat:
 
@@ -50,6 +53,7 @@ for agent_filename in ['forward_kl', 'reverse_kl']:
     x = 1
     y = 1
 
+    print("agent: {}".format(agent_name))
     for p in sweep_params:
         print("cur sweep param: {}".format(p))
 
@@ -71,7 +75,9 @@ for agent_filename in ['forward_kl', 'reverse_kl']:
 
             # find result and mean
             # param_sweep_array.append(idx_array)
-
+            # print(len(idx_array))
+            # if (len(idx_array)) == 108:
+            #     print(idx_array)
             result_array = []
             for idx in idx_array:
                 xmax = len(train_mean_result[idx])
@@ -79,7 +85,7 @@ for agent_filename in ['forward_kl', 'reverse_kl']:
                     last_N = int(xmax * last_N_ratio)
                 else:
                     last_N = 0
-                result_array.append(np.mean(train_mean_result[idx][xmax-last_N:]))
+                result_array.append(np.sum(train_mean_result[idx][xmax-last_N:]))
 
             plt_cum_reward_y.append(np.max(result_array))
         y *= cur_param_num
@@ -90,66 +96,62 @@ for agent_filename in ['forward_kl', 'reverse_kl']:
         plt_x = plt_x[::-1]
         # plt_xticks = plt_xticks[::-1]
         plt_cum_reward_y = plt_cum_reward_y[::-1]
-        plt.plot(plt_xticks, plt_cum_reward_y)
+        # plt.plot(plt_xticks, plt_cum_reward_y)
 
-        # if p in ['actor_lr', 'pi_lr']:
-        #     policy_lr_curve_data[agent_name] = (p, plt_xticks, plt_x, plt_cum_reward_y.copy())
-        # elif p in ['expert_lr', 'qnet_lr', 'learning_rate', 'critic_lr', 'qf_vf_lr']:
-        #     value_lr_curve_data[agent_name] = (p, plt_xticks, plt_x, plt_cum_reward_y.copy())
+        dicts[p][agent_name] = (p, plt_xticks, plt_x, plt_cum_reward_y.copy())
 
-        plt.title("{}: {} sensitivity curve".format(agent_name, p))
-        plt.xlabel("{}".format(p))
-        plt.ylabel("Avg. {} AUC ".format(last_N_ratio), rotation=90)
-        plt.xticks(plt_xticks, plt_x)
-        # plt.yticks(,)
-
-        # plt.show()
-        plt.savefig("{}_{}_sensitivity_curve.png".format(agent_name, p))
-        plt.clf()
+        # if you want to show sensitivity for each agent individually
+        # plt.title("{}: {} sensitivity curve".format(agent_name, p))
+        # plt.xlabel("{}".format(p))
+        # plt.ylabel("Avg. {} AUC ".format(last_N_ratio), rotation=90)
+        # plt.xticks(plt_xticks, plt_x)
+        #
+        # plt.savefig("{}_{}_sensitivity_curve.png".format(agent_name, p))
+        # plt.clf()
 
 # Combined plots
-#
-# print(value_lr_curve_data.keys())
-# exit()
+
+show_label = True
+
+colors = [ '#377eb8', '#4daf4a', '#ff7f00',
+                  '#f781bf', '#984ea3', '#999999','#a65628',
+                  '#e41a1c', '#999999', '#dede00']
 
 
-# show_label = False
-#
-# colors = [ '#377eb8', '#4daf4a', '#ff7f00',
-#                   '#f781bf', '#984ea3', '#999999','#a65628',
-#                   '#e41a1c', '#999999', '#dede00']
-#
-#
-# # q-learning methods
-# # ae, ae_plus, qt_opt, naf, picnn, wirefitting, sql, optimalq
-#
-# # Bimodal
-# # for idx, a in enumerate(['ActorExpert', 'ActorExpert_Plus', 'SoftQlearning', 'NAF', 'PICNN', 'QT_OPT', 'WireFitting', 'OptimalQ']):
-# # Pendulum
-# for idx, a in enumerate(['ActorExpert_Separate', 'ActorExpert_Plus_Separate', 'SoftQlearning', 'NAF', 'PICNN', 'QT_OPT']):
-#
-#     plt_xticks = value_lr_curve_data[a][1]
-#     plt_x = value_lr_curve_data[a][2]
-#     plt_y = value_lr_curve_data[a][3]
-#     plt.plot(plt_xticks, plt_y, colors[idx], label="{}: {}".format(a, value_lr_curve_data[a][0]))
-#     plt.ylim(0, 1.5)
-#
-#     if show_label:
-#         plt.xticks(plt_xticks, plt_x)
-#         plt.yticks(plt_yticks, plt_yticks)
-#
-#     else:
-#         plt.xticks(plt_xticks, [])
-#         plt.yticks(plt_yticks, [])
-#
-# if show_label:
-#     plt.legend()
-#     plt.title("Q-learning: Value LR sensitivity curve")
-#     plt.xlabel("Value LR")
-#     plt.ylabel("Cum reward", rotation=90)
-# plt.show()
-# plt.clf()
-#
+# q-learning methods
+# ae, ae_plus, qt_opt, naf, picnn, wirefitting, sql, optimalq
+
+# Bimodal
+# for idx, a in enumerate(['ActorExpert', 'ActorExpert_Plus', 'SoftQlearning', 'NAF', 'PICNN', 'QT_OPT', 'WireFitting', 'OptimalQ']):
+# Pendulum
+
+for p in dicts:
+    for idx, a in enumerate(agents):
+
+        plt_xticks = dicts[p][a][1]
+        plt_x = dicts[p][a][2]
+        plt_y = dicts[p][a][3]
+        plt.plot(plt_xticks, plt_y, colors[idx], label="{}".format(a))
+        # plt.ylim(0, 1.5)
+
+        if show_label:
+            plt.xticks(plt_xticks, plt_x)
+            # plt.yticks(plt_yticks, plt_yticks)
+
+        else:
+            plt.xticks(plt_xticks, [])
+            # plt.yticks(plt_yticks, [])
+
+    if show_label:
+        plt.legend()
+        plt.title("{} sensitivity curve".format(p))
+        plt.xlabel(p)
+        plt.ylabel("0.5 AUC", rotation=90)
+
+    plt.savefig("combined_{}_sensitivity_curve.png".format(p))
+    # plt.show()
+    plt.clf()
+
 # # policy + value
 # for idx, a in enumerate(['ActorExpert_Separate', 'ActorExpert_Plus_Separate', 'SoftQlearning', 'ActorCritic_Separate', 'SoftActorCritic', 'DDPG']):
 #
@@ -196,5 +198,5 @@ for agent_filename in ['forward_kl', 'reverse_kl']:
 #     plt.xlabel("Policy LR")
 #     plt.ylabel("Cum reward", rotation=90)
 # plt.show()
-#
-# # ac_separate, sac, sql, ddpg, ae, ae_plus
+
+# ac_separate, sac, sql, ddpg, ae, ae_plus

@@ -34,6 +34,8 @@ class ReverseKLNetwork(BaseNetwork):
 
         self.use_target = config.use_target
 
+        self.use_hard_policy = config.use_hard_policy
+
         # create network
         if config.env_name == 'ContinuousBandits':
             self.pi_net = LinearPolicyNetwork(self.state_dim, self.action_dim, self.action_max[0])
@@ -157,35 +159,61 @@ class ReverseKLNetwork(BaseNetwork):
             value_loss = nn.MSELoss()(v_val, target_v_val.detach())
 
         # pi_loss
-        if self.optim_type == 'll':
-            log_prob_target = new_q_val - v_val
 
-            # loglikelihood update
-            policy_loss = (-log_prob * (log_prob_target - self.entropy_scale * log_prob).detach()).mean()
+        if not self.use_hard_policy:
+            if self.optim_type == 'll':
+                log_prob_target = new_q_val - v_val
 
-        elif self.optim_type == 'hard_ll':
-            log_prob_target = new_q_val - v_val
-            policy_loss = (-log_prob * (log_prob_target).detach()).mean()
+                # loglikelihood update
+                policy_loss = (-log_prob * (log_prob_target - self.entropy_scale * log_prob).detach()).mean()
 
-        elif self.optim_type == 'intg':
-            stacked_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, self.state_dim)
+            # TODO: probably remove this from the category
+            elif self.optim_type == 'hard_ll':
+                log_prob_target = new_q_val - v_val
+                policy_loss = (-log_prob * (log_prob_target).detach()).mean()
+
+            elif self.optim_type == 'intg':
+                stacked_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, self.state_dim)
+
+                if self.use_true_q:
+                    intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
+
+                    intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
+
+                    integrands = - torch.exp(intgrl_logprob.squeeze()) * (
+                                (intgrl_q_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
+                else:
+                    intgrl_q_val = self.q_net(stacked_state_batch, self.stacked_intgrl_actions)
+                    intgrl_v_val = v_val.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, 1)
+
+                    intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
+
+                    integrands = - torch.exp(intgrl_logprob.squeeze()) * ((intgrl_q_val.squeeze() - intgrl_v_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
+
+                policy_loss = (integrands * self.intgrl_weights.repeat(self.batch_size)).reshape(self.batch_size, -1).sum(-1).mean(-1)
+
+        else:
+            stacked_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1,self.state_dim)
 
             if self.use_true_q:
-                intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
+                intgrl_q_val = torch.from_numpy(
+                    self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
 
                 intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
 
-                integrands = - torch.exp(intgrl_logprob.squeeze()) * (
-                            (intgrl_q_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
+                integrands = - torch.exp(intgrl_logprob.squeeze()) * intgrl_q_val.squeeze()  # .detach())
             else:
-                intgrl_q_val = self.q_net(stacked_state_batch, self.stacked_intgrl_actions)
-                intgrl_v_val = v_val.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, 1)
+                raise NotImplementedError()
+                # intgrl_q_val = self.q_net(stacked_state_batch, self.stacked_intgrl_actions)
+                # intgrl_v_val = v_val.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, 1)
+                #
+                # intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
+                #
+                # integrands = - torch.exp(intgrl_logprob.squeeze()) * ((
+                #                                                                   intgrl_q_val.squeeze() - intgrl_v_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
 
-                intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
-
-                integrands = - torch.exp(intgrl_logprob.squeeze()) * ((intgrl_q_val.squeeze() - intgrl_v_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
-
-            policy_loss = (integrands * self.intgrl_weights.repeat(self.batch_size)).reshape(self.batch_size, -1).sum(-1).mean(-1)
+            policy_loss = (integrands * self.intgrl_weights.repeat(self.batch_size)).reshape(self.batch_size, -1).sum(
+                -1).mean(-1)
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()

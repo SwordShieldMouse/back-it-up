@@ -17,6 +17,8 @@
         "q_update_type": ["sac"],
         "use_replay": [false],
         "use_target": [false],
-        "batch_size": [-1]
+        "batch_size": [-1],
+
+        "use_hard_policy": [false]
     }
 }

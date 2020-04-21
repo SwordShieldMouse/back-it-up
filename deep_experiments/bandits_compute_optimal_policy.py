@@ -21,9 +21,9 @@ import matplotlib.pyplot as plt
 import math
 
 INC = 0.005  # 0.01
-MEAN_MIN, MEAN_MAX = -0.7, 0.7
-STD_MIN, STD_MAX = 0.01, 0.81
-KL_UPPER_LIMIT = 20
+MEAN_MIN, MEAN_MAX = -0.6, 0.6
+STD_MIN, STD_MAX = 0.01, 0.8
+KL_UPPER_LIMIT = 100
 
 compute_mc = True
 clip_kl_upper_bound = True
@@ -37,7 +37,7 @@ agent_params = {
 
     "entropy_scale": [1.0, 0.1, 0.01],  # 1.0, 0.5, 0.01
     "l_param": 6,
-    "N_param": 64,
+    "N_param": 2048,
     "optim_type": "intg",
 
     "actor_critic_dim": 200,

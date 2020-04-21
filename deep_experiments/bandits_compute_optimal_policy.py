@@ -18,12 +18,14 @@ matplotlib.use('TkAgg')
 from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
 
+import math
 
-INC = 0.01  # 0.01
-MEAN_MIN, MEAN_MAX = -0.5, 0.5
-STD_MIN, STD_MAX = 0.01, 0.8
+INC = 0.005  # 0.01
+MEAN_MIN, MEAN_MAX = -0.7, 0.7
+STD_MIN, STD_MAX = 0.01, 0.81
 KL_UPPER_LIMIT = 20
 
+compute_mc = True
 clip_kl_upper_bound = True
 save_plot = True
 
@@ -51,7 +53,9 @@ agent_params = {
     "random_seed": 0,
     "write_plot": None,
     "writer": None,
-    "write_log": None
+    "write_log": None,
+
+    "use_hard_policy": True
 }
 
 
@@ -61,7 +65,7 @@ def compute_pi_logprob(mean, std, action_arr):
 
     result = []
     for arr in action_arr:
-        result.append([dist.logpdf(a) for a in arr])
+        result.append([dist.logpdf(math.atanh(a)) for a in arr])
     return result
 
 
@@ -104,7 +108,7 @@ def compute_plot(kl_type, entropy_arr, y_arr, x_arr, kl_arr, save_dir):
         best_mean_idx = int(best_idx/len(x_arr))
         best_std_idx = best_idx%len(x_arr)
         best_param = (y_arr[best_mean_idx], x_arr[best_std_idx])
-        print("tau {} best param - mean: {}, std: {}".format(tau, best_param[0], best_param[1]))
+        print("tau {} best param - mean: {}, std: {}".format(tau, round(best_param[0], 2), round(best_param[1], 2)))
 
         # highlight minimum point
         ax.add_patch(Rectangle((best_std_idx, best_mean_idx), 1, 1, fill=False, edgecolor='blue', lw=1))
@@ -114,7 +118,7 @@ def compute_plot(kl_type, entropy_arr, y_arr, x_arr, kl_arr, save_dir):
         ax.set_yticks(yticks)
         ax.set_yticklabels(yticklabels)
 
-        ax.set_title("{} KL Heatmap (truncated KL upper limit: {})\n best param - mean: {}, std: {}".format(kl_type, KL_UPPER_LIMIT if clip_kl_upper_bound else False, best_param[0], best_param[1]))
+        ax.set_title("{} KL Heatmap (truncated KL upper limit: {})\n best param - mean: {}, std: {}".format(kl_type, KL_UPPER_LIMIT if clip_kl_upper_bound else False, round(best_param[0], 2), round(best_param[1],2)))
 
         plt.savefig('{}/{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
         plt.clf()
@@ -161,6 +165,7 @@ def main():
 
     # initialize agent
     agent = create_agent(agent_json['agent'], config)
+
     agent_network = agent.network_manager.network
     intgrl_actions = agent_network.intgrl_actions.numpy()
     intgrl_weights = agent_network.intgrl_weights.numpy()
@@ -206,10 +211,6 @@ def main():
             # Loop over possible mean, std
             losses = np.array([forward_kl_loss(tiled_intgrl_weights, tiled_intgrl_actions, boltzmann_prob, mu, std) for (mu, std) in all_candidates])
 
-            # best_idx = np.argmin(losses)
-            # best_param = (mean_candidates[int(best_idx/STD_NUM_POINTS)], std_candidates[best_idx%STD_NUM_POINTS])
-            # print("best param - mean: {}, std: {}".format(best_param[0], best_param[1]))
-
             forward_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
 
             end_run = datetime.now()
@@ -237,10 +238,6 @@ def main():
 
             # Loop over possible mean, std
             losses = np.array([reverse_kl_loss(tiled_intgrl_weights, tiled_intgrl_actions, tiled_intgrl_q_val, mu, std, z) for (mu, std) in all_candidates])
-
-            # best_idx = np.argmin(losses)
-            # best_param = (mean_candidates[int(best_idx / STD_NUM_POINTS)], std_candidates[best_idx % STD_NUM_POINTS])
-            # print("best param - mean: {}, std: {}".format(best_param[0], best_param[1]))
 
             reverse_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
 

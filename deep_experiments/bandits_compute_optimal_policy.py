@@ -14,14 +14,14 @@ from datetime import datetime
 import time
 
 import matplotlib
-matplotlib.use('TkAgg')
+#matplotlib.use('TkAgg')
 from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
 
 import math
 
 INC = 0.005  # 0.01
-MEAN_MIN, MEAN_MAX = -0.6, 0.6
+MEAN_MIN, MEAN_MAX = -0.8, 0.8
 STD_MIN, STD_MAX = 0.01, 0.8
 KL_UPPER_LIMIT = 100
 

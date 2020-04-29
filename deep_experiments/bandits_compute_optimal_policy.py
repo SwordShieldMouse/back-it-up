@@ -11,11 +11,6 @@ from itertools import product
 
 from scipy.stats import norm
 from datetime import datetime
-import time
-
-import matplotlib
-#matplotlib.use('TkAgg')
-from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
 
 import math
@@ -24,7 +19,7 @@ INC = 0.005  # 0.01
 MEAN_MIN, MEAN_MAX = -0.8, 0.8
 STD_MIN, STD_MAX = 0.01, 0.8
 
-clip_kl_upper_bound = True
+clip_kl_upper_bound = False
 KL_UPPER_LIMIT = 50
 
 compute_mc = True
@@ -91,7 +86,7 @@ def reverse_kl_loss(intgrl_weights, intgrl_actions, intgrl_q_val, mu, std, z):
 
 def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
 
-    kl_arr = np.swapaxes(kl_arr, 1, 2)
+    kl_arr = np.log(np.swapaxes(kl_arr, 1, 2))
 
     # plot settings
     xticks = list(range(0, len(x_arr), 40)) + [len(x_arr)-1]
@@ -105,7 +100,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
     # Plot heatmap per entropy per kl
     for t_idx, tau in enumerate(entropy_arr):
 
-        ax = sns.heatmap(kl_arr[t_idx])
+        ax = sns.heatmap(kl_arr[t_idx], vmax=5, vmin=-2)
 
         best_idx = np.argmin(kl_arr[t_idx])
         best_mean_idx = int(best_idx/len(x_arr))

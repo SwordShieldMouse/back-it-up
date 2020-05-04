@@ -73,15 +73,24 @@ def main():
     max_frames = int(sys.argv[2])
     max_frames_per_ep = int(sys.argv[3])
 
+
+
     if not os.path.exists(saveDir):
         os.makedirs(saveDir)
 
     env_params = {"max_frames": max_frames, "max_frames_per_ep": max_frames_per_ep}
-    agent_params = forward_agent_params
 
     # Create env and agent
     env = open_grid_utils.OpenGrid(M, N, terminalStates, 0.99, stepRewards[0])
-    agent = ForwardKL(env=env, agent_params=agent_params, env_params=env_params, use_ep_length_r=True)
+
+    if sys.argv[4] == 'forward':
+        agent_params = forward_agent_params
+        agent = ForwardKL(env=env, agent_params=agent_params, env_params=env_params, use_ep_length_r=True)
+    elif sys.argv[4] == 'reverse':
+        agent_params = reverse_agent_params
+        agent = ReverseKL(env=env, agent_params=agent_params, env_params=env_params, use_ep_length_r=True)
+    else:
+        raise ValueError("Invalid agent")
 
     # extracted from agent.run : Run method should be outside the agent
     frame = 0
@@ -95,10 +104,12 @@ def main():
         while done is not True:
             # self.env.render()
             a = agent.act(s)
-            env.computeTrueVal(agent_params["softQtemp"], agent.all_probs[-1], saveDir+'/figures', curr_frame_count)
+            env.computeTrueVal(agent_params["softQtemp"], agent.compute_learnedV(), agent.all_probs[-1], saveDir+'/figures', ep, frame)
             sp, r, done, _ = env.step(a)
+
             # G += (self.gamma ** curr_frame_count) * r # if we want to use the discounted return as the eval metric
             G += r
+
             agent.step(s, a, r, sp, done)
             curr_frame_count += 1
             if curr_frame_count >= env_params["max_frames_per_ep"]:

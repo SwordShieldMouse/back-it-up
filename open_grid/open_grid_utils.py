@@ -133,12 +133,19 @@ class OpenGrid:
 
         return r
 
-    def computeTrueVal(self, entropy: float, policy: np.array, subDir, stepCount):
+    def computeTrueVal(self, entropy: float, learned_V_id, policy: np.array, subDir, epCount, stepCount):
 
         if not os.path.exists(subDir):
             os.makedirs(subDir)
 
-        V = np.zeros((self.M, self.N))
+        true_V = np.zeros((self.M, self.N))
+
+        learned_V = np.zeros((self.M, self.N))
+
+        # convert to learnred_V to grid layout
+
+        for m in range(self.M):
+            learned_V[m][:] = learned_V_id[self.N * m: self.N * m + self.N]
 
         error = float('inf')
         iter = 0
@@ -152,7 +159,7 @@ class OpenGrid:
                     s = [m,n]
                     s_id = self.state_id(s)
                     if self.isTerminalState(s):
-                        V[m][n] = 0.0
+                        true_V[m][n] = 0.0
 
                     else:
                         v_target = 0
@@ -163,40 +170,44 @@ class OpenGrid:
                             s_p = [m_p, n_p]
                             r_p = self.getReward(s_p)
 
-                            target = r_p - entropy * np.log(policy[s_id][a]) + self.gamma * V[m_p][n_p]
+                            target = r_p - entropy * np.log(policy[s_id][a]) + self.gamma * true_V[m_p][n_p]
                             v_target += target * ( (1 - self._action_eps) * policy[s_id][a] + self._action_eps * 1/len(self._actions) )
 
-                        error = max(error, abs(v_target - V[m][n]))
-                        V[m][n] = v_target
+                        error = max(error, abs(v_target - true_V[m][n]))
+                        true_V[m][n] = v_target
 
-            if iter % 100 == 0:
-                print("iter {} error: {}".format(iter, error))
+            # if iter % 100 == 0:
+            #     print("iter {} error: {}".format(iter, error))
             iter += 1
 
         # plot
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(25, 11))
 
-        self.plotHeatmap(V, ax1)
-        self.plotPolicy(policy, ax2)
+        self.plotHeatmap(true_V, ax1)
+        self.plotHeatmap(learned_V, ax2)
+        self.plotPolicy(policy, ax3)
 
         ax1.tick_params(labelsize=15)
         ax2.tick_params(labelsize=15)
+        ax3.tick_params(labelsize=15)
 
         # ax1.set_aspect('equal')
-        ax2.set_aspect('equal')
+        ax3.set_aspect('equal')
 
         ax1.set_title("true v", fontsize=15)
-        ax2.set_title("policy", fontsize=15)
+        ax2.set_title("learned v", fontsize=15)
+        ax3.set_title("policy", fontsize=15)
 
         plt.suptitle(
-            "Discrete Open Grid ({}x{}), Step: {}\n softQ temp: {}, stepReward: {}, termReward: {}".format(
-                self.M, self.N, stepCount, entropy, self.stepReward, list(self.terminalStates.values())), fontsize=15, y=0.95)
+            "Discrete Open Grid ({}x{}), Ep: {}, Step: {}\n softQ temp: {}, stepReward: {}, termReward: {}".format(
+                self.M, self.N, epCount, stepCount, entropy, self.stepReward, list(self.terminalStates.values())), fontsize=15, y=0.95)
 
         # plt.show()
         plt.savefig('{}/steps_{}.png'.format(subDir, stepCount))
 
         plt.clf()
-        return V
+        plt.close()
+        return true_V
 
     def plotHeatmap(self, V: np.array, ax):
 

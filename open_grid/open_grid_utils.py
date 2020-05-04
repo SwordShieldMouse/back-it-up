@@ -6,27 +6,13 @@ import os
 import datetime
 import seaborn as sns
 
+# from lib.pg_obj.src.envs.tabular_envs import GridWorld
+
 
 timeStamp = datetime.datetime.now().strftime('%m_%d_%H%M%S')
 print("Start run at: {}".format(timeStamp))
 
 saveDir = 'results/0_openGrid/{}'.format(timeStamp)
-
-
-def plotHeatmap(V: np.array, config, pi_name, entropy, stepReward, saveDir):
-    ax = sns.heatmap(V)
-
-    ax.set_xticks(range(config["M"] + 1))
-    ax.set_yticks(range(config["N"] + 1))
-    ax.set_title(
-        "Discrete Open Grid ({}x{}), policy: {} \n softQ temp: {}, stepReward: {}, termReward: {}".format(config["M"], config["N"], pi_name,
-                                                                                                          entropy, stepReward, list(
-                config["terminalStates"].values())))
-
-    # plt.show()
-    plt.savefig(
-        '{}/v_openGrid_{}x{}_softQtemp_{}_stepReward_{}_terminalReward_{}.png'.format(saveDir, config["M"], config["N"], entropy, stepReward, list(config["terminalStates"].values())))
-    plt.clf()
 
 def main():
     if not os.path.exists(saveDir):
@@ -36,19 +22,32 @@ def main():
         "M": 10,
         "N": 10,
         "terminalStates": {
-            (0, 9): 0,
-            (9, 9): 0
+            # (0, 9): 1,
+            (9, 9): 1
         },
         "gamma": 0.99,
-        "entropy_arr": [0.0, 0.01, 0.1, 0.5, 1.0],
-        "stepReward_arr": [-5, -1, -0.1, -0.01]
+        "softQtemp_arr": [0.0, 0.1, 0.5, 1.0],
+        "stepReward_arr": [-10, -1, -0.1, -0.01, 0]
     }
-
-    # right, down, left, up
 
     pi_name, pi = getPolicy(config["M"], config["N"])
 
-    for idx_e, e in enumerate(config["entropy_arr"]):
+    # pi[0][0][0] = 0.997
+    # pi[0][0][1] = 0.001
+    # pi[0][0][2] = 0.001
+    # pi[0][0][3] = 0.001
+    #
+    # pi[0][1][0] = 0.001
+    # pi[0][1][1] = 0.997
+    # pi[0][1][2] = 0.001
+    # pi[0][1][3] = 0.001
+    #
+    # pi[2][0] = 0.001
+    # pi[2][1] = 0.001
+    # pi[2][2] = 0.997
+    # pi[2][3] = 0.001
+
+    for idx_e, e in enumerate(config["softQtemp_arr"]):
         for idx_r, sr in enumerate(config["stepReward_arr"]):
 
             subDir = saveDir + '/{}_stepReward_{}'.format(idx_r, sr)
@@ -58,12 +57,11 @@ def main():
             # terminalStates: dict, gamma: float, stepReward: float, thresh=1e-6):
             env = OpenGrid(config["M"], config["N"], config["terminalStates"], config["gamma"], sr)
 
-            V = env.computeTrueVal(e, pi)
-            plotHeatmap(V, config, pi_name, e, sr, subDir)
+            env.computeTrueVal(e, pi, subDir)
 
 
 class OpenGrid:
-    def __init__(self, ROW: int, COL: int, terminalStates: dict, gamma: float, stepReward: float, thresh=1e-6):
+    def __init__(self, ROW: int, COL: int, terminalStates: dict, gamma: float, stepReward: float, thresh=1e-5):
 
         self.M = ROW
         self.N = COL
@@ -76,30 +74,70 @@ class OpenGrid:
 
         self.thresh = thresh
 
-    def getNextState(self, r, c, a):
+        self._starts = np.array([0, 0])
+        self._state = None
+        self._actions = np.array([[-1, 0], [0, -1], [1, 0], [0, 1]])  # up, left, down, right
+        self._action_eps = 0.0
 
-        if a == 0:  # right
-            return (r, c+1) if c+1 < self.N else (r, c)
-        elif a == 1:  # down
-            return (r+1, c) if r+1 < self.M else (r, c)
-        elif a == 2:  # left
-            return (r, c-1) if c-1 > -1 else (r, c)
-        elif a == 3:  # up
+        self.empty_Q = np.zeros((self.M * self.N, len(self._actions)))
+        self.n_states = self.M * self.N
+
+        self.n_actions = 4 * np.ones(100, dtype=np.int)
+
+    def state_id(self, s):
+        return s[0] * self.N + s[1]
+
+    def reset(self):
+        self._state = self._starts
+        return self.state_id(self._state)
+
+    def step(self, a):
+        if self._action_eps != 0.0 and np.random.random() <= self._action_eps:
+                a = np.random.randint(4)
+
+        sp = self.getNextState(self._state, a)  # self._state + self._actions[a]
+        r = self.getReward(sp)
+
+        isTerm = True if self.isTerminalState(sp) else False
+
+        self._state = sp
+
+        return self.state_id(self._state), r, isTerm, None
+
+    def getNextState(self, s, a):
+
+        r = s[0]
+        c = s[1]
+
+        if a == 0:  # up
             return (r-1, c) if r-1 > -1 else (r, c)
+        elif a == 1:  # left
+            return (r, c-1) if c-1 > -1 else (r, c)
+        elif a == 2:  # down
+            return (r+1, c) if r+1 < self.M else (r, c)
+        elif a == 3:  # right
+            return (r, c+1) if c+1 < self.N else (r, c)
 
-    def isTerminalState(self, r, c):
-        if (r, c) in self.terminalStates:
+    def isTerminalState(self, s):
+        if (s[0], s[1]) in self.terminalStates:
             return True
         else:
             return False
 
-    def getReward(self, r, c):
-        if self.isTerminalState(r, c):
-            return self.terminalStates[(r,c)]
-        else:
-            return self.stepReward
+    def getReward(self, s):
 
-    def computeTrueVal(self, entropy: float, policy: np.array):
+        r = self.stepReward
+
+        if self.isTerminalState(s):
+            r += self.terminalStates[(s[0], s[1])]
+
+        return r
+
+    def computeTrueVal(self, entropy: float, policy: np.array, subDir, stepCount):
+
+        if not os.path.exists(subDir):
+            os.makedirs(subDir)
+
         V = np.zeros((self.M, self.N))
 
         error = float('inf')
@@ -111,17 +149,22 @@ class OpenGrid:
             for m in range(self.M):
                 for n in range(self.N):
 
-                    if self.isTerminalState(m, n):
+                    s = [m,n]
+                    s_id = self.state_id(s)
+                    if self.isTerminalState(s):
                         V[m][n] = 0.0
 
                     else:
                         v_target = 0
 
-                        for a in range(len(policy[m][n])):
-                            m_p, n_p = self.getNextState(m, n, a)
-                            r_p = self.getReward(m_p, n_p)
+                        for a in range(len(policy[s_id])):
+                            m_p, n_p = self.getNextState(s, a)
 
-                            v_target += policy[m][n][a] * (r_p - entropy * np.log(policy[m][n][a]) + self.gamma * V[m_p][n_p])
+                            s_p = [m_p, n_p]
+                            r_p = self.getReward(s_p)
+
+                            target = r_p - entropy * np.log(policy[s_id][a]) + self.gamma * V[m_p][n_p]
+                            v_target += target * ( (1 - self._action_eps) * policy[s_id][a] + self._action_eps * 1/len(self._actions) )
 
                         error = max(error, abs(v_target - V[m][n]))
                         V[m][n] = v_target
@@ -130,7 +173,67 @@ class OpenGrid:
                 print("iter {} error: {}".format(iter, error))
             iter += 1
 
+        # plot
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 11))
+
+        self.plotHeatmap(V, ax1)
+        self.plotPolicy(policy, ax2)
+
+        ax1.tick_params(labelsize=15)
+        ax2.tick_params(labelsize=15)
+
+        # ax1.set_aspect('equal')
+        ax2.set_aspect('equal')
+
+        ax1.set_title("true v", fontsize=15)
+        ax2.set_title("policy", fontsize=15)
+
+        plt.suptitle(
+            "Discrete Open Grid ({}x{}), Step: {}\n softQ temp: {}, stepReward: {}, termReward: {}".format(
+                self.M, self.N, stepCount, entropy, self.stepReward, list(self.terminalStates.values())), fontsize=15, y=0.95)
+
+        # plt.show()
+        plt.savefig('{}/steps_{}.png'.format(subDir, stepCount))
+
+        plt.clf()
         return V
+
+    def plotHeatmap(self, V: np.array, ax):
+
+        # TODO: set cbar length to match plot
+        g1 = sns.heatmap(V, ax=ax, square=True)
+        g1.set_xticks(range(self.M + 1))
+        g1.set_yticks(range(self.N + 1))
+
+    def plotPolicy(self, policy, ax):
+
+        x = np.arange(0, self.N, 1.0)
+        y = np.arange(0, self.M, 1.0)
+
+        X, Y = np.meshgrid(x, y)
+
+        for a in range(4):
+
+            x_dir = np.ones((self.M, self.N)) if a == 3 or a == 1 else np.zeros((self.M, self.N))
+            y_dir = np.ones((self.M, self.N)) if a == 2 or a == 0 else np.zeros((self.M, self.N))
+
+            for m in range(self.M):
+                for n in range(self.N):
+
+                    s = [m,n]
+                    s_id = self.state_id(s)
+                    if a == 0 or a == 2:
+                        y_dir[m][n] *= policy[s_id][a] * (-1) * (a - 1)
+                    elif a == 1 or a == 3:
+                        x_dir[m][n] *= policy[s_id][a] * (a - 2)
+
+            ax.quiver(X, Y, x_dir, y_dir, units="inches", scale=2.5, scale_units="inches", width=0.025, headwidth=2,
+                      headlength=2)
+
+        ax.xaxis.set_ticks(x)
+        ax.yaxis.set_ticks(y)
+
+        ax.set_ylim(ax.get_ylim()[::-1])
 
 
 # hard-coded for testing purposes
@@ -140,7 +243,7 @@ def getPolicy(M, N):
     policy_name = 'uniform'
 
     if policy_name == 'uniform':
-        pi = 1/4 * np.ones((M, N, 4))
+        pi = 0.25 * np.ones((M * N, 4))
     else:
         raise ValueError("Invalid policy name")
 

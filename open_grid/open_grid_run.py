@@ -127,7 +127,7 @@ def main():
     else:
         raise ValueError("Invalid agent")
 
-    saveDir = 'results/0_openGrid/{}_{}'.format(timeStamp, agent_name)
+    saveDir = 'results/0_openGrid/{}_{}_{}'.format(timeStamp, stepReward, agent_name)
     if not os.path.exists(saveDir):
         os.makedirs(saveDir)
 

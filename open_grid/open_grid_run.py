@@ -107,7 +107,7 @@ def main():
 
 
 
-    stepReward = int(sys.argv[1])  # TODO: Currently used for indicating stepReward [-10, 0.01]
+    stepReward = float(sys.argv[1])  # TODO: Currently used for indicating stepReward [-10, 0.01]
     assert (stepReward == -10 or stepReward == -0.01)
 
     max_frames = int(sys.argv[2])

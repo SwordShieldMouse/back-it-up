@@ -79,7 +79,7 @@ class OpenGrid:
         self._starts = np.array([0, 0])
         self._state = None
         self._actions = np.array([[-1, 0], [0, -1], [1, 0], [0, 1]])  # up, left, down, right
-        self._action_eps = 0.0
+        self._action_eps = 0.25
 
         self.empty_Q = np.zeros((self.M * self.N, len(self._actions)))
         self.n_states = self.M * self.N

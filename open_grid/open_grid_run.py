@@ -2,6 +2,7 @@ import sys
 import os
 sys.path.append(os.getcwd())
 import numpy as np
+sys.path.insert(0,'..')  # a hack to get it working on school server
 from lib.pg_obj.src.agents.tabular_agents import ForwardKL, ReverseKL, HardForwardKL, HardReverseKL
 import open_grid.open_grid_utils as open_grid_utils
 import datetime

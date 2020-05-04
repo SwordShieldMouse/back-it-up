@@ -1,10 +1,13 @@
 import sys
+import os
+sys.path.append(os.getcwd())
 import numpy as np
 from lib.pg_obj.src.agents.tabular_agents import ForwardKL, ReverseKL, HardForwardKL, HardReverseKL
 import open_grid.open_grid_utils as open_grid_utils
 import datetime
 import os
 import subprocess
+
 # ========= Taken from tabular_run.py
 
 SEEDS = [609, 8166, 1286, 3403, 398, 404, 2757, 5536, 3535, 5768, 6034, 5703, 1885, 6052, 6434, 3026, 4009, 4212, 2829, 7483, 2267, 2861, 1444, 4950, 1845, 4048, 2521, 9204, 5936, 4626]

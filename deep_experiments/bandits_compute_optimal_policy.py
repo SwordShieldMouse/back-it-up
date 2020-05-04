@@ -17,7 +17,10 @@ import math
 
 INC = 0.005  # 0.01
 MEAN_MIN, MEAN_MAX = -0.8, 0.8
-STD_MIN, STD_MAX = 0.01, 0.8
+# STD_MIN, STD_MAX = 0.01, 0.8
+STD_MIN, STD_MAX = -4.6, 0.203
+STD_INC = 0.0304
+
 
 clip_kl_upper_bound = False
 KL_UPPER_LIMIT = 50
@@ -31,9 +34,9 @@ env_name = 'ContinuousBanditsNormalized'
 agent_name = 'forward_kl'
 agent_params = {
 
-    "entropy_scale": [1.0, 0.1, 0.01],  # 1.0, 0.5, 0.01
+    "entropy_scale": [0.01, 0.1, 1.0],  # 1.0, 0.5, 0.01
     "l_param": 6,
-    "N_param": 2048,
+    "N_param": 1024,
     "optim_type": "intg",
 
     "actor_critic_dim": 200,
@@ -57,6 +60,8 @@ agent_params = {
 
 def compute_pi_logprob(mean, std, action_arr):
 
+    # using ln(1 + exp(param))
+    std = np.log(1+np.exp(std))
     dist = norm(mean, std)
 
     result = []
@@ -127,10 +132,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--compute_kl_type', type=str)
     parser.add_argument('--save_dir', type=str)
-    parser.add_argument('--load_results', type=bool, default=False)
-
+    parser.add_argument('--load_results', type=str)
 
     args = parser.parse_args()
+
+    if args.load_results == 'True':
+        args.load_results = True
+    elif args.load_results == 'False':
+        args.load_results = False
+    else: 
+        raise ValueError("Invalid --load_results value")
 
 
     env_json_path = './jsonfiles/environment/{}.json'.format(env_name)
@@ -174,7 +185,7 @@ def main():
     tiled_intgrl_weights = agent_network.tiled_intgrl_weights.numpy()
 
     mean_candidates = list(np.arange(MEAN_MIN, MEAN_MAX+INC, INC))
-    std_candidates = list(np.arange(STD_MIN, STD_MAX+INC, INC))
+    std_candidates = list(np.arange(STD_MIN, STD_MAX+STD_INC, STD_INC))
 
     MEAN_NUM_POINTS = len(mean_candidates)
     STD_NUM_POINTS = len(std_candidates)

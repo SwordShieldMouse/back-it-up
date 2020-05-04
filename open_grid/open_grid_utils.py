@@ -9,12 +9,13 @@ import seaborn as sns
 # from lib.pg_obj.src.envs.tabular_envs import GridWorld
 
 
-timeStamp = datetime.datetime.now().strftime('%m_%d_%H%M%S')
-print("Start run at: {}".format(timeStamp))
-
-saveDir = 'results/0_openGrid/{}'.format(timeStamp)
-
 def main():
+
+    timeStamp = datetime.datetime.now().strftime('%m_%d_%H%M%S')
+    print("Start run at: {}".format(timeStamp))
+
+    saveDir = 'results/0_openGrid/{}'.format(timeStamp)
+
     if not os.path.exists(saveDir):
         os.makedirs(saveDir)
 
@@ -63,6 +64,7 @@ def main():
 class OpenGrid:
     def __init__(self, ROW: int, COL: int, terminalStates: dict, gamma: float, stepReward: float, thresh=1e-5):
 
+        self.name = "OpenGrid"
         self.M = ROW
         self.N = COL
 

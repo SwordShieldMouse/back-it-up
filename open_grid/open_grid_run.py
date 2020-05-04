@@ -1,6 +1,7 @@
 import sys
 import os
 sys.path.append(os.getcwd())
+sys.path.insert(0,'..')
 import numpy as np
 sys.path.insert(0,'..')  # a hack to get it working on school server
 from lib.pg_obj.src.agents.tabular_agents import ForwardKL, ReverseKL, HardForwardKL, HardReverseKL
@@ -8,6 +9,8 @@ import open_grid.open_grid_utils as open_grid_utils
 import datetime
 import os
 import subprocess
+
+import time
 
 # ========= Taken from tabular_run.py
 
@@ -33,68 +36,101 @@ ALGS = [(HardForwardKL, ["alr","lr", "softQtemp", "gamma", "sacupdate", "fa"]),
 
 # OpenGrid Config
 
-M, N = 10, 10
+M, N = 7, 7
 terminalStates = {
-            (9, 9): 1
+            (6, 6): 1
             # (9, 9): 0
         }
-stepRewards = [-10, -0.01]
+# stepRewards = [-10, -0.01]
 
-# -10, Reverse
-reverse_agent_params = { "alr": 0.3,
-                "lr": 0.6,
-                "softQtemp": 0.5,
-                "softmaxtemp": 1.0,
+# Key is the stepReward, and values are the best params for that stepReward
+# Reverse
+reverse_agent_params = {-10: {"alr": 0.3,
+                              "lr": 0.6,
+                              "softQtemp": 0.5,
+                              "softmaxtemp": 1.0,
 
-                "gamma": 0.99,
-                "integration": 1,
-                "sacupdate": 0,
-                "noisyQ": 0,
-                "learnQ": 1,
-                "allstates": 0}
+                              "gamma": 0.99,
+                              "integration": 1,
+                              "sacupdate": 0,
+                              "noisyQ": 0,
+                              "learnQ": 1,
+                              "allstates": 0
+                              },
+                        -0.01: {"alr": 0.9,
+                              "lr": 0.9,
+                              "softQtemp": 0.0,
+                              "softmaxtemp": 0.01,
 
-# -10, Forward
-forward_agent_params = { "alr": 0.9,
-                "lr": 0.6,
-                "softQtemp": 0.5,
-                "softmaxtemp": 1.0,
+                              "gamma": 0.99,
+                              "integration": 1,
+                              "sacupdate": 0,
+                              "noisyQ": 0,
+                              "learnQ": 1,
+                              "allstates": 0
+                        }
+                        }
 
-                "gamma": 0.99,
-                "integration": 1,
-                "sacupdate": 0,
-                "noisyQ": 0,
-                "learnQ": 1,
-                "allstates": 0}
+# Forward
+forward_agent_params = {-10: {"alr": 0.9,
+                              "lr": 0.6,
+                              "softQtemp": 0.5,
+                              "softmaxtemp": 1.0,
+
+                              "gamma": 0.99,
+                              "integration": 1,
+                              "sacupdate": 0,
+                              "noisyQ": 0,
+                              "learnQ": 1,
+                              "allstates": 0
+                              },
+                        -0.01: {"alr": 0.9,
+                              "lr": 0.6,
+                              "softQtemp": 0.0,
+                              "softmaxtemp": 0.01,
+
+                              "gamma": 0.99,
+                              "integration": 1,
+                              "sacupdate": 0,
+                              "noisyQ": 0,
+                              "learnQ": 1,
+                              "allstates": 0
+
+                        }
+                    }
 
 
 def main():
-    timeStamp = datetime.datetime.now().strftime('%m_%d_%H%M%S')
+    t_start = time.time()
+    timeStamp = time.strftime('%m_%d_%H%M%S', time.gmtime(t_start))
     print("Start run at: {}".format(timeStamp))
 
-    saveDir = 'results/0_openGrid/{}'.format(timeStamp)
 
-    index = int(sys.argv[1])
+
+    stepReward = int(sys.argv[1])  # TODO: Currently used for indicating stepReward [-10, 0.01]
+    assert (stepReward == -10 or stepReward == -0.01)
+
     max_frames = int(sys.argv[2])
     max_frames_per_ep = int(sys.argv[3])
-
-
-
-    if not os.path.exists(saveDir):
-        os.makedirs(saveDir)
+    agent_name = sys.argv[4]
 
     env_params = {"max_frames": max_frames, "max_frames_per_ep": max_frames_per_ep}
 
     # Create env and agent
-    env = open_grid_utils.OpenGrid(M, N, terminalStates, 0.99, stepRewards[0])
+    env = open_grid_utils.OpenGrid(M, N, terminalStates, 0.99, stepReward)
 
-    if sys.argv[4] == 'forward':
-        agent_params = forward_agent_params
+    if agent_name == 'forward':
+        agent_params = forward_agent_params[stepReward]
         agent = ForwardKL(env=env, agent_params=agent_params, env_params=env_params, use_ep_length_r=True)
-    elif sys.argv[4] == 'reverse':
-        agent_params = reverse_agent_params
+    elif agent_name == 'reverse':
+        agent_params = reverse_agent_params[stepReward]
         agent = ReverseKL(env=env, agent_params=agent_params, env_params=env_params, use_ep_length_r=True)
     else:
         raise ValueError("Invalid agent")
+
+    saveDir = 'results/0_openGrid/{}_{}'.format(timeStamp, agent_name)
+    if not os.path.exists(saveDir):
+        os.makedirs(saveDir)
 
     # extracted from agent.run : Run method should be outside the agent
     frame = 0
@@ -144,7 +180,28 @@ def main():
     agent.plotting_data[-1][-1] -= np.sum(agent.plotting_data, axis=0)[-1] - env_params["max_frames"]
     assert np.sum(agent.plotting_data, axis=0)[-1] == env_params["max_frames"]
 
+
+    # save results
+    data = np.array(agent.avg_rewards)
+    # data = np.array(agent.returns)
+
+    # create directory if necessary
+    np.save("{}/{}_{}.npy".format(saveDir, env.name, agent.name), data)
+
+    # save policy probabilities
+    # np.save("data/ql/{}/probs/{}_seed={}.npy".format(env.name, agent.name, seed), np.array(agent.all_probs))
+
+    # save entropies
+    # np.save("data/tabular_control/{}/entropies/{}_seed={}.npy".format(env.name, agent.name, seed),
+    #         np.array(agent.entropies))
+
+    t_end = time.time()
+    t_elapsed = t_end - t_start
+    print("runtime = {}".format(time.strftime("%H:%M:%S", time.gmtime(t_elapsed))))
+
     subprocess.run(
-        ["ffmpeg", "-framerate", "24", "-i", "{}/figures/steps_%01d.png".format(saveDir), "{}.mp4".format(saveDir)])
+        ["ffmpeg", "-framerate", "24", "-i", "{}/figures/steps_%01d.png".format(saveDir), "{}/{}.mp4".format(saveDir, saveDir)])
+
+
 if __name__ == '__main__':
     main()

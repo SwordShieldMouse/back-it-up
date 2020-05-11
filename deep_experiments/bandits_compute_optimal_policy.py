@@ -15,11 +15,12 @@ import matplotlib.pyplot as plt
 
 import math
 
-INC = 0.0012  # 0.005 # 0.01
-MEAN_MIN, MEAN_MAX = -0.7, -0.4  # -0.8, 0.8
-# STD_MIN, STD_MAX = 0.01, 0.8
-STD_MIN, STD_MAX = 0.01, 0.2  # -4.6, 0.203
-STD_INC = 0.00076 #  0.0304
+INC = 0.01  # 0.0012  # 0.005 # 0.01
+MEAN_MIN, MEAN_MAX = -4, 4  # -0.7, -0.4  # -0.8, 0.8
+
+# Orig. STD_MIN, STD_MAX = 0.01, 0.8
+STD_MIN, STD_MAX = -4.6, 0.203 # -4.6, -1.508  # -4.6, 0.203
+STD_INC = 0.0304  # 0.0124 #  0.0304
 
 
 clip_kl_upper_bound = False
@@ -110,7 +111,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
     # Plot heatmap per entropy per kl
     for t_idx, tau in enumerate(entropy_arr):
 
-        ax = sns.heatmap(kl_arr[t_idx], vmax=10, vmin=-2)
+        ax = sns.heatmap(kl_arr[t_idx])
 
         best_idx = np.argmin(kl_arr[t_idx])
         best_mean_idx = int(best_idx/len(x_arr))

@@ -69,7 +69,7 @@ def compute_pi_logprob(mean, std, action_arr):
     for arr in action_arr:
         # logpdf = [dist.logpdf(math.atanh(a)) for a in arr]
         # logpdf -= np.log(1 - a**2 + epsilon).sum(dim=-1, keepdim=True)
-        pdf = [np.log(dist.pdf(math.atanh(a)) / (1 - math.tanh(math.atanh(a))**2 + 1e-6)) for a in arr]
+        pdf = [dist.logpdf(math.atanh(a)) - np.log(1 - a**2) for a in arr]
         result.append(pdf)
     return result
 
@@ -193,6 +193,7 @@ def main():
 
     tiled_intgrl_actions = np.squeeze(agent_network.tiled_intgrl_actions.numpy(), -1)
     tiled_intgrl_weights = agent_network.tiled_intgrl_weights.numpy()
+
 
     mean_candidates = list(np.arange(MEAN_MIN, MEAN_MAX+INC, INC))
     std_candidates = list(np.arange(STD_MIN, STD_MAX+STD_INC, STD_INC))

@@ -67,7 +67,9 @@ def compute_pi_logprob(mean, std, action_arr):
 
     result = []
     for arr in action_arr:
-        pdf = [np.log(dist.pdf(math.atanh(a)) / (1 - math.tanh(math.atanh(a))**2)) for a in arr]
+        # logpdf = [dist.logpdf(math.atanh(a)) for a in arr]
+        # logpdf -= np.log(1 - a**2 + epsilon).sum(dim=-1, keepdim=True)
+        pdf = [np.log(dist.pdf(math.atanh(a)) / (1 - math.tanh(math.atanh(a))**2 + 1e-6)) for a in arr]
         result.append(pdf)
     return result
 

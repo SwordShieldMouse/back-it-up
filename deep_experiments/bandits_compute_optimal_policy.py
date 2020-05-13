@@ -9,7 +9,7 @@ from utils.config import Config
 import seaborn as sns
 from itertools import product
 
-from scipy.stats import norm
+from scipy.stats import norm as gauss
 from datetime import datetime
 import matplotlib.pyplot as plt
 
@@ -63,11 +63,12 @@ def compute_pi_logprob(mean, std, action_arr):
 
     # using ln(1 + exp(param))
     std = np.log(1+np.exp(std))
-    dist = norm(mean, std)
+    dist = gauss(mean, std)
 
     result = []
     for arr in action_arr:
-        result.append([dist.logpdf(math.atanh(a)) for a in arr])
+        pdf = [np.log(dist.pdf(math.atanh(a)) / (1 - math.tanh(math.atanh(a))**2)) for a in arr]
+        result.append(pdf)
     return result
 
 
@@ -92,7 +93,8 @@ def reverse_kl_loss(intgrl_weights, intgrl_actions, intgrl_q_val, mu, std, z):
 
 def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
 
-    kl_arr = np.log(np.swapaxes(kl_arr, 1, 2))
+    # kl_arr = np.log(np.swapaxes(kl_arr, 1, 2))
+    kl_arr = np.swapaxes(kl_arr, 1, 2)
 
     # applying std = log(1+exp(param))
     y_arr = list(np.log(1+np.exp(np.array(y_arr))))

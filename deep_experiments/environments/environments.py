@@ -254,8 +254,8 @@ class ContinuousBanditsNormalized(object):
 
         # Reward function.
         # Two gaussian functions.
-        modal1 = 1. * math.exp(-0.5 * ((2 * action - maxima1) / stddev1) ** 2)
-        modal2 = 1.5 * math.exp(-0.5 * ((2 * action - maxima2) / stddev2) ** 2)
+        modal1 = 1. * np.exp(-0.5 * ((2 * action - maxima1) / stddev1) ** 2)
+        modal2 = 1.5 * np.exp(-0.5 * ((2 * action - maxima2) / stddev2) ** 2)
 
         return modal1 + modal2
 

@@ -36,7 +36,7 @@ env_name = 'ContinuousBanditsNormalized'
 # dummy agent, just using params from this json
 agent_params = {
 
-    "entropy_scale": [0.01, 0.1],
+    "entropy_scale": [0.01, 0.05, 0.1, 1.0],
     "N_param": 1024
 }
 

@@ -6,8 +6,10 @@ from collections import OrderedDict
 import environments.environments as envs
 from utils.main_utils import get_sweep_parameters, create_agent
 from utils.config import Config
+from agents import ForwardKL, ReverseKL
 import seaborn as sns
 from itertools import product
+import quadpy
 
 from scipy.stats import norm as gauss
 from datetime import datetime
@@ -15,7 +17,7 @@ import matplotlib.pyplot as plt
 
 import math
 
-INC = 0.01  # 0.0012  # 0.005 # 0.01
+INC = 0.0012  # 0.005 # 0.01
 MEAN_MIN, MEAN_MAX = -4, 4  # -0.7, -0.4  # -0.8, 0.8
 
 # Orig. STD_MIN, STD_MAX = 0.01, 0.8
@@ -32,66 +34,93 @@ save_plot = True
 env_name = 'ContinuousBanditsNormalized'
 
 # dummy agent, just using params from this json
-agent_name = 'forward_kl'
 agent_params = {
 
-    "entropy_scale": [0.01, 0.1],  # 1.0, 0.5, 0.01
-    "l_param": 6,
-    "N_param": 1024,
-    "optim_type": "intg",
-
-    "actor_critic_dim": 200,
-    "pi_lr": 0.0,
-    "qf_vf_lr": 0.0,
-    "sample_for_eval": "False",
-    "use_true_q": "True",
-    "q_update_type": "sac",
-    "use_replay": False,
-    "use_target": False,
-    "batch_size": -1,
-
-    "random_seed": 0,
-    "write_plot": None,
-    "writer": None,
-    "write_log": None,
-
-    "use_hard_policy": True
+    "entropy_scale": [0.01, 0.1],
+    "N_param": 1024
 }
 
 
-def compute_pi_logprob(mean, std, action_arr):
+def compute_pi_logprob(mean_std_batch, action_arr):
 
+    # mean_std_batch: (batch_size, 2)
+    # action_arr: (batch_size, 1022)
+
+    # (batch_size, )
     # using ln(1 + exp(param))
-    std = np.log(1+np.exp(std))
-    dist = gauss(mean, std)
+    logprob = [gauss(mean_std[0], np.log(1+np.exp(mean_std[1]))).logpdf(np.arctanh(actions)) for mean_std, actions in zip(mean_std_batch, action_arr)]
 
-    result = []
-    for arr in action_arr:
-        # logpdf = [dist.logpdf(math.atanh(a)) for a in arr]
-        # logpdf -= np.log(1 - a**2 + epsilon).sum(dim=-1, keepdim=True)
-        pdf = [dist.logpdf(math.atanh(a)) - np.log(1 - a**2) for a in arr]
-        result.append(pdf)
-    return result
+    # term1 = np.array([dist[_].logpdf(np.arctanh(action_arr)) for _ in range(len(mean_std_batch))])
+    logprob -= np.log(1 - action_arr**2)
+
+    # logpdf = [dist.logpdf(math.atanh(a)) for a in arr]
+    # logpdf -= np.log(1 - a**2 + epsilon).sum(dim=-1, keepdim=True)
+    # pdf = [dist.logpdf(math.atanh(a)) - np.log(1 - a**2) for a in action_arr]
+
+    # (batch_size, 1022)
+    return logprob
 
 
-def forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_p, mu, std):
-    pi_logprob = compute_pi_logprob(mu, std, intgrl_actions)
+def forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_p, mean_std_batch):
+
+    # intgrl_weights: (1022, )
+    # intgrL_actions: (1022, )
+    # boltzmann_p: (1022, )
+    # mu_std_batch: (MEAN_NUM_POINTS * STD_NUM_POINTS, 2)
+
+    batch_size = len(mean_std_batch)
+
+    tiled_intgrl_weights = np.tile(intgrl_weights, [batch_size, 1])
+    tiled_intgrl_actions = np.tile(intgrl_actions, [batch_size, 1])
+    tiled_boltzmann_p = np.tile(boltzmann_p, [batch_size, 1])
+
+    # (batch_size, 1022)
+    pi_logprob = compute_pi_logprob(mean_std_batch, tiled_intgrl_actions)
 
     # ignoring boltzmann entropy
     # integrands = -boltzmann_p * pi_logprob
 
-    integrands = boltzmann_p * (np.log(boltzmann_p) - pi_logprob)
-    loss = np.sum(integrands * intgrl_weights)
+    # computing full kl loss
+    assert (np.shape(tiled_boltzmann_p) == np.shape(pi_logprob) == np.shape(tiled_intgrl_weights))
 
+    # (batch_size, 1022)
+    integrands = tiled_boltzmann_p * (np.log(tiled_boltzmann_p) - pi_logprob)
+    loss = np.sum(integrands * tiled_intgrl_weights, -1)
+
+    del tiled_intgrl_weights
+    del tiled_intgrl_actions
+    del tiled_boltzmann_p
+    del pi_logprob
+    del integrands
+
+    # (batch_size, )
     return loss
 
 
-def reverse_kl_loss(intgrl_weights, intgrl_actions, intgrl_q_val, mu, std, z):
-    pi_logprob = np.array(compute_pi_logprob(mu, std, intgrl_actions))  # (1, 62)
-    integrands = - np.exp(pi_logprob) * (intgrl_q_val - pi_logprob)
-    loss = np.sum(integrands * intgrl_weights) + np.log(z)
+def reverse_kl_loss(weights, actions, q_val, z, mean_std_batch):
+
+    batch_size = len(mean_std_batch)
+
+    tiled_q_val = np.tile(q_val, [batch_size, 1])
+    tiled_z = np.tile(z, [batch_size, 1])
+    tiled_weights = np.tile(weights, [batch_size, 1])
+    tiled_actions = np.tile(actions, [batch_size, 1])
+
+    # (batch_size, 1022)
+    pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
+
+    integrands = - np.exp(pi_logprob) * (tiled_q_val - pi_logprob)
+    loss = np.sum(integrands * tiled_weights) + np.log(tiled_z)
+
+    del tiled_q_val
+    del tiled_z
+    del tiled_weights
+    del tiled_actions
+    del pi_logprob
+    del integrands
 
     return loss
+
 
 def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
 
@@ -153,16 +182,12 @@ def main():
     else: 
         raise ValueError("Invalid --load_results value")
 
-
     env_json_path = './jsonfiles/environment/{}.json'.format(env_name)
-    agent_json_path = './jsonfiles/agent/{}.json'.format(agent_name)
 
     # read env/agent json
     with open(env_json_path, 'r') as env_dat:
         env_json = json.load(env_dat, object_pairs_hook=OrderedDict)
 
-    with open(agent_json_path, 'r') as agent_dat:
-        agent_json = json.load(agent_dat, object_pairs_hook=OrderedDict)
 
     # initialize env
     env = envs.create_environment(env_json)
@@ -183,17 +208,15 @@ def main():
     config.merge_config(env_params)
     config.merge_config(agent_params)
 
-    # initialize agent
-    agent = create_agent(agent_json['agent'], config)
+    # initialize kl params
 
-    agent_network = agent.network_manager.network
-    intgrl_actions = agent_network.intgrl_actions.numpy()
-    intgrl_weights = agent_network.intgrl_weights.numpy()
-    intgrl_actions_len = agent_network.intgrl_actions_len
+    scheme = quadpy.line_segment.clenshaw_curtis(config.N_param)
 
-    tiled_intgrl_actions = np.squeeze(agent_network.tiled_intgrl_actions.numpy(), -1)
-    tiled_intgrl_weights = agent_network.tiled_intgrl_weights.numpy()
+    # agent_network = agent.network_manager.network
 
+    intgrl_actions = np.array(scheme.points[1:-1])
+    intgrl_weights = np.array(scheme.weights[1:-1])
+    intgrl_actions_len = np.shape(intgrl_actions)[0]
 
     mean_candidates = list(np.arange(MEAN_MIN, MEAN_MAX+INC, INC))
     std_candidates = list(np.arange(STD_MIN, STD_MAX+STD_INC, STD_INC))
@@ -207,79 +230,110 @@ def main():
     print("std: {} points".format(STD_NUM_POINTS))
     print("Total combinations: {}".format(len(all_candidates)))
 
+    # batch_size = len(all_candidates)
+    # tiled_intgrl_actions = np.tile(intgrl_actions, [batch_size, 1])
+    # tiled_intgrl_weights = np.tile(intgrl_weights, [batch_size, 1])
 
+    # assert(np.shape(tiled_intgrl_actions) == (batch_size, 1022))
+    # assert (np.shape(tiled_intgrl_weights) == (batch_size, 1022))
 
     ## Forward KL
     if args.compute_kl_type == 'forward':
         print("== Forward KL ==")
 
-        forward_kl_arr = np.zeros((len(agent_network.entropy_scale), MEAN_NUM_POINTS, STD_NUM_POINTS))
+        forward_kl_arr = np.zeros((len(config.entropy_scale), MEAN_NUM_POINTS, STD_NUM_POINTS))
 
         if not args.load_results:
-            for t_idx, tau in enumerate(agent_network.entropy_scale):
+            for t_idx, tau in enumerate(config.entropy_scale):
 
                 start_run = datetime.now()
                 print("--- tau = {} ::: {}".format(tau, start_run))
 
                 ### Compute Boltzmann
-                # shape (1, 62)
-                tiled_intgrl_q_val = (agent_network.predict_true_q(None, intgrl_actions)).reshape(-1, intgrl_actions_len) / tau
 
-                constant_shift = np.amax(tiled_intgrl_q_val, axis=-1)[0]
-                intgrl_exp_q_val = np.exp(tiled_intgrl_q_val - constant_shift)
-                z = (intgrl_exp_q_val * agent_network.tiled_intgrl_weights.numpy()).sum(-1)
-                tiled_z = np.repeat(np.expand_dims(z, -1), intgrl_actions_len, 1)
-                boltzmann_prob = intgrl_exp_q_val / tiled_z
+                # (1022,)
+                q_val = (env.reward_func(intgrl_actions)) / tau
+
+                constant_shift = np.max(q_val, axis=-1)
+
+                # (1022, )
+                exp_q_val = np.exp(q_val - constant_shift)
+
+                # (1,)
+                z = (exp_q_val * intgrl_weights).sum(-1)
+
+                # (1022, )
+                tiled_z = np.tile(z, [intgrl_actions_len])
+
+                # (1022, )
+                boltzmann_prob = exp_q_val / tiled_z
+                assert(np.shape(boltzmann_prob) == (1022, ))
 
                 # Loop over possible mean, std
-                losses = np.array([forward_kl_loss(tiled_intgrl_weights, tiled_intgrl_actions, boltzmann_prob, mu, std) for (mu, std) in all_candidates])
+                # (MEAN_NUM_POINTS * STD_NUM_POINTS, )
+                # losses = np.array([forward_kl_loss(tiled_intgrl_weights, tiled_intgrl_actions, boltzmann_prob, mu, std) for (mu, std) in all_candidates])
 
+                losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, all_candidates)
                 forward_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
+
+                del q_val
+                del exp_q_val
+                del z
+                del tiled_z
+                del boltzmann_prob
 
                 end_run = datetime.now()
 
                 print("Time taken: {}".format(end_run - start_run))
 
-                np.save('{}/forward_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, agent_network.N, tau), forward_kl_arr[t_idx])
+                np.save('{}/forward_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, config.N_param, tau), forward_kl_arr[t_idx])
 
         else:
-            for t_idx, tau in enumerate(agent_network.entropy_scale):
-                forward_kl_arr[t_idx] = np.load('{}/forward_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, agent_network.N, tau))
+            for t_idx, tau in enumerate(config.entropy_scale):
+                forward_kl_arr[t_idx] = np.load('{}/forward_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, config.N_param, tau))
 
         if save_plot:
-            compute_plot(args.compute_kl_type, agent_network.entropy_scale, mean_candidates, std_candidates, forward_kl_arr, args.save_dir)
+            compute_plot(args.compute_kl_type, config.entropy_scale, mean_candidates, std_candidates, forward_kl_arr, args.save_dir)
 
     ## Reverse KL
     if args.compute_kl_type == 'reverse':
         print("== Reverse KL ==")
-        reverse_kl_arr = np.zeros((len(agent_network.entropy_scale), MEAN_NUM_POINTS, STD_NUM_POINTS))
+        reverse_kl_arr = np.zeros((len(config.entropy_scale), MEAN_NUM_POINTS, STD_NUM_POINTS))
 
         if not args.load_results:
-            for t_idx, tau in enumerate(agent_network.entropy_scale):
+            for t_idx, tau in enumerate(config.entropy_scale):
 
                 start_run = datetime.now()
                 print("--- tau = {} ::: {}".format(tau, start_run))
 
-                tiled_intgrl_q_val = (agent_network.predict_true_q(None, intgrl_actions)).reshape(-1, intgrl_actions_len) / tau
-                intgrl_exp_q_val = np.exp(tiled_intgrl_q_val)
-                z = (intgrl_exp_q_val * agent_network.tiled_intgrl_weights.numpy()).sum(-1)
+                # (1022, )
+                q_val = (env.reward_func(intgrl_actions)) / tau
+                exp_q_val = np.exp(q_val)
+
+                # (1, )
+                z = (exp_q_val * intgrl_weights).sum(-1)
 
                 # Loop over possible mean, std
-                losses = np.array([reverse_kl_loss(tiled_intgrl_weights, tiled_intgrl_actions, tiled_intgrl_q_val, mu, std, z) for (mu, std) in all_candidates])
+                # losses = np.array([reverse_kl_loss(tiled_intgrl_weights, tiled_intgrl_actions, tiled_intgrl_q_val, mu, std, z) for (mu, std) in all_candidates])
 
+                losses = reverse_kl_loss(intgrl_weights, intgrl_actions, q_val, z, all_candidates)
                 reverse_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
+
+                del q_val
+                del exp_q_val
+                del z
 
                 end_run = datetime.now()
                 print("Time taken: {}".format(end_run - start_run))
 
-                np.save('{}/reverse_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, agent_network.N, tau), reverse_kl_arr[t_idx])
+                np.save('{}/reverse_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, config.N_param, tau), reverse_kl_arr[t_idx])
 
         else:
-            for t_idx, tau in enumerate(agent_network.entropy_scale):
-                reverse_kl_arr[t_idx] = np.load('{}/reverse_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, agent_network.N, tau))
+            for t_idx, tau in enumerate(config.entropy_scale):
+                reverse_kl_arr[t_idx] = np.load('{}/reverse_kl_mean[{},{}]_std[{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, STD_MIN, STD_MAX, config.N_param, tau))
 
         if save_plot:
-            compute_plot(args.compute_kl_type, agent_network.entropy_scale, mean_candidates, std_candidates,
+            compute_plot(args.compute_kl_type, config.entropy_scale, mean_candidates, std_candidates,
                          reverse_kl_arr, args.save_dir)
 
 

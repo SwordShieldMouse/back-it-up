@@ -17,12 +17,12 @@ import matplotlib.pyplot as plt
 
 import math
 
-INC = 0.0012  # 0.005 # 0.01
+INC = 0.005  # 0.005 # 0.01
 MEAN_MIN, MEAN_MAX = -4, 4  # -0.7, -0.4  # -0.8, 0.8
 
 # Orig. STD_MIN, STD_MAX = 0.01, 0.8
-STD_MIN, STD_MAX = -4.6, 0.203 # -4.6, -1.508  # -4.6, 0.203
-STD_INC = 0.0304  # 0.0124 #  0.0304
+STD_MIN, STD_MAX = np.log(np.exp(0.01)-1), np.log(np.exp(1.0)-1)  # -4.6, 0.203
+STD_INC = 0.005  # 0.0124 #  0.0304
 
 
 clip_kl_upper_bound = False
@@ -133,10 +133,10 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
     # plot settings
     xticks = list(range(0, len(x_arr), 40)) + [len(x_arr)-1]
     xticklabels = np.around(x_arr[::40] + [MEAN_MAX], decimals=2)
-    yticks = list(range(0, len(y_arr), 10)) + [len(y_arr)-1]
+    yticks = list(range(0, len(y_arr), 40)) + [len(y_arr)-1]
 
     # applying std = log(1+exp(param))
-    yticklabels = np.around(y_arr[::10] + [np.log(1+np.exp(STD_MAX))], decimals=2)
+    yticklabels = np.around(y_arr[::40] + [np.log(1+np.exp(STD_MAX))], decimals=2)
 
     if clip_kl_upper_bound:
         kl_arr = np.clip(kl_arr, -np.inf, KL_UPPER_LIMIT)

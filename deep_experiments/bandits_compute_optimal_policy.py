@@ -110,7 +110,7 @@ def reverse_kl_loss(weights, actions, q_val, z, mean_std_batch):
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
 
     integrands = - np.exp(pi_logprob) * (tiled_q_val - pi_logprob)
-    loss = np.sum(integrands * tiled_weights) + np.log(tiled_z)
+    loss = np.sum(integrands * tiled_weights, -1) + np.log(tiled_z)
 
     del tiled_q_val
     del tiled_z

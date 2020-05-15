@@ -199,7 +199,7 @@ def main():
     print("runtime = {}".format(time.strftime("%H:%M:%S", time.gmtime(t_elapsed))))
 
     subprocess.run(
-        ["ffmpeg", "-framerate", "24", "-i", "{}/figures/steps_%01d.png".format(saveDir), "{}/{}.mp4".format(saveDir, saveDir)])
+        ["ffmpeg", "-framerate", "24", "-i", "{}/figures/steps_%01d.png".format(saveDir), "{}/vid.mp4".format(saveDir)])
 
 
 if __name__ == '__main__':

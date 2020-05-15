@@ -17,12 +17,12 @@ import matplotlib.pyplot as plt
 
 import math
 
-INC = 0.005  # 0.005 # 0.01
+INC = 0.01  # 0.005 # 0.01
 MEAN_MIN, MEAN_MAX = -4, 4  # -0.7, -0.4  # -0.8, 0.8
 
 # Orig. STD_MIN, STD_MAX = 0.01, 0.8
 STD_MIN, STD_MAX = np.log(np.exp(0.01)-1), np.log(np.exp(1.0)-1)  # -4.6, 0.203
-STD_INC = 0.005  # 0.0124 #  0.0304
+STD_INC = 0.01  # 0.0124 #  0.0304
 
 
 clip_kl_upper_bound = False

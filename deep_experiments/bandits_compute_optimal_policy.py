@@ -48,7 +48,7 @@ def compute_pi_logprob(mean_std_batch, action_arr):
 
     # (batch_size, )
     # using ln(1 + exp(param))
-    logprob = [gauss(mean_std[0], np.log(1+np.exp(mean_std[1]))).logpdf(np.arctanh(actions)) for mean_std, actions in zip(mean_std_batch, action_arr)]
+    logprob = np.array([gauss(mean_std[0], np.log(1+np.exp(mean_std[1]))).logpdf(np.arctanh(actions)) for mean_std, actions in zip(mean_std_batch, action_arr)])
 
     # term1 = np.array([dist[_].logpdf(np.arctanh(action_arr)) for _ in range(len(mean_std_batch))])
     logprob -= np.log(1 - action_arr**2)
@@ -61,7 +61,7 @@ def compute_pi_logprob(mean_std_batch, action_arr):
     return logprob
 
 
-def forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_p, mean_std_batch):
+def forward_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
 
     # intgrl_weights: (1022, )
     # intgrL_actions: (1022, )
@@ -70,64 +70,80 @@ def forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_p, mean_std_batch)
 
     batch_size = len(mean_std_batch)
 
-    tiled_intgrl_weights = np.tile(intgrl_weights, [batch_size, 1])
-    tiled_intgrl_actions = np.tile(intgrl_actions, [batch_size, 1])
+    tiled_weights = np.tile(weights, [batch_size, 1])
+    tiled_actions = np.tile(actions, [batch_size, 1])
+
     tiled_boltzmann_p = np.tile(boltzmann_p, [batch_size, 1])
 
     # (batch_size, 1022)
-    pi_logprob = compute_pi_logprob(mean_std_batch, tiled_intgrl_actions)
+    pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
 
-    # ignoring boltzmann entropy
-    # integrands = -boltzmann_p * pi_logprob
-
+    ### without simplification
     # computing full kl loss
-    assert (np.shape(tiled_boltzmann_p) == np.shape(pi_logprob) == np.shape(tiled_intgrl_weights))
+    assert (np.shape(tiled_boltzmann_p) == np.shape(pi_logprob) == np.shape(tiled_weights))
 
     # (batch_size, 1022)
     integrands = tiled_boltzmann_p * (np.log(tiled_boltzmann_p) - pi_logprob)
-    loss = np.sum(integrands * tiled_intgrl_weights, -1)
+    loss = np.sum(integrands * tiled_weights, -1)
 
-    del tiled_intgrl_weights
-    del tiled_intgrl_actions
-    del tiled_boltzmann_p
-    del pi_logprob
-    del integrands
+    # del tiled_weights
+    # del tiled_actions
+    # del tiled_boltzmann_p
+    # del pi_logprob
+    # del integrands
 
     # (batch_size, )
     return loss
 
+    ### with simplification
+    # integrands = (q_val - pi_logprob)
 
-def reverse_kl_loss(weights, actions, q_val, z, mean_std_batch):
+
+def reverse_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
 
     batch_size = len(mean_std_batch)
-
-    tiled_q_val = np.tile(q_val, [batch_size, 1])
-    tiled_z = np.tile(z, [batch_size, ])
     tiled_weights = np.tile(weights, [batch_size, 1])
     tiled_actions = np.tile(actions, [batch_size, 1])
+    tiled_boltzmann_p = np.tile(boltzmann_p, [batch_size, 1])
 
     # (batch_size, 1022)
-    print("computing pi_logprob..")
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
-    print("done")
-    del tiled_actions
 
-    print("computing integrands..")
-    integrands = - np.exp(pi_logprob) * (tiled_q_val - pi_logprob)
-    print("done")
-    del tiled_q_val
-    del pi_logprob
+    ### without simplification
+    integrands = np.exp(pi_logprob) * (pi_logprob - np.log(tiled_boltzmann_p))
 
-    print("computing loss..")
-    loss = np.sum(integrands * tiled_weights, -1) 
-    loss += np.log(tiled_z)
+    assert (np.shape(integrands) == np.shape(tiled_weights))
+    loss = np.sum(integrands * tiled_weights, -1)
 
-    print("done")
-    del tiled_z
-    del tiled_weights
-    del integrands
+    # del pi_logprob
+    # del integrands
+    # del tiled_weights
+    # del tiled_actions
+    # del tiled_boltzmann_p
 
     return loss
+
+    ### with simplification
+    # tiled_q_val = np.tile(q_val, [batch_size, 1])
+    # tiled_z = np.tile(z, [batch_size, ])
+
+    #
+    # # (batch_size, 1022)
+    # pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
+    # del tiled_actions
+    #
+    # integrands = - np.exp(pi_logprob) * (tiled_q_val - pi_logprob)
+    # del tiled_q_val
+    # del pi_logprob
+    #
+    # loss = np.sum(integrands * tiled_weights, -1)
+    # loss += np.log(tiled_z)
+    #
+    # del tiled_z
+    # del tiled_weights
+    # del integrands
+    #
+    # return loss
 
 
 def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
@@ -278,10 +294,8 @@ def main():
                 assert(np.shape(boltzmann_prob) == (1022, ))
 
                 # Loop over possible mean, std
-                # (MEAN_NUM_POINTS * STD_NUM_POINTS, )
-                # losses = np.array([forward_kl_loss(tiled_intgrl_weights, tiled_intgrl_actions, boltzmann_prob, mu, std) for (mu, std) in all_candidates])
-
-                losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, all_candidates)
+                # losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, all_candidates)
+                losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, tiled_z, all_candidates)
                 forward_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
 
                 del q_val
@@ -316,15 +330,21 @@ def main():
 
                 # (1022, )
                 q_val = (env.reward_func(intgrl_actions)) / tau
-                exp_q_val = np.exp(q_val)
+
+                constant_shift = np.max(q_val, axis=-1)
+
+                exp_q_val = np.exp(q_val - constant_shift)
 
                 # (1, )
                 z = (exp_q_val * intgrl_weights).sum(-1)
 
-                # Loop over possible mean, std
-                # losses = np.array([reverse_kl_loss(tiled_intgrl_weights, tiled_intgrl_actions, tiled_intgrl_q_val, mu, std, z) for (mu, std) in all_candidates])
+                tiled_z = np.tile(z, [intgrl_actions_len])
 
-                losses = reverse_kl_loss(intgrl_weights, intgrl_actions, q_val, z, all_candidates)
+                boltzmann_prob = exp_q_val / tiled_z
+
+                # losses = reverse_kl_loss(intgrl_weights, intgrl_actions, q_val, z, all_candidates)
+                losses = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, z, all_candidates)
+
                 reverse_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
 
                 del q_val

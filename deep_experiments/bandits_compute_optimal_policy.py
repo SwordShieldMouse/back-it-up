@@ -1,5 +1,3 @@
-from guppy import hpy
-h = hpy()
 import argparse
 import numpy as np
 import json
@@ -287,6 +285,8 @@ def main():
                 # (1022, )
                 exp_q_val = np.exp(q_val - constant_shift)
 
+                unshifted_z = (np.exp(q_val) * intgrl_weights).sum(-1)
+
                 # (1,)
                 z = (exp_q_val * intgrl_weights).sum(-1)
 
@@ -298,8 +298,7 @@ def main():
                 assert(np.shape(boltzmann_prob) == (1022, ))
 
                 # Loop over possible mean, std
-                # losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, all_candidates)
-                losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, tiled_z, all_candidates)
+                losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, all_candidates)
                 forward_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
 
                 del q_val

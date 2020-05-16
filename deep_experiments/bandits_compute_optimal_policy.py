@@ -1,4 +1,5 @@
-
+from guppy import hpy
+h = hpy()
 import argparse
 import numpy as np
 import json
@@ -21,7 +22,7 @@ INC = 0.01  # 0.005 # 0.01
 MEAN_MIN, MEAN_MAX = -4, 4  # -0.7, -0.4  # -0.8, 0.8
 
 # Orig. STD_MIN, STD_MAX = 0.01, 0.8
-STD_MIN, STD_MAX = np.log(np.exp(0.01)-1), np.log(np.exp(0.8)-1)  # -4.6, 0.203
+STD_MIN, STD_MAX = np.log(np.exp(0.01)-1), np.log(np.exp(1.0)-1)  # -4.6, 0.203
 STD_INC = 0.01  # 0.0124 #  0.0304
 
 clip_kl_upper_bound = False
@@ -101,22 +102,27 @@ def reverse_kl_loss(weights, actions, q_val, z, mean_std_batch):
     batch_size = len(mean_std_batch)
 
     tiled_q_val = np.tile(q_val, [batch_size, 1])
-    tiled_z = np.tile(z, [batch_size, 1])
+    tiled_z = np.tile(z, [batch_size, ])
     tiled_weights = np.tile(weights, [batch_size, 1])
     tiled_actions = np.tile(actions, [batch_size, 1])
 
     # (batch_size, 1022)
+    print("computing pi_logprob..")
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
-
+    print("done")
     del tiled_actions
 
+    print("computing integrands..")
     integrands = - np.exp(pi_logprob) * (tiled_q_val - pi_logprob)
-
+    print("done")
     del tiled_q_val
     del pi_logprob
 
-    loss = np.sum(integrands * tiled_weights, -1) + np.log(tiled_z)
+    print("computing loss..")
+    loss = np.sum(integrands * tiled_weights, -1) 
+    loss += np.log(tiled_z)
 
+    print("done")
     del tiled_z
     del tiled_weights
     del integrands

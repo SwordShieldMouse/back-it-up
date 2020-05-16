@@ -17,12 +17,12 @@ import matplotlib.pyplot as plt
 
 import math
 
-INC = 0.005  # 0.005 # 0.01
+INC = 0.01  # 0.005 # 0.01
 MEAN_MIN, MEAN_MAX = -4, 4  # -0.7, -0.4  # -0.8, 0.8
 
 # Orig. STD_MIN, STD_MAX = 0.01, 0.8
-STD_MIN, STD_MAX = np.log(np.exp(0.01)-1), np.log(np.exp(1.0)-1)  # -4.6, 0.203
-STD_INC = 0.005  # 0.0124 #  0.0304
+STD_MIN, STD_MAX = np.log(np.exp(0.01)-1), np.log(np.exp(0.8)-1)  # -4.6, 0.203
+STD_INC = 0.01  # 0.0124 #  0.0304
 
 
 clip_kl_upper_bound = False
@@ -109,14 +109,17 @@ def reverse_kl_loss(weights, actions, q_val, z, mean_std_batch):
     # (batch_size, 1022)
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
 
+    del tiled_actions
+
     integrands = - np.exp(pi_logprob) * (tiled_q_val - pi_logprob)
-    loss = np.sum(integrands * tiled_weights, -1) + np.log(tiled_z)
 
     del tiled_q_val
+    del pi_logprob
+
+    loss = np.sum(integrands * tiled_weights, -1) + np.log(tiled_z)
+
     del tiled_z
     del tiled_weights
-    del tiled_actions
-    del pi_logprob
     del integrands
 
     return loss

@@ -1,6 +1,5 @@
-from agents.network.base_network import BaseNetwork
+from .base_network import BaseNetwork
 import numpy as np
-import environments
 
 import torch
 import torch.nn as nn
@@ -9,12 +8,13 @@ import torch.optim as optim
 import quadpy
 import itertools
 from scipy.special import binom
+import environments
 from .representations.hydra_network import HydraNetwork
 
 
-class HydraForwardKLNetwork(BaseNetwork):
+class HydraReverseKLNetwork(BaseNetwork):
     def __init__(self, config):
-        super(HydraForwardKLNetwork, self).__init__(config, [config.pi_lr, config.qf_vf_lr])
+        super(HydraReverseKLNetwork, self).__init__(config, [config.pi_lr, config.qf_vf_lr])
 
         self.config = config
         self.optim_type = config.optim_type
@@ -26,14 +26,12 @@ class HydraForwardKLNetwork(BaseNetwork):
         self.rng = np.random.RandomState(config.random_seed)
         self.entropy_scale = config.entropy_scale
 
-        self.use_target = config.use_target
-
-        assert not self.use_target
-
         if config.use_replay:
             self.batch_size = config.batch_size
         else:
             self.batch_size = 1
+
+        self.use_target = config.use_target
 
         self.use_hard_policy = config.use_hard_policy
 
@@ -53,14 +51,13 @@ class HydraForwardKLNetwork(BaseNetwork):
         self.optimizer = optim.RMSprop(self.hydra_net.parameters(), lr=self.learning_rate[0])
 
         if self.action_dim == 1:
-            self.N = config.N_param  # 1024
+            self.N = config.N_param
 
             scheme = quadpy.line_segment.clenshaw_curtis(self.N)
             # cut off endpoints since they should be zero but numerically might give nans
             self.intgrl_actions = (torch.tensor(scheme.points[1:-1], dtype=dtype).unsqueeze(-1) * torch.Tensor(self.action_max)).to(
                 torch.float32)
             self.intgrl_weights = torch.tensor(scheme.weights[1:-1], dtype=dtype)
-
             self.intgrl_actions_len = np.shape(self.intgrl_actions)[0]
 
         else:
@@ -96,7 +93,7 @@ class HydraForwardKLNetwork(BaseNetwork):
             self.intgrl_actions_len = np.shape(self.intgrl_actions)[0]
 
         self.tiled_intgrl_actions = self.intgrl_actions.unsqueeze(0).repeat(self.batch_size, 1, 1)
-        self.stacked_intgrl_actions = self.tiled_intgrl_actions.reshape(-1, self.action_dim)  # (32 x 254, 1)
+        self.stacked_intgrl_actions = self.tiled_intgrl_actions.reshape(-1, self.action_dim)
         self.tiled_intgrl_weights = self.intgrl_weights.unsqueeze(0).repeat(self.batch_size, 1)
 
         print("Num. Integration points: {}".format(self.intgrl_actions_len))
@@ -110,6 +107,8 @@ class HydraForwardKLNetwork(BaseNetwork):
     def predict_action(self, state_batch):
 
         state_batch = torch.FloatTensor(state_batch).to(self.device)
+
+        # mean, log_std = self.pi_net(state_batch)
         _, _, _, mean, _ = self.hydra_net.pi_evaluate(state_batch)
 
         return mean.detach().numpy()
@@ -128,6 +127,7 @@ class HydraForwardKLNetwork(BaseNetwork):
         if not self.use_true_q:
             q_val = self.hydra_net('q', state_batch, action_batch)
             v_val = self.hydra_net('v', state_batch)
+            # new_action, log_prob, z, mean, log_std = self.pi_net.evaluate(state_batch)
             new_action, log_prob, _, _, _ = self.hydra_net.pi_evaluate(state_batch)
 
             # q_loss, v_loss
@@ -159,53 +159,51 @@ class HydraForwardKLNetwork(BaseNetwork):
                 stacked_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, self.state_dim)
 
                 if self.use_true_q:
-                    # TODO: Double check
-                    # predict_true_q
+                    # TODO: Double check use_true_q
                     intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
+
+                    intgrl_logprob = self.hydra_net.pi_get_logprob(state_batch, self.tiled_intgrl_actions)
+
+                    integrands = - torch.exp(intgrl_logprob.squeeze()) * (
+                                (intgrl_q_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
                 else:
                     intgrl_q_val = self.hydra_net('q', stacked_state_batch, self.stacked_intgrl_actions)
+                    intgrl_v_val = v_val.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, 1)
 
-                tiled_intgrl_q_val = intgrl_q_val.reshape(-1, self.intgrl_actions_len) / self.entropy_scale
+                    intgrl_logprob = self.hydra_net.pi_get_logprob(state_batch, self.tiled_intgrl_actions)
 
-                # compute Z
-                constant_shift, _ = torch.max(tiled_intgrl_q_val, -1, keepdim=True)
-                tiled_constant_shift = constant_shift.repeat(1, self.intgrl_actions_len)
+                    integrands = - torch.exp(intgrl_logprob.squeeze()) * ((intgrl_q_val.squeeze() - intgrl_v_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
 
-                intgrl_exp_q_val = torch.exp(tiled_intgrl_q_val - tiled_constant_shift).detach()
+                policy_loss = (integrands * self.intgrl_weights.repeat(self.batch_size)).reshape(self.batch_size, -1).sum(-1).mean(-1)
 
-                z = (intgrl_exp_q_val * self.tiled_intgrl_weights).sum(-1).detach()
-                tiled_z = z.unsqueeze(-1).repeat(1, self.intgrl_actions_len).detach()
-
-                boltzmann_prob = intgrl_exp_q_val / tiled_z
-
-                intgrl_logprob = self.hydra_net.pi_get_logprob(state_batch, self.tiled_intgrl_actions)
-                tiled_intgrl_logprob = intgrl_logprob.reshape(self.batch_size, self.intgrl_actions_len)
-
-                integrands = boltzmann_prob * tiled_intgrl_logprob
-                policy_loss = (-(integrands * self.tiled_intgrl_weights).sum(-1)).mean(-1)
-
-            else:
-                raise ValueError("Invalid optim_type")
         else:
-            if self.use_true_q:
-
-                # 1x1x1
-                dummy_state_batch = torch.FloatTensor([0]).to(self.device).unsqueeze(-1).unsqueeze(-1)
-                dummy_action_batch = torch.FloatTensor([getattr(environments.environments, self.config.env_name).get_max()]).to(self.device).unsqueeze(-1).unsqueeze(-1)
-
-                policy_loss = (-self.hydra_net.pi_get_logprob(dummy_state_batch, dummy_action_batch)).mean()
-
-            else:
-                raise ValueError("Need to find explicit maximum, and need trueQ")
+            # TODO: Implement hard reverse KL later
+            raise NotImplementedError
+            # stacked_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1,self.state_dim)
+            #
+            # if self.use_true_q:
+            #     intgrl_q_val = torch.from_numpy(
+            #         self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
+            #
+            #     intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
+            #
+            #     integrands = - torch.exp(intgrl_logprob.squeeze()) * intgrl_q_val.squeeze()  # .detach())
+            # else:
+            #     raise NotImplementedError()
+            #     # intgrl_q_val = self.q_net(stacked_state_batch, self.stacked_intgrl_actions)
+            #     # intgrl_v_val = v_val.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, 1)
+            #     #
+            #     # intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
+            #     #
+            #     # integrands = - torch.exp(intgrl_logprob.squeeze()) * ((
+            #     #                                                                   intgrl_q_val.squeeze() - intgrl_v_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
+            #
+            # policy_loss = (integrands * self.intgrl_weights.repeat(self.batch_size)).reshape(self.batch_size, -1).sum(
+            #     -1).mean(-1)
 
         loss = policy_loss
         if not self.use_true_q:
-
             loss += 10 * (q_value_loss + value_loss)
-
-
-        # print('loss:', q_value_loss, value_loss)
-        # exit()
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -213,6 +211,10 @@ class HydraForwardKLNetwork(BaseNetwork):
 
     def update_target_network(self):
         raise NotImplementedError
+        # for target_param, param in zip(self.target_v_net.parameters(), self.v_net.parameters()):
+        #     target_param.data.copy_(
+        #         target_param.data * (1.0 - self.tau) + param.data * self.tau
+        #     )
 
     def getQFunction(self, state):
         return lambda action: (self.hydra_net('q', torch.FloatTensor(state).to(self.device).unsqueeze(-1),
@@ -232,5 +234,4 @@ class HydraForwardKLNetwork(BaseNetwork):
         mean = mean.detach().numpy()
         std = std.detach().numpy()
         return lambda action: 1/(std * np.sqrt(2 * np.pi)) * np.exp(- (action - mean)**2 / (2 * std**2))
-
 

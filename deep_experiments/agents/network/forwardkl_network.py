@@ -37,7 +37,7 @@ class ForwardKLNetwork(BaseNetwork):
         self.use_hard_policy = config.use_hard_policy
 
         # create network
-        if config.env_name == 'ContinuousBandits':
+        if 'ContinuousBandits' in config.env_name:
             self.pi_net = LinearPolicyNetwork(self.state_dim, self.action_dim, self.action_max[0])
         else:
             self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
@@ -112,14 +112,14 @@ class ForwardKLNetwork(BaseNetwork):
 
     def sample_action(self, state_batch):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
-        action, log_prob, z, mean, log_std = self.pi_net.evaluate(state_batch)
+        action, log_prob, z, mean, std = self.pi_net.evaluate(state_batch)
 
         return action.detach().numpy()
 
     def predict_action(self, state_batch):
 
         state_batch = torch.FloatTensor(state_batch).to(self.device)
-        _, _, _, mean, log_std = self.pi_net.evaluate(state_batch)
+        _, _, _, mean, std = self.pi_net.evaluate(state_batch)
 
         return mean.detach().numpy()
 
@@ -137,7 +137,7 @@ class ForwardKLNetwork(BaseNetwork):
         if not self.use_true_q:
             q_val = self.q_net(state_batch, action_batch)
             v_val = self.v_net(state_batch)
-            new_action, log_prob, z, mean, log_std = self.pi_net.evaluate(state_batch)
+            new_action, log_prob, z, mean, std = self.pi_net.evaluate(state_batch)
 
             # q_loss, v_loss
             target_next_v_val = self.target_v_net(next_state_batch) if self.use_target else self.v_net(next_state_batch)
@@ -238,9 +238,9 @@ class ForwardKLNetwork(BaseNetwork):
 
     def getPolicyFunction(self, state):
 
-        _, _, _, mean, log_std = self.pi_net.evaluate(torch.FloatTensor(state).to(self.device).unsqueeze(-1))
+        _, _, _, mean, std = self.pi_net.evaluate(torch.FloatTensor(state).to(self.device).unsqueeze(-1))
         mean = mean.detach().numpy()
-        std = (log_std.exp()).detach().numpy()
+        std = std.detach().numpy()
         return lambda action: 1/(std * np.sqrt(2 * np.pi)) * np.exp(- (action - mean)**2 / (2 * std**2))
 
 
@@ -312,14 +312,14 @@ class PolicyNetwork(nn.Module):
         x = F.relu(self.linear2(x))
 
         mean = self.mean_linear(x)
-        log_std = self.log_std_linear(x)
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
 
-        return mean, log_std
+        std = torch.log(1 + torch.exp(self.log_std_linear(state)))
+        std = torch.clamp(std, np.exp(self.log_std_min), np.exp(self.log_std_max))
+
+        return mean, std
 
     def evaluate(self, state, epsilon=1e-6):
-        mean, log_std = self.forward(state)
-        std = log_std.exp()
+        mean, std = self.forward(state)
 
         normal = self.get_distribution(mean, std)
 
@@ -336,16 +336,14 @@ class PolicyNetwork(nn.Module):
 
         mean = torch.tanh(mean)
         mean *= self.action_scale
-        return action, log_prob, z, mean, log_std
+        return action, log_prob, z, mean, std
 
     def get_logprob(self, states, tiled_actions, epsilon=1e-6):
 
         normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale
         atanh_actions = self.atanh(normalized_actions)
 
-        mean, log_std = self.forward(states)
-        std = log_std.exp()
-
+        mean, std = self.forward(states)
         normal = self.get_distribution(mean, std)
 
         log_prob = normal.log_prob(atanh_actions)
@@ -369,9 +367,7 @@ class PolicyNetwork(nn.Module):
 
     def get_action(self, state):
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-        mean, log_std = self.forward(state)
-        std = log_std.exp()
-
+        mean, std = self.forward(state)
         normal = Normal(mean, std)
         z = normal.sample()
         action = torch.tanh(z)
@@ -388,11 +384,12 @@ class LinearPolicyNetwork(nn.Module):
         self.log_std_max = log_std_max
 
         self.mean_linear = nn.Linear(state_dim, action_dim)
-        self.mean_linear.bias.data.uniform_(-1.2, -1.2)
+        self.mean_linear.bias.data.uniform_(-0.8, -0.8)
 
+        p = np.log(np.exp(0.1)-1)
         self.log_std_linear = nn.Linear(state_dim, action_dim)
         self.log_std_linear.weight.data.uniform_(-init_w, init_w)
-        self.log_std_linear.bias.data.uniform_(-1., -1.)
+        self.log_std_linear.bias.data.uniform_(p, p)
 
         self.action_dim = action_dim
         self.action_scale = action_scale
@@ -401,14 +398,14 @@ class LinearPolicyNetwork(nn.Module):
     def forward(self, state):
 
         mean = self.mean_linear(state)
-        log_std = self.log_std_linear(state)
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
 
-        return mean, log_std
+        std = torch.log(1 + torch.exp(self.log_std_linear(state)))
+        std = torch.clamp(std, np.exp(self.log_std_min), np.exp(self.log_std_max))
+
+        return mean, std
 
     def evaluate(self, state, epsilon=1e-6):
-        mean, log_std = self.forward(state)
-        std = log_std.exp()
+        mean, std = self.forward(state)
 
         normal = self.get_distribution(mean, std)
 
@@ -425,16 +422,14 @@ class LinearPolicyNetwork(nn.Module):
 
         mean = torch.tanh(mean)
         mean *= self.action_scale
-        return action, log_prob, z, mean, log_std
+        return action, log_prob, z, mean, std
 
     def get_logprob(self, states, tiled_actions, epsilon=1e-6):
 
         normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale
         atanh_actions = self.atanh(normalized_actions)
 
-        mean, log_std = self.forward(states)
-        std = log_std.exp()
-
+        mean, std = self.forward(states)
         normal = self.get_distribution(mean, std)
 
         log_prob = normal.log_prob(atanh_actions)
@@ -461,7 +456,7 @@ class LinearPolicyNetwork(nn.Module):
     def get_action(self, state):
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         mean, log_std = self.forward(state)
-        std = log_std.exp()
+        std = torch.log(1+log_std.exp())
 
         normal = Normal(mean, std)
         z = normal.sample()

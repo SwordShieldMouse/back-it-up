@@ -11,7 +11,7 @@ def create_agent(agent_string, config):
         return HydraReverseKL(config)
 
     elif agent_string == 'HydraForwardKL':
-        from deep_experiments.agents.HydraForwardKL import HydraForwardKL
+        from agents.HydraForwardKL import HydraForwardKL
         return HydraForwardKL(config)
 
     elif agent_string == 'ReverseKL':

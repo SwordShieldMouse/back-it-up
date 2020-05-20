@@ -14,6 +14,9 @@ class HydraNetwork(nn.Module):
         self.action_scale = action_scale
         self.device = torch.device("cpu")
 
+        # std ~= 1
+        std_init_w = init_w + np.log(np.exp(1)-1)
+
         # shared layer
         self.shared = nn.Linear(state_dim, layer_dim)
 
@@ -25,7 +28,7 @@ class HydraNetwork(nn.Module):
 
         self.pi_net_std = nn.Linear(layer_dim, action_dim)
         self.pi_net_std.weight.data.uniform_(-init_w, init_w)
-        self.pi_net_std.bias.data.uniform_(-init_w, init_w)
+        self.pi_net_std.bias.data.uniform_(-std_init_w, std_init_w)
 
         # Q layer
         self.q_net = nn.Linear(layer_dim + action_dim, layer_dim)

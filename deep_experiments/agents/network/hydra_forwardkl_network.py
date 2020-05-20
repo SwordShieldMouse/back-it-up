@@ -11,13 +11,15 @@ import itertools
 from scipy.special import binom
 from .representations.hydra_network import HydraNetwork
 
-
 class HydraForwardKLNetwork(BaseNetwork):
     def __init__(self, config):
         super(HydraForwardKLNetwork, self).__init__(config, [config.pi_lr, config.qf_vf_lr])
 
         self.config = config
         self.optim_type = config.optim_type
+
+        self.writer = config.writer
+        self.writer_step = 0
 
         self.use_true_q = False
         if config.use_true_q == "True":
@@ -103,8 +105,15 @@ class HydraForwardKLNetwork(BaseNetwork):
 
     def sample_action(self, state_batch):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
-        action, _, _, _, _ = self.hydra_net.pi_evaluate(state_batch)
+        action, _, _, mean, std = self.hydra_net.pi_evaluate(state_batch)
 
+        self.writer.add_scalar('mean/[0]', mean[0][0], self.writer_step)
+        self.writer.add_scalar('mean/[1]', mean[0][1], self.writer_step)
+
+        self.writer.add_scalar('std/[0]', std[0][0], self.writer_step)
+        self.writer.add_scalar('std/[1]', std[0][1], self.writer_step)
+
+        self.writer_step += 1
         return action.detach().numpy()
 
     def predict_action(self, state_batch):

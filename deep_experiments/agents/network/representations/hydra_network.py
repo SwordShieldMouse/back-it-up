@@ -6,6 +6,7 @@ from torch.distributions import Normal
 from torch.distributions import MultivariateNormal
 import numpy as np
 
+
 class HydraNetwork(nn.Module):
     def __init__(self, state_dim, action_dim, layer_dim, action_scale, init_w=3e-3, log_std_min=-20, log_std_max=2):
         super(HydraNetwork, self).__init__()
@@ -100,7 +101,7 @@ class HydraNetwork(nn.Module):
             try:
                 normal = MultivariateNormal(mean, torch.diag_embed(std))
             except:
-                raise ValueError("Error occurred when constructing Multivariate Normal with: {}, {}".format(mean, std))
+                raise ValueError("Error occurred when constructing MVN with: {}, {}".format(mean, std))
         return normal
 
     def pi_get_logprob(self, states, tiled_actions, epsilon=1e-6):

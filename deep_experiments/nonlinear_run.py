@@ -14,6 +14,7 @@ import argparse
 import subprocess
 
 from utils.main_utils import get_sweep_parameters, create_agent
+from torch.utils.tensorboard import SummaryWriter
 
 
 def main():
@@ -79,8 +80,9 @@ def main():
     START_DATETIME = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     log_dir = './results/{}results/log_summary/{}/{}_{}_{}'.format(str(env_json['environment']), str(agent_json['agent']), str(SETTING_NUM), str(RUN_NUM), str(START_DATETIME))
 
-    writer = tf.summary.FileWriter(log_dir)
+    # writer = tf.summary.FileWriter(log_dir)
     #writer = tf.compat.v1.summary.FileWriter(log_dir)
+    writer = SummaryWriter(log_dir)
     agent_params["writer"] = writer
 
     # init config and merge custom config settings from json

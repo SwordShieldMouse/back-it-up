@@ -1,7 +1,7 @@
 {
     "agent": "HydraForwardKL",
     "sweeps": {
-        "actor_critic_dim": [256, 128, 64],
+        "actor_critic_dim": [128],
 
         "pi_lr": [1e-3, 1e-4, 1e-5],
         "qf_vf_lr": [0],

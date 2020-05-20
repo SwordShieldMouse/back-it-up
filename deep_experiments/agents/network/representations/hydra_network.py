@@ -94,7 +94,10 @@ class HydraNetwork(nn.Module):
         if self.action_dim == 1:
             normal = Normal(mean, std)
         else:
-            normal = MultivariateNormal(mean, torch.diag_embed(std))
+            try:
+                normal = MultivariateNormal(mean, torch.diag_embed(std))
+            except:
+                raise ValueError("Error occurred when constructing Multivariate Normal with: {}, {}".format(mean, std))
         return normal
 
     def pi_get_logprob(self, states, tiled_actions, epsilon=1e-6):

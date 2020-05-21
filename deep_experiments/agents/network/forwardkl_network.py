@@ -11,6 +11,7 @@ import itertools
 from scipy.special import binom
 from .representations.separate_network import *
 
+
 class ForwardKLNetwork(BaseNetwork):
     def __init__(self, config):
         super(ForwardKLNetwork, self).__init__(config, [config.pi_lr, config.qf_vf_lr])

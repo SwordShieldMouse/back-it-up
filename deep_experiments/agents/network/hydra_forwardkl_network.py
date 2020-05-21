@@ -107,11 +107,9 @@ class HydraForwardKLNetwork(BaseNetwork):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         action, _, _, mean, std = self.hydra_net.pi_evaluate(state_batch)
 
-        self.writer.add_scalar('mean/[0]', mean[0][0], self.writer_step)
-        self.writer.add_scalar('mean/[1]', mean[0][1], self.writer_step)
-
-        self.writer.add_scalar('std/[0]', std[0][0], self.writer_step)
-        self.writer.add_scalar('std/[1]', std[0][1], self.writer_step)
+        for dim in range(np.shape(action)[1]):
+            self.writer.add_scalar('mean/[{}]'.format(dim), mean[0][dim], self.writer_step)
+            self.writer.add_scalar('std/[{}]'.format(dim), std[0][dim], self.writer_step)
 
         self.writer_step += 1
         return action.detach().numpy()

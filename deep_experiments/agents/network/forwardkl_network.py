@@ -10,7 +10,7 @@ import quadpy
 import itertools
 from scipy.special import binom
 from .representations.separate_network import *
-
+from utils.main_utils import write_summary
 
 class ForwardKLNetwork(BaseNetwork):
     def __init__(self, config):
@@ -18,6 +18,9 @@ class ForwardKLNetwork(BaseNetwork):
 
         self.config = config
         self.optim_type = config.optim_type
+
+        self.writer = config.writer
+        self.writer_step = 0
 
         self.use_true_q = False
         if config.use_true_q == "True":
@@ -113,6 +116,16 @@ class ForwardKLNetwork(BaseNetwork):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         action, log_prob, z, mean, std = self.pi_net.evaluate(state_batch)
 
+        for dim in range(np.shape(action)[1]):
+            # for tf 1.8
+            write_summary(self.writer, self.writer_step, mean[0][dim], tag='mean/[{}]'.format(dim))
+            write_summary(self.writer, self.writer_step, std[0][dim], tag='std/[{}]'.format(dim))
+
+            # for tf 1.14 and above
+            # self.writer.add_scalar('mean/[{}]'.format(dim), mean[0][dim], self.writer_step)
+            # self.writer.add_scalar('std/[{}]'.format(dim), std[0][dim], self.writer_step)
+
+        self.writer_step += 1
         return action.detach().numpy()
 
     def predict_action(self, state_batch):

@@ -10,6 +10,7 @@ import itertools
 from scipy.special import binom
 import environments
 from .representations.separate_network import *
+from utils.main_utils import write_summary
 
 
 class ReverseKLNetwork(BaseNetwork):
@@ -18,6 +19,9 @@ class ReverseKLNetwork(BaseNetwork):
 
         self.config = config
         self.optim_type = config.optim_type
+
+        self.writer = config.writer
+        self.writer_step = 0
 
         self.use_true_q = False
         if config.use_true_q == "True":
@@ -112,6 +116,17 @@ class ReverseKLNetwork(BaseNetwork):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         action, log_prob, z, mean, std = self.pi_net.evaluate(state_batch)
 
+        for dim in range(np.shape(action)[1]):
+            # for tf 1.8
+            write_summary(self.writer, self.writer_step, mean[0][dim], tag='mean/[{}]'.format(dim))
+            write_summary(self.writer, self.writer_step, std[0][dim], tag='std/[{}]'.format(dim))
+
+            # for tf 1.14 and above
+            # self.writer.add_scalar('mean/[{}]'.format(dim), mean[0][dim], self.writer_step)
+            # self.writer.add_scalar('std/[{}]'.format(dim), std[0][dim], self.writer_step)
+
+        self.writer_step += 1
+
         return action.detach().numpy()
 
     def predict_action(self, state_batch):
@@ -186,7 +201,7 @@ class ReverseKLNetwork(BaseNetwork):
 
                     intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
 
-                    integrands = - torch.exp(intgrl_logprob.squeeze()) * ((intgrl_q_val.squeeze()).detach() - self.entropy_scale * intgrl_logprob.squeeze())
+                    integrands = - torch.exp(intgrl_logprob.squeeze()) * ((intgrl_q_val.squeeze()/self.entropy_scale).detach() - intgrl_logprob.squeeze())
 
                 policy_loss = (integrands * self.intgrl_weights.repeat(self.batch_size)).reshape(self.batch_size, -1).sum(-1).mean(-1)
 

@@ -80,8 +80,9 @@ class PolicyNetwork(nn.Module):
         # log_std = torch.clamp(self.log_std_linear(x), self.log_std_min, self.log_std_max)
         # std = torch.exp(log_std)
 
-        std = torch.log(1 + torch.exp(self.log_std_linear(x)))
-        std = torch.clamp(std, np.exp(self.log_std_min), np.exp(self.log_std_max))
+        p = torch.clamp(self.log_std_linear(x), -19.99, 7.39)
+        std = torch.log(1 + torch.exp(p))
+        # std = torch.clamp(std, np.exp(self.log_std_min), np.exp(self.log_std_max))
 
         return mean, std
 
@@ -123,10 +124,16 @@ class PolicyNetwork(nn.Module):
         return stacked_log_prob
 
     def get_distribution(self, mean, std):
-        if self.action_dim == 1:
-            normal = Normal(mean, std)
-        else:
-            normal = MultivariateNormal(mean, torch.diag_embed(std))
+
+        try:
+            if self.action_dim == 1:
+                normal = Normal(mean, std)
+            else:
+                normal = MultivariateNormal(mean, torch.diag_embed(std))
+
+        except:
+            print("Error occured with mean {}, std {}".format(mean, std))
+            exit()
         return normal
 
     def atanh(self, x):

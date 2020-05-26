@@ -1,4 +1,5 @@
 import torch
+torch.set_default_dtype(torch.float64)
 import torch.nn as nn
 import torch.optim as optim
 
@@ -7,6 +8,7 @@ from torch.distributions import Normal
 from torch.distributions import MultivariateNormal
 
 import numpy as np
+
 
 
 class ValueNetwork(nn.Module):
@@ -80,16 +82,16 @@ class PolicyNetwork(nn.Module):
         # log_std = torch.clamp(self.log_std_linear(x), self.log_std_min, self.log_std_max)
         # std = torch.exp(log_std)
 
-        p = torch.clamp(self.log_std_linear(x), -19.99, 7.39)
+        p = torch.clamp(self.log_std_linear(x), -10, 10)
         std = torch.log(1 + torch.exp(p))
         # std = torch.clamp(std, np.exp(self.log_std_min), np.exp(self.log_std_max))
 
         return mean, std
 
     def evaluate(self, state, epsilon=1e-6):
-        mean, std = self.forward(state)
+        pre_mean, std = self.forward(state)
 
-        normal = self.get_distribution(mean, std)
+        normal = self.get_distribution(pre_mean, std)
 
         z = normal.sample()
         action = torch.tanh(z)
@@ -102,9 +104,9 @@ class PolicyNetwork(nn.Module):
         # scale to correct range
         action *= self.action_scale
 
-        mean = torch.tanh(mean)
+        mean = torch.tanh(pre_mean)
         mean *= self.action_scale
-        return action, log_prob, z, mean, std
+        return action, log_prob, z, pre_mean, mean, std,
 
     def get_logprob(self, states, tiled_actions, epsilon=1e-6):
 
@@ -123,9 +125,10 @@ class PolicyNetwork(nn.Module):
         stacked_log_prob = log_prob.permute(1, 0, 2).reshape(-1, 1)
         return stacked_log_prob
 
-    def get_distribution(self, mean, std):
+    def get_distribution(self, mean, std, epsilon=1e-6):
 
         try:
+            std += epsilon
             if self.action_dim == 1:
                 normal = Normal(mean, std)
             else:
@@ -140,7 +143,7 @@ class PolicyNetwork(nn.Module):
         return (torch.log(1 + x) - torch.log(1 - x)) / 2
 
     def get_action(self, state):
-        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        state = torch.DoubleTensor(state).unsqueeze(0).to(self.device)
         mean, std = self.forward(state)
         normal = Normal(mean, std)
         z = normal.sample()
@@ -153,6 +156,8 @@ class PolicyNetwork(nn.Module):
 class LinearPolicyNetwork(nn.Module):
     def __init__(self, state_dim, action_dim, action_scale, init_w=3e-3, log_std_min=-20, log_std_max=2):
         super(LinearPolicyNetwork, self).__init__()
+
+        torch.set_default_dtype(torch.float64)
 
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
@@ -228,7 +233,7 @@ class LinearPolicyNetwork(nn.Module):
         return (torch.log(1 + x) - torch.log(1 - x)) / 2
 
     def get_action(self, state):
-        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        state = torch.DoubleTensor(state).unsqueeze(0).to(self.device)
         mean, log_std = self.forward(state)
         std = torch.log(1+log_std.exp())
 

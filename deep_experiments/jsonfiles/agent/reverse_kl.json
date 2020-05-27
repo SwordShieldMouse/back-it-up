@@ -9,7 +9,7 @@
         "sample_for_eval": ["False"],
         "use_true_q": ["False"],
 
-        "entropy_scale": [1, 0.1, 0.01],
+        "entropy_scale": [0],
 
         "l_param": [6],
         "N_param": [64],
@@ -19,7 +19,8 @@
         "use_target": [false],
         "batch_size": [32],
 
-        "use_hard_policy": [false]
+        "use_hard_policy": [true],
+        "use_baseline": [true]
 
     }
 }

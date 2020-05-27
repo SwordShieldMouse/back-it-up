@@ -79,12 +79,9 @@ class PolicyNetwork(nn.Module):
         x = F.relu(self.linear2(x))
 
         mean = self.mean_linear(x)
+        std = F.softplus(self.log_std_linear(x), threshold=10)
         # log_std = torch.clamp(self.log_std_linear(x), self.log_std_min, self.log_std_max)
         # std = torch.exp(log_std)
-
-        p = torch.clamp(self.log_std_linear(x), -10, 10)
-        std = torch.log(1 + torch.exp(p))
-        # std = torch.clamp(std, np.exp(self.log_std_min), np.exp(self.log_std_max))
 
         return mean, std
 
@@ -121,14 +118,14 @@ class PolicyNetwork(nn.Module):
         if len(log_prob.shape) == 2:
             log_prob.unsqueeze_(-1)
 
-        log_prob -= torch.log(1 - normalized_actions.pow(2) + epsilon).sum(dim=-1, keepdim=True)
-        stacked_log_prob = log_prob.permute(1, 0, 2).reshape(-1, 1)
+        log_prob -= torch.log(1 - normalized_actions.pow(2)).sum(dim=-1, keepdim=True)
+        stacked_log_prob = log_prob.permute(1, 0, 2)
         return stacked_log_prob
 
     def get_distribution(self, mean, std, epsilon=1e-6):
 
         try:
-            std += epsilon
+            # std += epsilon
             if self.action_dim == 1:
                 normal = Normal(mean, std)
             else:
@@ -178,8 +175,10 @@ class LinearPolicyNetwork(nn.Module):
 
         mean = self.mean_linear(state)
 
-        std = torch.log(1 + torch.exp(self.log_std_linear(state)))
-        std = torch.clamp(std, np.exp(self.log_std_min), np.exp(self.log_std_max))
+        # log_std = torch.clamp(self.log_std_linear(state), self.log_std_min, self.log_std_max)
+        # std = torch.exp(log_std)
+
+        std = F.softplus(self.log_std_linear(state), threshold=10)
 
         return mean, std
 

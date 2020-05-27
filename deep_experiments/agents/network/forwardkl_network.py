@@ -152,30 +152,28 @@ class ForwardKLNetwork(BaseNetwork):
         if not self.use_true_q:
             q_val = self.q_net(state_batch, action_batch)
             v_val = self.v_net(state_batch)
-            new_action, log_prob, z, pre_mean, mean, std = self.pi_net.evaluate(state_batch)
 
             # q_loss, v_loss
             target_next_v_val = self.target_v_net(next_state_batch) if self.use_target else self.v_net(next_state_batch)
             target_q_val = reward_batch + gamma_batch * target_next_v_val
             q_value_loss = nn.MSELoss()(q_val, target_q_val.detach())
 
-            new_q_val = self.q_net(state_batch, new_action)
-
+            # SAC paper samples actions again
             if self.config.q_update_type == 'sac':
-                target_v_val = new_q_val - self.entropy_scale * log_prob
+                new_action, new_log_prob, z, pre_mean, mean, std = self.pi_net.evaluate(state_batch)
+                new_q_val = self.q_net(state_batch, new_action)
+                target_v_val = new_q_val - self.entropy_scale * new_log_prob
 
             elif self.config.q_update_type == 'non_sac':
-                target_v_val = (reward_batch - self.entropy_scale * log_prob) + gamma_batch * target_next_v_val
+                log_prob_batch = self.pi_net.get_logprob(state_batch, action_batch.unsqueeze_(1)).squeeze(-1)
+                target_v_val = (reward_batch - self.entropy_scale * log_prob_batch) + gamma_batch * target_next_v_val
             else:
                 raise ValueError("invalid config.q_update_type")
             value_loss = nn.MSELoss()(v_val, target_v_val.detach())
 
         # pi_loss
         if not self.use_hard_policy:
-            if self.optim_type == 'll':
-                raise NotImplementedError
-
-            elif self.optim_type == 'intg':
+            if self.optim_type == 'intg':
                 tiled_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1)
                 stacked_state_batch = tiled_state_batch.reshape(-1, self.state_dim)
 
@@ -199,8 +197,7 @@ class ForwardKLNetwork(BaseNetwork):
 
                 boltzmann_prob = intgrl_exp_q_val / tiled_z
 
-                intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
-                tiled_intgrl_logprob = intgrl_logprob.reshape(self.batch_size, self.intgrl_actions_len)
+                tiled_intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions).squeeze(-1)
 
                 integrands = boltzmann_prob * tiled_intgrl_logprob
                 policy_loss = (-(integrands * self.tiled_intgrl_weights).sum(-1)).mean(-1)
@@ -215,10 +212,14 @@ class ForwardKLNetwork(BaseNetwork):
                 dummy_action_batch = torch.DoubleTensor([getattr(environments.environments, self.config.env_name).get_max()]).to(self.device).unsqueeze(-1).unsqueeze(-1)
 
                 print()
-                policy_loss = (-self.pi_net.get_logprob(dummy_state_batch, dummy_action_batch)).mean()
+                policy_loss = (-(self.pi_net.get_logprob(dummy_state_batch, dummy_action_batch)).reshape(-1, 1)).mean()
 
             else:
                 raise ValueError("Need to find explicit maximum, and need trueQ")
+
+        write_summary(self.writer, self.writer_step, policy_loss, tag='loss/pi')
+        write_summary(self.writer, self.writer_step, q_value_loss, tag='loss/q')
+        write_summary(self.writer, self.writer_step, value_loss, tag='loss/v')
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()

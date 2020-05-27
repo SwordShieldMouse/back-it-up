@@ -4,6 +4,6 @@
     "TotalMilSteps": 0.02,
     "EpisodeSteps": -1,
 
-    "EvalIntervalMilSteps": 0.001,
-    "EvalEpisodes": 5
+    "EvalIntervalMilSteps": 0.005,
+    "EvalEpisodes": 3
 }

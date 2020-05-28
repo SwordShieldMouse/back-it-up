@@ -17,16 +17,15 @@ import matplotlib.pyplot as plt
 import math
 
 INC = 0.01  # 0.005 # 0.01
-MEAN_MIN, MEAN_MAX = -4, 4  # -0.7, -0.4  # -0.8, 0.8
+MEAN_MIN, MEAN_MAX = -3, 3  # -0.7, -0.4  # -0.8, 0.8
 
 # Orig. STD_MIN, STD_MAX = 0.01, 0.8
-STD_MIN, STD_MAX = np.log(np.exp(0.01)-1), np.log(np.exp(1.0)-1)  # -4.6, 0.203
+STD_MIN, STD_MAX = np.log(np.exp(0.001)-1), np.log(np.exp(1.0)-1)  # -4.6, 0.203
 STD_INC = 0.01  # 0.0124 #  0.0304
 
 clip_kl_upper_bound = False
 KL_UPPER_LIMIT = 50
 
-compute_mc = True
 save_plot = True
 
 env_name = 'ContinuousBanditsNormalized'
@@ -34,7 +33,7 @@ env_name = 'ContinuousBanditsNormalized'
 # dummy agent, just using params from this json
 agent_params = {
 
-    "entropy_scale": [0.01, 0.05, 0.1, 1.0],
+    "entropy_scale": [0.01, 0.1, 1.0],
     "N_param": 1024
 }
 
@@ -79,31 +78,31 @@ def forward_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
     # (batch_size, 1022)
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
 
-    # ### without simplification
-    # # computing full kl loss
-    # assert (np.shape(tiled_boltzmann_p) == np.shape(pi_logprob) == np.shape(tiled_weights))
-    #
-    # # (batch_size, 1022)
-    # integrands = tiled_boltzmann_p * (np.log(tiled_boltzmann_p) - pi_logprob)
-    # loss = np.sum(integrands * tiled_weights, -1)
-    #
-    # # del tiled_weights
-    # # del tiled_actions
-    # # del tiled_boltzmann_p
-    # # del pi_logprob
-    # # del integrands
-    #
-    # # (batch_size, )
-    # return loss
+    ### without simplification
+    # computing full kl loss
+    assert (np.shape(tiled_boltzmann_p) == np.shape(pi_logprob) == np.shape(tiled_weights))
 
-    ### with simplification
-
-    integrands = tiled_boltzmann_p * (tiled_q_val - pi_logprob)
-
+    # (batch_size, 1022)
+    integrands = tiled_boltzmann_p * (np.log(tiled_boltzmann_p) - pi_logprob)
     loss = np.sum(integrands * tiled_weights, -1)
-    loss -= np.log(tiled_z)
 
+    # del tiled_weights
+    # del tiled_actions
+    # del tiled_boltzmann_p
+    # del pi_logprob
+    # del integrands
+
+    # (batch_size, )
     return loss
+
+    # ### with simplification
+    #
+    # integrands = tiled_boltzmann_p * (tiled_q_val - pi_logprob)
+    #
+    # loss = np.sum(integrands * tiled_weights, -1)
+    # loss -= np.log(tiled_z)
+    #
+    # return loss
 
 
 def reverse_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
@@ -119,24 +118,24 @@ def reverse_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
 
     # ### without simplification
-    # integrands = np.exp(pi_logprob) * (pi_logprob - np.log(tiled_boltzmann_p))
-    #
-    # assert (np.shape(integrands) == np.shape(tiled_weights))
-    # loss = np.sum(integrands * tiled_weights, -1)
-    #
-    # # del pi_logprob
-    # # del integrands
-    # # del tiled_weights
-    # # del tiled_actions
-    # # del tiled_boltzmann_p
-    #
-    # return loss
+    integrands = np.exp(pi_logprob) * (pi_logprob - np.log(tiled_boltzmann_p))
+
+    assert (np.shape(integrands) == np.shape(tiled_weights))
+    loss = np.sum(integrands * tiled_weights, -1)
+
+    # del pi_logprob
+    # del integrands
+    # del tiled_weights
+    # del tiled_actions
+    # del tiled_boltzmann_p
+
+    return loss
 
     ### with simplification
-    integrands = - np.exp(pi_logprob) * (tiled_q_val - pi_logprob)
-
-    loss = np.sum(integrands * tiled_weights, -1)
-    loss += np.log(tiled_z)
+    # integrands = - np.exp(pi_logprob) * (tiled_q_val - pi_logprob)
+    #
+    # loss = np.sum(integrands * tiled_weights, -1)
+    # loss += np.log(tiled_z)
 
     # del tiled_actions
     # del tiled_q_val
@@ -145,7 +144,7 @@ def reverse_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
     # del tiled_weights
     # del integrands
 
-    return loss
+    # return loss
 
 
 def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):

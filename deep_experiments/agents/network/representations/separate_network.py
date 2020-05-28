@@ -79,7 +79,7 @@ class PolicyNetwork(nn.Module):
         x = F.relu(self.linear2(x))
 
         mean = self.mean_linear(x)
-        std = F.softplus(self.log_std_linear(x), threshold=10)
+        std = F.softplus(torch.clamp(self.log_std_linear(x), -10, 2), threshold=10)
         # log_std = torch.clamp(self.log_std_linear(x), self.log_std_min, self.log_std_max)
         # std = torch.exp(log_std)
 

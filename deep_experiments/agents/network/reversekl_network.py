@@ -119,17 +119,17 @@ class ReverseKLNetwork(BaseNetwork):
         state_batch = torch.DoubleTensor(state_batch).to(self.device)
         action, log_prob, z, pre_mean, mean, std = self.pi_net.evaluate(state_batch)
 
-        for dim in range(np.shape(action)[1]):
+        #for dim in range(np.shape(action)[1]):
             # for tf 1.8
-            write_summary(self.writer, self.writer_step, pre_mean[0][dim], tag='pre_mean/[{}]'.format(dim))
-            write_summary(self.writer, self.writer_step, mean[0][dim], tag='mean/[{}]'.format(dim))
-            write_summary(self.writer, self.writer_step, std[0][dim], tag='std/[{}]'.format(dim))
+        #    write_summary(self.writer, self.writer_step, pre_mean[0][dim], tag='pre_mean/[{}]'.format(dim))
+        #    write_summary(self.writer, self.writer_step, mean[0][dim], tag='mean/[{}]'.format(dim))
+        #    write_summary(self.writer, self.writer_step, std[0][dim], tag='std/[{}]'.format(dim))
 
             # for tf 1.14 and above
             # self.writer.add_scalar('mean/[{}]'.format(dim), mean[0][dim], self.writer_step)
             # self.writer.add_scalar('std/[{}]'.format(dim), std[0][dim], self.writer_step)
 
-        self.writer_step += 1
+        #self.writer_step += 1
 
         return action.detach().numpy()
 
@@ -174,7 +174,7 @@ class ReverseKLNetwork(BaseNetwork):
             elif self.config.q_update_type == 'non_sac':
                 with torch.no_grad():
                     log_prob_batch = torch.clamp(self.pi_net.get_logprob(state_batch, action_batch.unsqueeze_(1)).squeeze(-1), -10)
-                    write_summary(self.writer, self.writer_step, log_prob_batch.mean(), tag='logprob_mean')
+                    #write_summary(self.writer, self.writer_step, log_prob_batch.mean(), tag='logprob_mean')
                 target_v_val = (reward_batch - self.entropy_scale * log_prob_batch.detach()) + gamma_batch * target_next_v_val.detach()
             else:
                 raise ValueError("invalid config.q_update_type")
@@ -250,9 +250,9 @@ class ReverseKLNetwork(BaseNetwork):
                 raise ValueError("Invalid self.optim_type")
 
         # for tf 1.8
-        write_summary(self.writer, self.writer_step, policy_loss, tag='loss/pi')
-        write_summary(self.writer, self.writer_step, q_value_loss, tag='loss/q')
-        write_summary(self.writer, self.writer_step, value_loss, tag='loss/v')
+        #write_summary(self.writer, self.writer_step, policy_loss, tag='loss/pi')
+        #write_summary(self.writer, self.writer_step, q_value_loss, tag='loss/q')
+        #write_summary(self.writer, self.writer_step, value_loss, tag='loss/v')
 
 
         if not self.use_true_q:

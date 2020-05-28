@@ -118,17 +118,17 @@ class ForwardKLNetwork(BaseNetwork):
         state_batch = torch.DoubleTensor(state_batch).to(self.device)
         action, log_prob, z, pre_mean, mean, std = self.pi_net.evaluate(state_batch)
 
-        for dim in range(np.shape(action)[1]):
+        #for dim in range(np.shape(action)[1]):
             # for tf 1.8
-            write_summary(self.writer, self.writer_step, pre_mean[0][dim], tag='pre_mean/[{}]'.format(dim))
-            write_summary(self.writer, self.writer_step, mean[0][dim], tag='mean/[{}]'.format(dim))
-            write_summary(self.writer, self.writer_step, std[0][dim], tag='std/[{}]'.format(dim))
+            #write_summary(self.writer, self.writer_step, pre_mean[0][dim], tag='pre_mean/[{}]'.format(dim))
+            #write_summary(self.writer, self.writer_step, mean[0][dim], tag='mean/[{}]'.format(dim))
+            #write_summary(self.writer, self.writer_step, std[0][dim], tag='std/[{}]'.format(dim))
 
             # for tf 1.14 and above
             # self.writer.add_scalar('mean/[{}]'.format(dim), mean[0][dim], self.writer_step)
             # self.writer.add_scalar('std/[{}]'.format(dim), std[0][dim], self.writer_step)
 
-        self.writer_step += 1
+        #self.writer_step += 1
         return action.detach().numpy()
 
     def predict_action(self, state_batch):
@@ -217,9 +217,9 @@ class ForwardKLNetwork(BaseNetwork):
             else:
                 raise ValueError("Need to find explicit maximum, and need trueQ")
 
-        write_summary(self.writer, self.writer_step, policy_loss, tag='loss/pi')
-        write_summary(self.writer, self.writer_step, q_value_loss, tag='loss/q')
-        write_summary(self.writer, self.writer_step, value_loss, tag='loss/v')
+        #write_summary(self.writer, self.writer_step, policy_loss, tag='loss/pi')
+        #write_summary(self.writer, self.writer_step, q_value_loss, tag='loss/q')
+        #write_summary(self.writer, self.writer_step, value_loss, tag='loss/v')
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()

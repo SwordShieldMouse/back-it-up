@@ -329,7 +329,7 @@ def main():
 
                 # (1022, )
                 boltzmann_prob = exp_q_val / tiled_z
-                assert(np.shape(boltzmann_prob) == (1022, ))
+                #assert(np.shape(boltzmann_prob) == (1022, ))
 
                 del tiled_z
                 del constant_shift

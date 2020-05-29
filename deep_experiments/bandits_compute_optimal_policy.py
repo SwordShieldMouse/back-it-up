@@ -103,8 +103,8 @@ def forward_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
 
     tiled_boltzmann_p = np.tile(boltzmann_p, [batch_size, 1])
 
-    tiled_q_val = np.tile(q_val, [batch_size, 1])
-    tiled_z = np.tile(z, [batch_size, ])
+    # tiled_q_val = np.tile(q_val, [batch_size, 1])
+    # tiled_z = np.tile(z, [batch_size, ])
 
     # (batch_size, 1022)
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
@@ -142,8 +142,8 @@ def reverse_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
     tiled_weights = np.tile(weights, [batch_size, 1])
     tiled_actions = np.tile(actions, [batch_size, 1])
     tiled_boltzmann_p = np.tile(boltzmann_p, [batch_size, 1])
-    tiled_q_val = np.tile(q_val, [batch_size, 1])
-    tiled_z = np.tile(z, [batch_size, ])
+    # tiled_q_val = np.tile(q_val, [batch_size, 1])
+    # tiled_z = np.tile(z, [batch_size, ])
 
     # (batch_size, 1022)
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
@@ -200,7 +200,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
     # Plot heatmap per entropy per kl
     for t_idx, tau in enumerate(entropy_arr):
 
-        ax = sns.heatmap(kl_arr[t_idx], vmax=2000)
+        ax = sns.heatmap(kl_arr[t_idx])
 
         best_idx = np.argmin(kl_arr[t_idx])
         best_mean_idx = int(best_idx/len(x_arr))
@@ -327,14 +327,18 @@ def main():
                 boltzmann_prob = exp_q_val / tiled_z
                 assert(np.shape(boltzmann_prob) == (1022, ))
 
-                # Loop over possible mean, std
-                losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, all_candidates)
-                forward_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
-
+                del tiled_z
+                del constant_shift
                 del q_val
                 del exp_q_val
                 del z
-                del tiled_z
+
+                # Loop over possible mean, std
+                losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, None, None, all_candidates)
+                # losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, all_candidates)
+
+                forward_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
+
                 del boltzmann_prob
 
                 end_run = datetime.now()
@@ -369,19 +373,24 @@ def main():
                 exp_q_val = np.exp(q_val - constant_shift)
 
                 # (1, )
-                unshifted_z = (np.exp(q_val) * intgrl_weights).sum(-1)
+                # unshifted_z = (np.exp(q_val) * intgrl_weights).sum(-1)
 
                 z = (exp_q_val * intgrl_weights).sum(-1)
                 tiled_z = np.tile(z, [intgrl_actions_len])
                 boltzmann_prob = exp_q_val / tiled_z
 
-                losses = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, all_candidates)
-
-                reverse_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
-
+                del tiled_z
+                del constant_shift
                 del q_val
                 del exp_q_val
                 del z
+
+                losses = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, None, None, all_candidates)
+                # losses = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, all_candidates)
+
+                reverse_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
+
+                del boltzmann_prob
 
                 end_run = datetime.now()
                 print("Time taken: {}".format(end_run - start_run))

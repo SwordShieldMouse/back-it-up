@@ -3,13 +3,13 @@
     "sweeps": {
         "actor_critic_dim": [128],
 
-        "pi_lr": [1e-2, 1e-3, 1e-4],
-        "qf_vf_lr": [1e-1, 1e-2, 1e-3],
+        "pi_lr": [1e-3, 1e-4, 1e-5],
+        "qf_vf_lr": [1e-2, 1e-3, 1e-4],
 
         "sample_for_eval": ["False"],
         "use_true_q": ["False"],
 
-        "entropy_scale": [10, 1, 0.1, 0.01],
+        "entropy_scale": [1, 0.1, 0.01],
 
         "l_param": [6],
         "N_param": [64],

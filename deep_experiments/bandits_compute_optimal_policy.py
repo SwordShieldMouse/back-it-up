@@ -58,6 +58,37 @@ def compute_pi_logprob(mean_std_batch, action_arr):
     return logprob
 
 
+def hard_forward_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
+
+    # intgrl_weights: (1022, )
+    # intgrL_actions: (1022, )
+    # boltzmann_p: (1022, )
+    # mu_std_batch: (MEAN_NUM_POINTS * STD_NUM_POINTS, 2)
+
+    batch_size = len(mean_std_batch)
+
+    tiled_weights = np.tile(weights, [batch_size, 1])
+    tiled_actions = np.tile(actions, [batch_size, 1])
+
+    tiled_boltzmann_p = np.tile(boltzmann_p, [batch_size, 1])
+
+    tiled_q_val = np.tile(q_val, [batch_size, 1])
+    tiled_z = np.tile(z, [batch_size, ])
+
+    # (batch_size, 1022)
+    pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
+
+    ### without simplification
+    # computing full kl loss
+    assert (np.shape(tiled_boltzmann_p) == np.shape(pi_logprob) == np.shape(tiled_weights))
+
+    # (batch_size, 1022)
+    integrands = tiled_boltzmann_p * (np.log(tiled_boltzmann_p) - pi_logprob)
+    loss = np.sum(integrands * tiled_weights, -1)
+
+    return loss
+
+
 def forward_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
 
     # intgrl_weights: (1022, )
@@ -161,7 +192,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
     yticks = list(range(0, len(y_arr), 40)) + [len(y_arr)-1]
 
     # applying std = log(1+exp(param))
-    yticklabels = np.around(y_arr[::40] + [np.log(1+np.exp(STD_MAX))], decimals=2)
+    yticklabels = np.around(y_arr[::40] + [np.log(1+np.exp(STD_MAX))], decimals=4)
 
     if clip_kl_upper_bound:
         kl_arr = np.clip(kl_arr, -np.inf, KL_UPPER_LIMIT)
@@ -169,7 +200,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
     # Plot heatmap per entropy per kl
     for t_idx, tau in enumerate(entropy_arr):
 
-        ax = sns.heatmap(kl_arr[t_idx])
+        ax = sns.heatmap(kl_arr[t_idx], vmax=2000)
 
         best_idx = np.argmin(kl_arr[t_idx])
         best_mean_idx = int(best_idx/len(x_arr))
@@ -185,7 +216,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
         ax.set_yticks(yticks)
         ax.set_yticklabels(yticklabels)
 
-        ax.set_title("{} KL Heatmap (truncated KL upper limit: {})\n best param - mean: {}, std: {}".format(kl_type, KL_UPPER_LIMIT if clip_kl_upper_bound else False, round(best_param[0], 2), round(best_param[1],2)))
+        ax.set_title("{} KL Heatmap (truncated KL upper limit: {})\n best param - mean: {}, std: {}".format(kl_type, KL_UPPER_LIMIT if clip_kl_upper_bound else False, round(best_param[0], 4), round(best_param[1],4)))
 
         plt.savefig('{}/{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
         plt.clf()

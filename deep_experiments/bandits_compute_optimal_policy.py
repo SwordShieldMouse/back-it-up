@@ -16,11 +16,11 @@ import matplotlib.pyplot as plt
 
 import math
 
-INC = 0.001  # 0.005 # 0.01
+INC = 0.01  # 0.005 # 0.01
 MEAN_MIN, MEAN_MAX = -2, 2  # -0.7, -0.4  # -0.8, 0.8
 
 # Orig. STD_MIN, STD_MAX = 0.01, 0.8
-STD_MIN, STD_MAX = np.log(np.exp(0.002)-1), np.log(np.exp(0.9)-1)  # -4.6, 0.203
+STD_MIN, STD_MAX = np.log(np.exp(0.001)-1), np.log(np.exp(0.9)-1)  # -4.6, 0.203
 STD_INC = 0.01  # 0.0124 #  0.0304
 
 clip_kl_upper_bound = False
@@ -101,17 +101,17 @@ def forward_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
     tiled_weights = np.tile(weights, [batch_size, 1])
     tiled_actions = np.tile(actions, [batch_size, 1])
 
-    tiled_boltzmann_p = np.tile(boltzmann_p, [batch_size, 1])
-
     # tiled_q_val = np.tile(q_val, [batch_size, 1])
     # tiled_z = np.tile(z, [batch_size, ])
 
     # (batch_size, 1022)
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
 
+    tiled_boltzmann_p = np.tile(boltzmann_p, [batch_size, 1])
+
     ### without simplification
     # computing full kl loss
-    assert (np.shape(tiled_boltzmann_p) == np.shape(pi_logprob) == np.shape(tiled_weights))
+    # assert (np.shape(tiled_boltzmann_p) == np.shape(pi_logprob) == np.shape(tiled_weights))
 
     # (batch_size, 1022)
     integrands = tiled_boltzmann_p * (np.log(tiled_boltzmann_p) - pi_logprob)
@@ -268,10 +268,14 @@ def main():
 
     scheme = quadpy.line_segment.clenshaw_curtis(config.N_param)
 
-    # agent_network = agent.network_manager.network
+    ixs = np.argwhere((np.abs(scheme.points) <= 0.98))  # for numerical stability
 
-    intgrl_actions = np.array(scheme.points[1:-1])
-    intgrl_weights = np.array(scheme.weights[1:-1])
+    # intgrl_actions = np.array(scheme.points[1:-1])
+    # intgrl_weights = np.array(scheme.weights[1:-1])
+
+    intgrl_actions = np.squeeze(np.array(scheme.points[ixs]))
+    intgrl_weights = np.squeeze(np.array(scheme.weights[ixs]))
+
     intgrl_actions_len = np.shape(intgrl_actions)[0]
 
     mean_candidates = list(np.arange(MEAN_MIN, MEAN_MAX+INC, INC))

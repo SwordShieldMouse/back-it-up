@@ -3,9 +3,7 @@ import numpy as np
 import json
 from collections import OrderedDict
 import environments.environments as envs
-from utils.main_utils import get_sweep_parameters, create_agent
 from utils.config import Config
-from agents import ForwardKL, ReverseKL
 import seaborn as sns
 from itertools import product
 import quadpy
@@ -13,8 +11,7 @@ import quadpy
 from scipy.stats import norm as gauss
 from datetime import datetime
 import matplotlib.pyplot as plt
-
-import math
+from matplotlib.patches import Rectangle
 
 show_label = False
 
@@ -225,10 +222,10 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
         best_mean_idx = int(best_idx/len(x_arr))
         best_std_idx = best_idx%len(x_arr)
         best_param = (x_arr[best_std_idx], y_arr[best_mean_idx])
-        print("tau {} best param - mean: {}, std: {}".format(tau, round(best_param[0], 2), round(best_param[1], 2)))
+        print("tau {} best param - mean: {}, std: {}".format(tau, round(best_param[0], 4), round(best_param[1], 4)))
 
         # highlight minimum point
-        # ax.add_patch(Rectangle((best_std_idx, best_mean_idx), 1, 1, fill=False, edgecolor='blue', lw=1))
+        ax.add_patch(Rectangle((best_std_idx, best_mean_idx), 1, 1, fill=False, edgecolor='blue', lw=1))
 
         ax.set_xticks(xticks)
 

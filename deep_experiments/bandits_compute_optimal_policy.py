@@ -372,7 +372,7 @@ def main():
 
                 forward_kl_arr[t_idx] = np.reshape(losses, (MEAN_NUM_POINTS, STD_NUM_POINTS))
 
-                del boltzmann_prob
+                #del boltzmann_prob
 
                 end_run = datetime.now()
 

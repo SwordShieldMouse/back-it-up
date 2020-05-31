@@ -135,9 +135,9 @@ def hard_reverse_kl_loss(weights, actions, q_val, mean_std_batch):
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
 
     # ### without simplification
-    integrands = np.exp(pi_logprob) * tiled_q_val
+    integrands = -np.exp(pi_logprob) * tiled_q_val
 
-    assert (np.shape(pi_logprob), tiled_q_val)
+    assert (np.shape(pi_logprob) == np.shape(tiled_q_val))
     assert (np.shape(integrands) == np.shape(tiled_weights))
     loss = np.sum(integrands * tiled_weights, -1)
 

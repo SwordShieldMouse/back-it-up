@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 
 import math
 
+show_label = False
+
 INC = 0.01  # 0.005 # 0.01
 MEAN_MIN, MEAN_MAX = -2, 2  # -0.7, -0.4  # -0.8, 0.8
 
@@ -33,7 +35,7 @@ env_name = 'ContinuousBanditsNormalized'
 # dummy agent, just using params from this json
 agent_params = {
 
-    "entropy_scale": [0.01, 0.1, 1.0],
+    "entropy_scale": [0, 0.01, 0.1, 1.0],
     "N_param": 1024
 }
 
@@ -66,8 +68,8 @@ def hard_forward_kl_loss(mean_std_batch):
     # mu_std_batch: (MEAN_NUM_POINTS * STD_NUM_POINTS, 2)
 
     batch_size = len(mean_std_batch)
-    optimal_action = math.atanh(0.5)
-    tiled_actions = np.tile(optimal_action, [batch_size, 1])
+    optimal_action = 0.5
+    tiled_actions = np.tile(optimal_action, [batch_size, 1])  # (1022, )
 
     # (batch_size, 1022)
     pi_logprob = compute_pi_logprob(mean_std_batch, tiled_actions)
@@ -200,12 +202,16 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
     y_arr = list(np.log(1+np.exp(np.array(y_arr))))
 
     # plot settings
-    xticks = list(range(0, len(x_arr), 40)) + [len(x_arr)-1]
-    xticklabels = np.around(x_arr[::40] + [MEAN_MAX], decimals=2)
-    yticks = list(range(0, len(y_arr), 40)) + [len(y_arr)-1]
+    xticks = list(range(0, len(x_arr), 50)) + [len(x_arr)-1]
+    xticklabels = np.around(x_arr[::50] + [MEAN_MAX], decimals=2)
+
+    # Plot only first and last ticks
+    yticks = list(range(0, len(y_arr), 80))[:-1] + [len(y_arr)-1]
+    # yticks = [0, len(y_arr)-1]
 
     # applying std = log(1+exp(param))
-    yticklabels = np.around(y_arr[::40] + [np.log(1+np.exp(STD_MAX))], decimals=4)
+    yticklabels = np.around(y_arr[::80][:-1] + [np.log(1+np.exp(STD_MAX))], decimals=3)
+    # yticklabels = np.around([y_arr[0]] + [np.log(1 + np.exp(STD_MAX))], decimals=3)
 
     if clip_kl_upper_bound:
         kl_arr = np.clip(kl_arr, -np.inf, KL_UPPER_LIMIT)
@@ -225,11 +231,17 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
         # ax.add_patch(Rectangle((best_std_idx, best_mean_idx), 1, 1, fill=False, edgecolor='blue', lw=1))
 
         ax.set_xticks(xticks)
-        ax.set_xticklabels(xticklabels)
-        ax.set_yticks(yticks)
-        ax.set_yticklabels(yticklabels)
 
-        ax.set_title("{} KL Heatmap (truncated KL upper limit: {})\n best param - mean: {}, std: {}".format(kl_type, KL_UPPER_LIMIT if clip_kl_upper_bound else False, round(best_param[0], 4), round(best_param[1],4)))
+        ax.set_yticks(yticks)
+
+        if show_label:
+            ax.set_xticklabels(xticklabels)
+            ax.set_yticklabels(yticklabels)
+            ax.set_title("{} KL Heatmap (truncated KL upper limit: {})\n best param - mean: {}, std: {}".format(kl_type, KL_UPPER_LIMIT if clip_kl_upper_bound else False, round(best_param[0], 4), round(best_param[1],4)))
+
+        else:
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
 
         plt.savefig('{}/{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
         plt.clf()
@@ -431,6 +443,7 @@ def main():
         if save_plot:
             compute_plot(args.compute_kl_type, config.entropy_scale, mean_candidates, std_candidates,
                          reverse_kl_arr, args.save_dir)
+
 
 
 if __name__ == '__main__':

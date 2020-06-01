@@ -17,7 +17,7 @@ class ReverseKLNetwork(BaseNetwork):
     def __init__(self, config):
         super(ReverseKLNetwork, self).__init__(config, [config.pi_lr, config.qf_vf_lr])
 
-        torch.set_default_dtype(torch.float64)
+        torch.set_default_dtype(torch.float32)
 
         self.config = config
         self.optim_type = config.optim_type
@@ -66,7 +66,7 @@ class ReverseKLNetwork(BaseNetwork):
         self.q_optimizer = optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate[1])
         self.v_optimizer = optim.RMSprop(self.v_net.parameters(), lr=self.learning_rate[1])
 
-        dtype = torch.float64
+        dtype = torch.float32
 
         if self.action_dim == 1:
             self.N = config.N_param  # 1024
@@ -74,7 +74,7 @@ class ReverseKLNetwork(BaseNetwork):
             scheme = quadpy.line_segment.clenshaw_curtis(self.N)
             # cut off endpoints since they should be zero but numerically might give nans
             self.intgrl_actions = (torch.tensor(scheme.points[1:-1], dtype=dtype).unsqueeze(-1) * torch.Tensor(self.action_max)).to(
-                torch.float64)
+                torch.float32)
             self.intgrl_weights = torch.tensor(scheme.weights[1:-1], dtype=dtype)
 
             self.intgrl_actions_len = np.shape(self.intgrl_actions)[0]
@@ -116,7 +116,7 @@ class ReverseKLNetwork(BaseNetwork):
         self.tiled_intgrl_weights = self.intgrl_weights.unsqueeze(0).repeat(self.batch_size, 1)
 
     def sample_action(self, state_batch):
-        state_batch = torch.DoubleTensor(state_batch).to(self.device)
+        state_batch = torch.FloatTensor(state_batch).to(self.device)
         action, log_prob, z, pre_mean, mean, std = self.pi_net.evaluate(state_batch)
 
         #for dim in range(np.shape(action)[1]):
@@ -135,7 +135,7 @@ class ReverseKLNetwork(BaseNetwork):
 
     def predict_action(self, state_batch):
 
-        state_batch = torch.DoubleTensor(state_batch).to(self.device)
+        state_batch = torch.FloatTensor(state_batch).to(self.device)
 
         # mean, log_std = self.pi_net(state_batch)
         _, _, _, _, mean, std = self.pi_net.evaluate(state_batch)
@@ -144,11 +144,11 @@ class ReverseKLNetwork(BaseNetwork):
 
     def update_network(self, state_batch, action_batch, next_state_batch, reward_batch, gamma_batch):
 
-        state_batch = torch.DoubleTensor(state_batch).to(self.device)
-        action_batch = torch.DoubleTensor(action_batch).to(self.device)
-        next_state_batch = torch.DoubleTensor(next_state_batch).to(self.device)
-        reward_batch = torch.DoubleTensor(reward_batch).to(self.device)
-        gamma_batch = torch.DoubleTensor(gamma_batch).to(self.device)
+        state_batch = torch.FloatTensor(state_batch).to(self.device)
+        action_batch = torch.FloatTensor(action_batch).to(self.device)
+        next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
+        reward_batch = torch.FloatTensor(reward_batch).to(self.device)
+        gamma_batch = torch.FloatTensor(gamma_batch).to(self.device)
 
         reward_batch.unsqueeze_(-1)
         gamma_batch.unsqueeze_(-1)
@@ -188,7 +188,7 @@ class ReverseKLNetwork(BaseNetwork):
                 stacked_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, self.state_dim)
 
                 if self.use_true_q:
-                    intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float64)
+                    intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
 
                     tiled_intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
                     stacked_intgrl_logprob = tiled_intgrl_logprob.reshape(-1, 1)
@@ -223,7 +223,7 @@ class ReverseKLNetwork(BaseNetwork):
 
                 if self.use_true_q:
                     intgrl_q_val = torch.from_numpy(
-                        self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float64)
+                        self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
 
                     tiled_intgrl_logprob = self.pi_net.get_logprob(state_batch, self.tiled_intgrl_actions)
                     stacked_intgrl_logprob = tiled_intgrl_logprob.reshape(-1, 1)
@@ -275,8 +275,8 @@ class ReverseKLNetwork(BaseNetwork):
             )
 
     def getQFunction(self, state):
-        return lambda action: (self.q_net(torch.DoubleTensor(state).to(self.device).unsqueeze(-1),
-                                         torch.DoubleTensor([action]).to(self.device).unsqueeze(-1))).detach().numpy()
+        return lambda action: (self.q_net(torch.FloatTensor(state).to(self.device).unsqueeze(-1),
+                                         torch.FloatTensor([action]).to(self.device).unsqueeze(-1))).detach().numpy()
 
     def getTrueQFunction(self, state):
         return lambda action: self.predict_true_q(np.expand_dims(state, 0), np.expand_dims([action], 0))
@@ -289,7 +289,7 @@ class ReverseKLNetwork(BaseNetwork):
     def getPolicyFunction(self, state):
 
         with torch.no_grad():
-            _, _, _, _, mean, std = self.pi_net.evaluate(torch.DoubleTensor(state).to(self.device).unsqueeze(-1))
+            _, _, _, _, mean, std = self.pi_net.evaluate(torch.FloatTensor(state).to(self.device).unsqueeze(-1))
         mean = mean.detach().numpy()
         std = std.detach().numpy()
         return lambda action: 1/(std * np.sqrt(2 * np.pi)) * np.exp(- (action - mean)**2 / (2 * std**2))

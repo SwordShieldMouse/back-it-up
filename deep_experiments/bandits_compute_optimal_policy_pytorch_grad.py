@@ -25,10 +25,13 @@ show_label = True
 compute_grad = True
 save_plot = True
 
+with_truncation = False
+print("computing KL WITH truncation...")
+
 compute_log_kl_loss = False
 
-MEAN_MIN, MEAN_MAX = -1, 0 # -2, 2
-STD_MIN, STD_MAX = 0.65, 0.9 # 0.008, 0.9
+MEAN_MIN, MEAN_MAX = -1.0, 0 # -2, 2
+STD_MIN, STD_MAX = 0.3, 0.65 # 0.05, 0.3 # 0.008, 0.9
 MEAN_INC = 0.1
 
 STD_PARAM_MIN, STD_PARAM_MAX = STD_MIN, STD_MAX # np.log(np.exp(STD_MIN)-1), np.log(np.exp(STD_MAX)-1)
@@ -40,7 +43,7 @@ env_name = 'ContinuousBanditsNormalized'
 # dummy agent, just using params from this json
 agent_params = {
 
-    "entropy_scale": [0, 0.01, 0.1, 1.0],
+    "entropy_scale": [0, 0.01, 0.1, 0.5, 1],
     "N_param": 1024
 }
 
@@ -91,12 +94,14 @@ def main():
     # initialize kl params
     scheme = quadpy.line_segment.clenshaw_curtis(config.N_param)
 
-    ixs = np.argwhere((np.abs(scheme.points) <= 0.98))  # for numerical stability
-    # intgrl_actions = np.array(scheme.points[1:-1])
-    # intgrl_weights = np.array(scheme.weights[1:-1])
+    if with_truncation:
+        ixs = np.argwhere((np.abs(scheme.points) <= 0.98))  # for numerical stability
+        intgrl_actions = torch.tensor(np.squeeze(np.array(scheme.points[ixs])))
+        intgrl_weights = torch.tensor(np.squeeze(np.array(scheme.weights[ixs])))
 
-    intgrl_actions = torch.tensor(np.squeeze(np.array(scheme.points[ixs])))
-    intgrl_weights = torch.tensor(np.squeeze(np.array(scheme.weights[ixs])))
+    else:
+        intgrl_actions = torch.tensor(np.array(scheme.points[1:-1]))
+        intgrl_weights = torch.tensor(np.array(scheme.weights[1:-1]))
 
     intgrl_actions_len = len(intgrl_actions)
 
@@ -106,7 +111,7 @@ def main():
     MEAN_NUM_POINTS = len(mean_candidates)
     STD_NUM_POINTS = len(std_candidates)
 
-    all_candidates = torch.tensor(list(product(mean_candidates, std_candidates)), requires_grad=True)
+    all_candidates = list(product(mean_candidates, std_candidates))
 
     print("mean: {} points".format(MEAN_NUM_POINTS))
     print("std: {} points".format(STD_NUM_POINTS))
@@ -124,8 +129,10 @@ def main():
                 start_run = datetime.now()
                 print("--- tau = {} ::: {}".format(tau, start_run))
 
+                tensor_all_candidates = torch.tensor(all_candidates, requires_grad=True)
+
                 if tau == 0:
-                    loss = hard_forward_kl_loss(all_candidates)
+                    loss = hard_forward_kl_loss(tensor_all_candidates)
 
                 else:
                     ### Compute Boltzmann
@@ -154,16 +161,18 @@ def main():
                     del z
 
                     # Loop over possible mean, std
-                    loss = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, None, None, all_candidates)
-                    # losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, all_candidates)
+                    loss = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, None, None, tensor_all_candidates)
+                    # losses = forward_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, tensor_all_candidates)
 
                 if compute_grad:
                     torch.sum(loss).backward()
-                    kl_grad_arr[t_idx] = np.reshape(all_candidates.grad.numpy(), (MEAN_NUM_POINTS, STD_NUM_POINTS, 2))
+                    kl_grad_arr[t_idx] = np.reshape(tensor_all_candidates.grad.numpy(), (MEAN_NUM_POINTS, STD_NUM_POINTS, 2))
                     np.save('{}/forward_kl_grad_mean[{},{},{}]_std[{},{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN,
                                                                                                MEAN_MAX, MEAN_INC, STD_MIN,
                                                                                                STD_MAX, STD_INC, config.N_param,
                                                                                                tau), kl_grad_arr[t_idx])
+                    tensor_all_candidates.grad.zero_()
+
 
                 kl_loss_arr[t_idx] = np.reshape(loss.detach().numpy(), (MEAN_NUM_POINTS, STD_NUM_POINTS))
                 np.save('{}/forward_kl_mean[{},{},{}]_std[{},{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, MEAN_INC,
@@ -194,9 +203,11 @@ def main():
                 start_run = datetime.now()
                 print("--- tau = {} ::: {}".format(tau, start_run))
 
+                tensor_all_candidates = torch.tensor(all_candidates, requires_grad=True)
+
                 if tau == 0:
                     q_val = (env.reward_func(intgrl_actions))
-                    loss = hard_reverse_kl_loss(intgrl_weights, intgrl_actions, q_val, all_candidates)
+                    loss = hard_reverse_kl_loss(intgrl_weights, intgrl_actions, q_val, tensor_all_candidates)
                 else:
                     # (1022, )
                     q_val = (env.reward_func(intgrl_actions)) / tau
@@ -218,14 +229,14 @@ def main():
                     del exp_q_val
                     del z
 
-                    loss = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, None, None, all_candidates)
-                    # losses = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, all_candidates)
+                    loss = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, None, None, tensor_all_candidates)
+                    # losses = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, tensor_all_candidates)
 
                     del boltzmann_prob
 
                 if compute_grad:
                     torch.sum(loss).backward()
-                    kl_grad_arr[t_idx] = np.reshape(all_candidates.grad.numpy(), (MEAN_NUM_POINTS, STD_NUM_POINTS, 2))
+                    kl_grad_arr[t_idx] = np.reshape(tensor_all_candidates.grad.numpy(), (MEAN_NUM_POINTS, STD_NUM_POINTS, 2))
                     np.save('{}/forward_kl_grad_mean[{},{},{}]_std[{},{},{}]_N_{}_tau_{}.npy'.format(args.save_dir,
                                                                                                      MEAN_MIN,
                                                                                                      MEAN_MAX, MEAN_INC,
@@ -379,17 +390,19 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
     # applying std = log(1+exp(param))
     #y_arr = list(np.log(1+np.exp(np.array(y_arr))))
 
+    x_freq = 2
+    y_freq = 5
     # plot settings
-    xticks = list(range(0, len(x_arr), 50)) + [len(x_arr)-1]
-    xticklabels = np.around(x_arr[::50] + [MEAN_MAX], decimals=2)
+    xticks = list(range(0, len(x_arr), x_freq)) + [len(x_arr)-1]
+    xticklabels = np.around(x_arr[::x_freq] + [MEAN_MAX], decimals=2)
 
     # Plot only first and last ticks
-    yticks = list(range(0, len(y_arr), 25))[:-1] + [len(y_arr)-1]
+    yticks = list(range(0, len(y_arr), y_freq))[:-1] + [len(y_arr)-1]
     # yticks = [0, len(y_arr)-1]
 
     # applying std = log(1+exp(param))
     #yticklabels = np.around(y_arr[::80][:-1] + [np.log(1 + np.exp(STD_PARAM_MAX))], decimals=3)
-    yticklabels = np.around(y_arr[::25][:-1] + [STD_PARAM_MAX], decimals=3)
+    yticklabels = np.around(y_arr[::y_freq][:-1] + [STD_PARAM_MAX], decimals=3)
 
     # yticklabels = np.around([y_arr[0]] + [np.log(1 + np.exp(STD_MAX))], decimals=3)
 
@@ -399,7 +412,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
 
         try:
             if kl_type == 'forward':
-                ax = sns.heatmap(kl_arr[t_idx], vmax=100)
+                ax = sns.heatmap(kl_arr[t_idx])
             else:
                 ax = sns.heatmap(kl_arr[t_idx])
         except:
@@ -414,21 +427,21 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
         print("tau {} best param - mean: {}, std: {}, loss: {}".format(tau, round(best_param[0], 4), round(best_param[1], 4), kl_arr[t_idx][best_std_idx][best_mean_idx]))
         # print("kl loss", kl_arr[t_idx])
         # highlight minimum point
-        ax.add_patch(Rectangle((best_mean_idx, best_std_idx), 1, 1, fill=False, edgecolor='blue', lw=1))
+        ax.add_patch(Rectangle((best_mean_idx, best_std_idx), 1, 1, fill=False, edgecolor='cyan', lw=1))
 
         ax.set_xticks(xticks)
         ax.set_yticks(yticks)
 
-        if show_label:
-            ax.set_xticklabels(xticklabels)
-            ax.set_yticklabels(yticklabels)
-            ax.set_title("{} KL Heatmap)\n best param - mean: {}, std: {}".format(kl_type, round(best_param[0], 4), round(best_param[1],4)))
-
-        else:
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
+        ax.set_xticklabels(xticklabels)
+        ax.set_yticklabels(yticklabels)
+        ax.set_title("{} KL Heatmap)\n best param - mean: {}, std: {}".format(kl_type, round(best_param[0], 4), round(best_param[1],4)))
 
         plt.savefig('{}/{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_title("")
+
+        plt.savefig('{}/unlabeled_{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
         plt.clf()
 
         # compute vector gradient map
@@ -437,9 +450,11 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
 
             # vector = np.flip(vector, axis=0)
             X, Y = np.meshgrid(x_arr, y_arr)
-            plt.quiver(X, Y, vector[0], vector[1])
+            # plt.figure(figsize=(20, 10))
+            plt.quiver(X, Y, vector[0], -vector[1])
             plt.gca().invert_yaxis()
             # plt.show()
+
             plt.savefig('{}/grad_{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
             plt.clf()
 

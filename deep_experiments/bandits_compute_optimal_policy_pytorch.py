@@ -18,7 +18,7 @@ from torch.distributions import Normal
 import torch.nn.functional as F
 
 ## FLAGS
-show_label = True
+show_label = False
 compute_grad = False
 save_plot = True
 
@@ -32,12 +32,13 @@ STD_INC = 0.01  # 0.0124 #  0.0304
 
 STD_PARAM_MIN, STD_PARAM_MAX = np.log(np.exp(STD_MIN)-1), np.log(np.exp(STD_MAX)-1)
 
+action_scale = 1
 env_name = 'ContinuousBanditsNormalized'
 
 # dummy agent, just using params from this json
 agent_params = {
 
-    "entropy_scale": [0, 0.01, 0.1, 1.0],
+    "entropy_scale": [0, 0.01, 0.1, 0.5, 1],
     "N_param": 1024
 }
 
@@ -88,13 +89,13 @@ def main():
     # initialize kl params
     scheme = quadpy.line_segment.clenshaw_curtis(config.N_param)
 
-    ixs = np.argwhere((np.abs(scheme.points) <= 0.98))  # for numerical stability
-    # intgrl_actions = np.array(scheme.points[1:-1])
-    # intgrl_weights = np.array(scheme.weights[1:-1])
+    #ixs = np.argwhere((np.abs(scheme.points) <= action_scale * 0.98))  # for numerical stability
+    #intgrl_actions = torch.tensor(np.squeeze(np.array(scheme.points[ixs]*action_scale)))
+    #intgrl_weights = torch.tensor(np.squeeze(np.array(scheme.weights[ixs])))
 
-    intgrl_actions = torch.tensor(np.squeeze(np.array(scheme.points[ixs])))
-    intgrl_weights = torch.tensor(np.squeeze(np.array(scheme.weights[ixs])))
-
+    intgrl_actions = torch.tensor(np.array(scheme.points[1:-1])*action_scale)
+    intgrl_weights = torch.tensor(np.array(scheme.weights[1:-1])*action_scale)
+    
     intgrl_actions_len = len(intgrl_actions)
 
     mean_candidates = list(np.arange(MEAN_MIN, MEAN_MAX + MEAN_INC, MEAN_INC))
@@ -381,7 +382,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
     xticklabels = np.around(x_arr[::50] + [MEAN_MAX], decimals=2)
 
     # Plot only first and last ticks
-    yticks = list(range(0, len(y_arr), 80))[:-1] + [len(y_arr)-1]
+    yticks = list(range(0, len(y_arr), 100))[:-1] + [len(y_arr)-1]
     # yticks = [0, len(y_arr)-1]
 
     # applying std = log(1+exp(param))
@@ -394,7 +395,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
 
         try:
             if kl_type == 'forward':
-                ax = sns.heatmap(kl_arr[t_idx])
+                ax = sns.heatmap(kl_arr[t_idx], vmax=100)
             else:
                 ax = sns.heatmap(kl_arr[t_idx])
         except:

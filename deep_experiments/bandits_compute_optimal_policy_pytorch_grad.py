@@ -22,18 +22,18 @@ import torch.nn.functional as F
 
 ## FLAGS
 show_label = True
-compute_grad = False
+compute_grad = True
 save_plot = True
 
 compute_log_kl_loss = False
 
-MEAN_MIN, MEAN_MAX = -2, 2
+MEAN_MIN, MEAN_MAX = -2, 2 # -2, 2
+STD_MIN, STD_MAX = 0.008, 0.9 # 0.008, 0.9
 MEAN_INC = 0.01
 
-STD_MIN, STD_MAX = 0.008, 0.9 # 0.008, 0.9
+STD_PARAM_MIN, STD_PARAM_MAX = np.log(np.exp(STD_MIN)-1), np.log(np.exp(STD_MAX)-1)
 STD_INC = 0.01  # 0.0124 #  0.0304
 
-STD_PARAM_MIN, STD_PARAM_MAX = np.log(np.exp(STD_MIN)-1), np.log(np.exp(STD_MAX)-1)
 
 env_name = 'ContinuousBanditsNormalized'
 
@@ -266,9 +266,7 @@ def compute_pi_logprob(mean_std_batch, action_arr):
 
     permuted_action_arr = action_arr.permute(1, 0) if len(action_arr.shape) > 1 else action_arr
 
-    # logprob = Normal(permuted_mean_std_batch[0], F.softplus(permuted_mean_std_batch[1])).log_prob(custom_atanh(permuted_action_arr))
-    logprob = Normal(permuted_mean_std_batch[0], permuted_mean_std_batch[1]).log_prob(
-        custom_atanh(permuted_action_arr))
+    logprob = Normal(permuted_mean_std_batch[0], F.softplus(permuted_mean_std_batch[1])).log_prob(custom_atanh(permuted_action_arr))
     logprob = logprob.permute(1,0) if len(action_arr.shape) > 1 else logprob
 
     logprob -= torch.log(1 - torch.pow(action_arr, 2))
@@ -390,7 +388,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
 
     # applying std = log(1+exp(param))
     yticklabels = np.around(y_arr[::80][:-1] + [np.log(1 + np.exp(STD_PARAM_MAX))], decimals=3)
-    # yticklabels = np.around(y_arr[::80][:-1] + [STD_PARAM_MAX], decimals=3)
+    # yticklabels = np.around([y_arr[0]] + [np.log(1 + np.exp(STD_MAX))], decimals=3)
 
 
     # Plot heatmap per entropy per kl
@@ -398,7 +396,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
 
         try:
             if kl_type == 'forward':
-                ax = sns.heatmap(kl_arr[t_idx])
+                ax = sns.heatmap(kl_arr[t_idx], vmax=100)
             else:
                 ax = sns.heatmap(kl_arr[t_idx])
         except:
@@ -432,18 +430,13 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
 
         # compute vector gradient map
         if compute_grad:
-            vector = -np.swapaxes(grad_arr[t_idx], 0, 2)
+            vector = np.swapaxes(grad_arr[t_idx], 0, 2)
 
             # vector = np.flip(vector, axis=0)
             X, Y = np.meshgrid(x_arr, y_arr)
             plt.quiver(X, Y, vector[0], vector[1])
             plt.gca().invert_yaxis()
             # plt.show()
-
-            plt.title("{} kl loss gradient, temp={}".format(kl_type, tau))
-            plt.xlabel("mean")
-            plt.ylabel("std")
-
             plt.savefig('{}/grad_{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
             plt.clf()
 

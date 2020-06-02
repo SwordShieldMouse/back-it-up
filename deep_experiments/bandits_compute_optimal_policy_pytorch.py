@@ -8,9 +8,6 @@ import seaborn as sns
 from itertools import product
 import quadpy
 
-import matplotlib
-matplotlib.use('TkAgg')
-
 from scipy.stats import norm as gauss
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -266,7 +263,7 @@ def compute_pi_logprob(mean_std_batch, action_arr):
 
     permuted_action_arr = action_arr.permute(1, 0) if len(action_arr.shape) > 1 else action_arr
 
-    # logprob = Normal(permuted_mean_std_batch[0], F.softplus(permuted_mean_std_batch[1])).log_prob(custom_atanh(permuted_action_arr))
+    logprob = Normal(permuted_mean_std_batch[0], F.softplus(permuted_mean_std_batch[1])).log_prob(custom_atanh(permuted_action_arr))
     logprob = Normal(permuted_mean_std_batch[0], permuted_mean_std_batch[1]).log_prob(
         custom_atanh(permuted_action_arr))
     logprob = logprob.permute(1,0) if len(action_arr.shape) > 1 else logprob

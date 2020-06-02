@@ -13,13 +13,13 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
-show_label = False
+show_label = True
 
 INC = 0.01  # 0.005 # 0.01
 MEAN_MIN, MEAN_MAX = -2, 2  # -0.7, -0.4  # -0.8, 0.8
 
 # Orig. STD_MIN, STD_MAX = 0.01, 0.8
-STD_MIN, STD_MAX = np.log(np.exp(0.001)-1), np.log(np.exp(0.9)-1)  # -4.6, 0.203
+STD_MIN, STD_MAX = np.log(np.exp(0.008)-1), np.log(np.exp(0.9)-1)  # -4.6, 0.203
 STD_INC = 0.01  # 0.0124 #  0.0304
 
 clip_kl_upper_bound = False
@@ -198,16 +198,18 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
     # applying std = log(1+exp(param))
     y_arr = list(np.log(1+np.exp(np.array(y_arr))))
 
+    x_tick_freq = 100
+    y_tick_freq = 100
     # plot settings
-    xticks = list(range(0, len(x_arr), 50)) + [len(x_arr)-1]
-    xticklabels = np.around(x_arr[::50] + [MEAN_MAX], decimals=2)
+    xticks = list(range(0, len(x_arr), x_tick_freq)) + [len(x_arr)-1]
+    xticklabels = np.around(x_arr[::x_tick_freq] + [MEAN_MAX], decimals=2)
 
     # Plot only first and last ticks
-    yticks = list(range(0, len(y_arr), 80))[:-1] + [len(y_arr)-1]
+    yticks = list(range(0, len(y_arr), y_tick_freq))[:-1] + [len(y_arr)-1]
     # yticks = [0, len(y_arr)-1]
 
     # applying std = log(1+exp(param))
-    yticklabels = np.around(y_arr[::80][:-1] + [np.log(1+np.exp(STD_MAX))], decimals=3)
+    yticklabels = np.around(y_arr[::y_tick_freq][:-1] + [np.log(1+np.exp(STD_MAX))], decimals=3)
     # yticklabels = np.around([y_arr[0]] + [np.log(1 + np.exp(STD_MAX))], decimals=3)
 
     if clip_kl_upper_bound:
@@ -216,7 +218,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, save_dir):
     # Plot heatmap per entropy per kl
     for t_idx, tau in enumerate(entropy_arr):
 
-        ax = sns.heatmap(kl_arr[t_idx])
+        ax = sns.heatmap(kl_arr[t_idx], vmax=100)
 
         best_idx = np.argmin(kl_arr[t_idx])
         best_mean_idx = int(best_idx/len(x_arr))

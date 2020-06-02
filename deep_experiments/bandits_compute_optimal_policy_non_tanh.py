@@ -21,10 +21,11 @@ import torch.nn.functional as F
 show_label = True
 compute_grad = False
 save_plot = True
+with_truncation = False
 
 compute_log_kl_loss = False
 
-MEAN_MIN, MEAN_MAX = -2, 2
+MEAN_MIN, MEAN_MAX = -1, 1
 MEAN_INC = 0.01
 
 STD_MIN, STD_MAX = 0.008, 0.9 # 0.008, 0.9
@@ -37,7 +38,7 @@ env_name = 'ContinuousBanditsNormalized'
 # dummy agent, just using params from this json
 agent_params = {
 
-    "entropy_scale": [0, 0.01, 0.1, 1.0],
+    "entropy_scale": [0, 0.01, 0.1, 0.5, 1.0],
     "N_param": 1024
 }
 
@@ -88,12 +89,14 @@ def main():
     # initialize kl params
     scheme = quadpy.line_segment.clenshaw_curtis(config.N_param)
 
-    ixs = np.argwhere((np.abs(scheme.points) <= 0.98))  # for numerical stability
-    # intgrl_actions = np.array(scheme.points[1:-1])
-    # intgrl_weights = np.array(scheme.weights[1:-1])
+    if with_truncation:
+        ixs = np.argwhere((np.abs(scheme.points) <= 0.98))  # for numerical stability
+        intgrl_actions = torch.tensor(np.squeeze(np.array(scheme.points[ixs])))
+        intgrl_weights = torch.tensor(np.squeeze(np.array(scheme.weights[ixs])))
 
-    intgrl_actions = torch.tensor(np.squeeze(np.array(scheme.points[ixs])))
-    intgrl_weights = torch.tensor(np.squeeze(np.array(scheme.weights[ixs])))
+    else:
+        intgrl_actions = torch.tensor(np.array(scheme.points[1:-1]))
+        intgrl_weights = torch.tensor(np.array(scheme.weights[1:-1]))
 
     intgrl_actions_len = len(intgrl_actions)
 
@@ -388,7 +391,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
 
         try:
             if kl_type == 'forward':
-                ax = sns.heatmap(kl_arr[t_idx])
+                ax = sns.heatmap(kl_arr[t_idx], vmax=100)
             else:
                 ax = sns.heatmap(kl_arr[t_idx])
         except:
@@ -408,16 +411,16 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
         ax.set_xticks(xticks)
         ax.set_yticks(yticks)
 
-        if show_label:
-            ax.set_xticklabels(xticklabels)
-            ax.set_yticklabels(yticklabels)
-            ax.set_title("{} KL Heatmap)\n best param - mean: {}, std: {}".format(kl_type, round(best_param[0], 4), round(best_param[1],4)))
-
-        else:
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-
+        ax.set_xticklabels(xticklabels)
+        ax.set_yticklabels(yticklabels)
+        ax.set_title("{} KL Heatmap)\n best param - mean: {}, std: {}".format(kl_type, round(best_param[0], 4), round(best_param[1],4)))
         plt.savefig('{}/{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
+
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_title("")
+        plt.savefig('{}/unlabeled_{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
+
         plt.clf()
 
         # compute vector gradient map

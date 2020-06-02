@@ -8,8 +8,8 @@ import seaborn as sns
 from itertools import product
 import quadpy
 
-import matplotlib
-matplotlib.use('TkAgg')
+#import matplotlib
+#matplotlib.use('TkAgg')
 
 from scipy.stats import norm as gauss
 from datetime import datetime
@@ -27,11 +27,11 @@ save_plot = True
 
 compute_log_kl_loss = False
 
-MEAN_MIN, MEAN_MAX = -2, 2 # -2, 2
-STD_MIN, STD_MAX = 0.008, 0.9 # 0.008, 0.9
-MEAN_INC = 0.01
+MEAN_MIN, MEAN_MAX = -1, 0 # -2, 2
+STD_MIN, STD_MAX = 0.65, 0.9 # 0.008, 0.9
+MEAN_INC = 0.1
 
-STD_PARAM_MIN, STD_PARAM_MAX = np.log(np.exp(STD_MIN)-1), np.log(np.exp(STD_MAX)-1)
+STD_PARAM_MIN, STD_PARAM_MAX = STD_MIN, STD_MAX # np.log(np.exp(STD_MIN)-1), np.log(np.exp(STD_MAX)-1)
 STD_INC = 0.01  # 0.0124 #  0.0304
 
 
@@ -266,7 +266,8 @@ def compute_pi_logprob(mean_std_batch, action_arr):
 
     permuted_action_arr = action_arr.permute(1, 0) if len(action_arr.shape) > 1 else action_arr
 
-    logprob = Normal(permuted_mean_std_batch[0], F.softplus(permuted_mean_std_batch[1])).log_prob(custom_atanh(permuted_action_arr))
+    logprob = Normal(permuted_mean_std_batch[0], permuted_mean_std_batch[1]).log_prob(custom_atanh(permuted_action_arr))
+    #logprob = Normal(permuted_mean_std_batch[0], F.softplus(permuted_mean_std_batch[1])).log_prob(custom_atanh(permuted_action_arr))
     logprob = logprob.permute(1,0) if len(action_arr.shape) > 1 else logprob
 
     logprob -= torch.log(1 - torch.pow(action_arr, 2))
@@ -376,18 +377,20 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
         kl_arr = np.log(kl_arr)
 
     # applying std = log(1+exp(param))
-    y_arr = list(np.log(1+np.exp(np.array(y_arr))))
+    #y_arr = list(np.log(1+np.exp(np.array(y_arr))))
 
     # plot settings
     xticks = list(range(0, len(x_arr), 50)) + [len(x_arr)-1]
     xticklabels = np.around(x_arr[::50] + [MEAN_MAX], decimals=2)
 
     # Plot only first and last ticks
-    yticks = list(range(0, len(y_arr), 80))[:-1] + [len(y_arr)-1]
+    yticks = list(range(0, len(y_arr), 25))[:-1] + [len(y_arr)-1]
     # yticks = [0, len(y_arr)-1]
 
     # applying std = log(1+exp(param))
-    yticklabels = np.around(y_arr[::80][:-1] + [np.log(1 + np.exp(STD_PARAM_MAX))], decimals=3)
+    #yticklabels = np.around(y_arr[::80][:-1] + [np.log(1 + np.exp(STD_PARAM_MAX))], decimals=3)
+    yticklabels = np.around(y_arr[::25][:-1] + [STD_PARAM_MAX], decimals=3)
+
     # yticklabels = np.around([y_arr[0]] + [np.log(1 + np.exp(STD_MAX))], decimals=3)
 
 
@@ -430,7 +433,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
 
         # compute vector gradient map
         if compute_grad:
-            vector = np.swapaxes(grad_arr[t_idx], 0, 2)
+            vector = -np.swapaxes(grad_arr[t_idx], 0, 2)
 
             # vector = np.flip(vector, axis=0)
             X, Y = np.meshgrid(x_arr, y_arr)

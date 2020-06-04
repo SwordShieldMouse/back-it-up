@@ -38,7 +38,7 @@ env_name = 'ContinuousBanditsNormalized'
 agent_params = {
 
     "entropy_scale": [0, 0.01, 0.1, 0.4, 1],
-    "N_param": 10000
+    "N_param": 1000
 }
 
 dtype = torch.float
@@ -171,7 +171,7 @@ def main():
                     kl_grad_arr[t_idx] = np.load('{}/forward_kl_grad_mean[{},{},{}]_std[{},{},{}]_N_{}_tau_{}.npy'.format(args.save_dir, MEAN_MIN, MEAN_MAX, MEAN_INC, STD_MIN, STD_MAX, STD_INC, config.N_param,tau))
 
         if save_plot:
-            compute_plot(args.compute_kl_type, config.entropy_scale, mean_candidates, std_candidates, kl_loss_arr, kl_grad_arr, args.save_dir)
+            compute_plot(args.compute_kl_type, config.entropy_scale, mean_candidates, std_candidates, kl_loss_arr, kl_grad_arr, args.save_dir, intgrl_actions[0])
 
     ## Reverse KL
     if args.compute_kl_type == 'reverse':
@@ -242,7 +242,7 @@ def main():
 
         if save_plot:
             compute_plot(args.compute_kl_type, config.entropy_scale, mean_candidates, std_candidates,
-                         kl_loss_arr, kl_grad_arr, args.save_dir)
+                         kl_loss_arr, kl_grad_arr, args.save_dir, intgrl_actions[0])
 
 def compute_pi_logprob(mean_std_batch, action_arr):
 
@@ -351,7 +351,7 @@ def reverse_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
     return loss
 
 
-def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir):
+def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir, id):
 
     kl_arr = np.swapaxes(kl_arr, 1, 2)
 
@@ -432,7 +432,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir)
             plt.xlabel("mean")
             plt.ylabel("std")
 
-            plt.savefig('{}/grad_{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
+            plt.savefig('{}/grad_{}_kl_{}_tau={}_{}.png'.format(save_dir, kl_type, t_idx, tau, round(id,3)))
             plt.clf()
 
 if __name__ == '__main__':

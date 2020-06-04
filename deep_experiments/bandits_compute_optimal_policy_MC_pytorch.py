@@ -352,7 +352,7 @@ def reverse_kl_loss(weights, actions, boltzmann_p, q_val, z, mean_std_batch):
     return loss
 
 
-def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir, id):
+def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir, actions_arr):
 
     kl_arr = np.swapaxes(kl_arr, 1, 2)
 
@@ -416,7 +416,12 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir,
             ax.set_xticklabels([])
             ax.set_yticklabels([])
 
-        plt.savefig('{}/{}_kl_{}_tau={}.png'.format(save_dir, kl_type, t_idx, tau))
+        plt.savefig('{}/{}_kl_{}_tau={}_{}.png'.format(save_dir, kl_type, t_idx, tau, round(actions_arr[0].detach().numpy(),3)))
+        plt.clf()
+
+        for i in actions_arr.detach().numpy():
+            ax.axvline(x=min(2, max(-2, np.arctanh(i))))
+        plt.savefig('{}/{}_kl_{}_tau={}_lined_{}.png'.format(save_dir, kl_type, t_idx, tau, round(actions_arr[0].detach().numpy(), 3)))
         plt.clf()
 
         # compute vector gradient map
@@ -433,7 +438,7 @@ def compute_plot(kl_type, entropy_arr, x_arr, y_arr, kl_arr, grad_arr, save_dir,
             plt.xlabel("mean")
             plt.ylabel("std")
 
-            plt.savefig('{}/grad_{}_kl_{}_tau={}_{}.png'.format(save_dir, kl_type, t_idx, tau, round(id,3)))
+            plt.savefig('{}/grad_{}_kl_{}_tau={}_{}.png'.format(save_dir, kl_type, t_idx, tau, round(actions_arr[0],3)))
             plt.clf()
 
 if __name__ == '__main__':

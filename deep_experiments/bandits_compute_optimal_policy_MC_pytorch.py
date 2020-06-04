@@ -17,7 +17,7 @@ from torch.distributions import Normal
 import torch.nn.functional as F
 
 ## FLAGS
-show_label = False
+show_label = True
 compute_grad = False
 save_plot = True
 
@@ -37,7 +37,7 @@ env_name = 'ContinuousBanditsNormalized'
 # dummy agent, just using params from this json
 agent_params = {
 
-    "entropy_scale": [0, 0.01, 0.1, 0.5, 1],
+    "entropy_scale": [0, 0.01, 0.1, 0.4, 1],
     "N_param": 10000
 }
 

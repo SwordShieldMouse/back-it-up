@@ -86,7 +86,8 @@ def main():
     config.merge_config(agent_params)
 
     # initialize kl params
-    intgrl_actions = torch.FloatTensor(config.N_param).uniform_(-1, 1)
+    eps = 1e-4
+    intgrl_actions = torch.FloatTensor(config.N_param).uniform_(-1+eps, 1-eps)
     intgrl_weights = torch.ones(config.N_param)/config.N_param
     intgrl_actions_len = len(intgrl_actions)
 

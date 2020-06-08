@@ -26,12 +26,12 @@ compute_grad = True
 save_plot = True
 
 with_truncation = False
-print("computing KL WITH truncation...")
+print("computing KL WITHOUT truncation...")
 
 compute_log_kl_loss = False
 
-MEAN_MIN, MEAN_MAX = -1.0, 0 # -2, 2
-STD_MIN, STD_MAX = 0.3, 0.65 # 0.05, 0.3 # 0.008, 0.9
+MEAN_MIN, MEAN_MAX = -0.75, 0.75 # -2, 2
+STD_MIN, STD_MAX = 0.05, 0.3 # 0.05, 0.3 # 0.008, 0.9
 MEAN_INC = 0.1
 
 STD_PARAM_MIN, STD_PARAM_MAX = STD_MIN, STD_MAX # np.log(np.exp(STD_MIN)-1), np.log(np.exp(STD_MAX)-1)
@@ -42,8 +42,7 @@ env_name = 'ContinuousBanditsNormalized'
 
 # dummy agent, just using params from this json
 agent_params = {
-
-    "entropy_scale": [0, 0.01, 0.1, 0.5, 1],
+    "entropy_scale": [0, 0.01, 0.1, 0.4, 1],
     "N_param": 1024
 }
 

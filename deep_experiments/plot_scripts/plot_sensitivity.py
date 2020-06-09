@@ -6,10 +6,14 @@ from collections import OrderedDict
 import json
 from matplotlib.lines import Line2D
 
+# Usage
+# python3 plot_sensitivity.py $STORE_DIR $ENV_NAME
+
 # list of agent.json names
 agents = ['ForwardKL', 'ReverseKL']
 sweep_params = ['pi_lr', 'qf_vf_lr']
 
+# Handcoded temperature sweeps
 temps = [1, 0.1, 0.01, 0]
 store_dir = str(sys.argv[1])
 env_name = str(sys.argv[2])
@@ -73,18 +77,16 @@ elif env_name == "Swimmer-v2":
 else:
     raise ValueError("Invalid env_name")
 
+
 def movingaverage (values, window):
-    # weights = np.repeat(1.0, window)/window
-    # sma = np.convolve(values, weights, 'valid')
-    # return sma
     return [np.mean(values[max(0, i - (window-1)):i+1]) for i in range(len(values))]
+
 
 param_dicts = {}
 for p in sweep_params:
     param_dicts[p] = {}
     for ag in agents:
         param_dicts[p][ag] = {}
-
 
 for agent_name in agents:
 
@@ -164,7 +166,6 @@ for agent_name in agents:
                             except:
                                 print("missing {}.. skipping".format(train_rewards_filename))
 
-                        # avg_AUC = np.mean(each_run_avg_auc_arr, -1)
                         result_mean_array.append(np.mean(each_run_avg_auc_arr))
                         result_stderr_array.append(np.std(each_run_avg_auc_arr)/np.sqrt(len(each_run_avg_auc_arr)))
 
@@ -184,7 +185,6 @@ for agent_name in agents:
 
 
 # Combined plots
-
 import matplotlib.cm as cm
 colours = [cm.jet(0.65 + (.99 - 0.65) * ix / 4) for ix in range(len(temps))]
 colours = list(reversed(colours))
@@ -243,7 +243,6 @@ for p in param_dicts:
         plt.xticks(plt_xticks, [])
         plt.yticks(y_ticks, [])
         plt.savefig("{}/combined_{}_sensitivity_curve_unlabeled.png".format(store_dir, p))
-
 
     # plt.show()
     plt.clf()

@@ -2,7 +2,6 @@ import numpy as np
 import re
 import glob
 from pathlib import Path
-from shutil import copyfile
 import os
 import sys
 import json
@@ -12,25 +11,26 @@ from utils import get_agent_parse_info
 from collections import OrderedDict
 from shutil import copyfile
 
-# new usage:
-# python3 /Users/sungsulim/Documents/projects/ActorExpert/RLControl/plot_scripts/merge_results_refactored.py
-# $RESULT_DIR $ROOT_LOC $ENV_NAME $AGENT_NAME $NUM_RUNS $USE_MOVING_AVG
+## Usage:
+# python3 merge_results.py $RESULT_DIR $ROOT_LOC $ENV_NAME $AGENT_NAME $NUM_RUNS $USE_MOVING_AVG
+#
+# Generates merged{$ENVNAME}results/ with merged results at $RESULT_DIR
+#
+# RESULT_DIR : where {$ENV_NAME}results is located
+# ROOT_LOC : root directory of code (where nonlinear_run.py and experiment.py is located)
 
 ###### SETTINGS ######
 moving_avg_window = 20
-
 ######################
 
+
 def movingaverage (values, window):
-    # weights = np.repeat(1.0, window)/window
-    # sma = np.convolve(values, weights, 'valid')
-    # return sma
     return [np.mean(values[max(0, i - (window-1)):i+1]) for i in range(len(values))]
 
 
-if len(sys.argv)!=7:
+if len(sys.argv) != 7:
     print('Incorrect Input')
-    print('type: merge_results_refactored.py RESULT_DIR ROOT_LOC ENV_NAME AGENT_NMAE NUM_RUNS USE_MOVING_AVG')
+    print('type: merge_results.py RESULT_DIR ROOT_LOC ENV_NAME AGENT_NAME NUM_RUNS USE_MOVING_AVG')
     exit(0)
 
 root_dir = str(sys.argv[2])
@@ -41,8 +41,6 @@ use_moving_avg = eval(sys.argv[6])
 if not isinstance(use_moving_avg, bool): raise TypeError('use_moving_avg should be a valid bool')
 
 result_dir = str(sys.argv[1])
-
-
 
 # load env info
 with open('{}/jsonfiles/environment/{}.json'.format(root_dir, env_name), 'r') as env_dat:
@@ -113,40 +111,27 @@ for setting_num in range(num_settings):
     # for each run
     for run_num in range(num_runs):
         train_rewards_filename = store_dir + env_name + '_' + agent_name + '_setting_' + str(setting_num) + '_run_' + str(run_num) + suffix[0]
-        eval_mean_rewards_filename = store_dir + env_name + '_' + agent_name + '_setting_' + str(setting_num) + '_run_' + str(run_num) + suffix[1]
-        #eval_std_rewards_filename = storedir+envname+'_'+agent_name+'_setting_'+str(setting_num)+'_run_'+str(run_num)+suffix[2]
-        
+
         # skip if file does not exist
         if not Path(train_rewards_filename).exists():
             run_non_count += 1
 
             # add dummy
-            lc_0 = np.zeros(1) + np.nan # will be padded
-
-            print("Warning: Evaluation does not work")
-            # lc_1 = np.zeros(eval_lc_length) + np.nan
-
+            lc_0 = np.zeros(1) + np.nan  # will be padded
             train_lc_arr.append(lc_0)
-            # eval_mean_lc_arr.append(lc_1)
 
             print(' setting ' + train_rewards_filename + ' does not exist')
             missingindexes.append(num_settings * run_num + setting_num)
             continue
 
         lc_0 = np.loadtxt(train_rewards_filename, delimiter=',')
-        # lc_1 = np.loadtxt(eval_mean_rewards_filename, delimiter=',') # [:eval_lc_length+9] temporary solution for Pendulum-v0
 
         # compute moving window
         if use_moving_avg:
-
-            # print("og length: {}".format(len(lc_0)))
             lc_0 = movingaverage(lc_0, moving_avg_window)
-            # lc_1 = movingaverage(lc_1, moving_avg_window)
-            # print("processed length: {}".format(len(lc_0)))
 
         train_lc_arr.append(lc_0)
         train_lc_length_arr.append(len(lc_0))
-        # eval_mean_lc_arr.append(lc_1)
 
     # find median train ep length (truncate or pad with nan)
     try:
@@ -170,25 +155,14 @@ for setting_num in range(num_settings):
             train_lc_arr[i] = np.append(train_lc_arr[i], np.zeros(pad_length) + np.nan)
 
     train_lc_arr = np.array(train_lc_arr)
-    # eval_mean_lc_arr = np.array(eval_mean_lc_arr)
-
 
     if run_non_count == num_runs:
         print('setting ' + str(setting_num) + ' does not exist')
         print(np.shape(train_lc_arr), train_lc_arr)
-        # print(np.shape(eval_mean_lc_arr), eval_mean_lc_arr)
-        # exit() ## Perhaps continue?? TODO
 
-    #### Need to have same size
+    # Need to have same size
     train_mean_rewards.append(np.nanmean(train_lc_arr, axis=0))
     train_std_rewards.append(np.nanstd(train_lc_arr, axis=0))
-    
-
-
-    # TODO: process eval_mean_lc_arr, eval_std_lc together and append to eval_mean_rewards, eval_std_rewards
-    # eval_combined_mean_lc = np.nanmean(eval_mean_lc_arr, axis=0)
-    # eval_mean_rewards.append(eval_combined_mean_lc)
-    # eval_std_rewards.append(np.nanstd(eval_mean_lc_arr, axis=0))
 
     '''read in params file'''
     paramfile = store_dir + env_name + '_' + agent_name + '_setting_' + str(setting_num) + '_run_*' + suffix[-1]
@@ -201,8 +175,7 @@ for setting_num in range(num_settings):
     newfilename = merged_dir + re.sub('_run_[0-9]+_', '_', newfilename)
     params_fn = newfilename
     setting_params = np.loadtxt(onefile, delimiter=',', dtype='str')
-    setting_params = np.insert(setting_params, 0, setting_num) 
-    #print params_fn
+    setting_params = np.insert(setting_params, 0, setting_num)
     params.append(setting_params)
 params = np.array(params)
 
@@ -215,23 +188,17 @@ for idx, item in enumerate(train_mean_rewards):
 
 print("max train median length: ", max_median_length)
 
-# eval_mean_rewards = np.array(eval_mean_rewards)
-# eval_std_rewards = np.array(eval_std_rewards)
-
-# allres = [train_mean_rewards, train_std_rewards, eval_mean_rewards, eval_std_rewards, params]
 allres = [train_mean_rewards, train_std_rewards, params]
 for i in range(len(save_suffix)):
     name = merged_dir + env_name + '_' + agent_name + save_suffix[i]
 
-    # if i == 4:
     if i == 2:
         name = params_fn
 
     print('Saving...' + name)
     np.savetxt(name, allres[i], fmt='%s', delimiter=',')
 
-
-print('missed indexes are:  -- - - - - - - - - --')
+print('missing indexes are:  -- - - - - - - - - --')
 missed = ''
 for missid in missingindexes:
    missed += (str(missid)+',')

@@ -1,35 +1,30 @@
-# import matplotlib
-# matplotlib.use('TkAgg')
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 
 import numpy as np
 import glob
 import sys
-from pathlib import Path
 import json
 
 from utils import get_agent_parse_info
 
 import os
 
-############## USAGE
-# This plot script is specific for equal/unequal variance Bimodal1DEnvironment sweeps.
-# This will sweep through all environments, and save/print best settings for that sweep.
-######################
-
+# Usage:
+# python3 find_agent_best_setting.py $RESULT_DIR $ROOT_LOC $ENV_NAME $AGENT_NAME $NUM_RUNS $CUSTOM_NAME $PARSE_TYPE
+#
+# generates plots and npy for the best settings according to $PARSE_TYPE
+#
+# RESULT_DIR : where merged{$ENV_NAME}results is located
+# ROOT_LOC : root directory of code (where nonlinear_run.py and experiment.py is located)
+# CUSTOM_NAME : name of th experiment (to differentiate different sweeps)
+# PARSE_TYPE : type of params to parse. If 'entropy_scale', the script will compute best settings for each param value of entropy_scale
 
 ### CONFIG BEFORE RUNNING ###
-# Use if you want to plot specific settings, put the idx of the setting below.
-# You can also see *_Params.txt to see the idx for each setting.
-
 show_plot = False
-
 plot_each_runs = True
-
 eval_last_N = True
 last_N_ratio = 0.5
-
 ##############################
 
 
@@ -66,9 +61,7 @@ if __name__ == "__main__":
     if len(sys.argv) != 8:
         raise ValueError('Invalid input. \nCorrect Usage: find_agent_best_setting.py merged_result_loc, root_dir, env_name, agent_name, num_runs custom_save_name parse_type')
 
-
     root_dir = str(sys.argv[2])
-
     env_name = str(sys.argv[3])
     agent_name = str(sys.argv[4])
 
@@ -86,7 +79,6 @@ if __name__ == "__main__":
     env_name = env_json['environment']
 
     # read agent json
-    # Bimodal1DEnv_uneq_var1_ActorCritic_agent_Params
     agent_jsonfile = '{}_{}_agent_Params.json'.format(env_name, agent_name)
 
     with open(merged_result_dir + agent_jsonfile, 'r') as agent_dat:
@@ -97,12 +89,6 @@ if __name__ == "__main__":
     # To save npy files separately
     if not os.path.exists(merged_result_dir + '/npy'):
         os.makedirs(merged_result_dir + '/npy')
-
-    ### Save idx for parsing best settings for each type
-    # type_idx_dict = {}
-    # for t in range(num_type):
-    #     type_idx_dict[agent_json['sweeps'][parse_type][t]]=[]
-
 
     type_idx_arr = []
 
@@ -115,7 +101,6 @@ if __name__ == "__main__":
 
         type_idx_arr.append(arr)
 
-
     print('Environment: ' + env_name)
     print('Agent: ' + agent_name)
 
@@ -126,7 +111,6 @@ if __name__ == "__main__":
 
      # Plot type
     # Disabled Evaluation
-    # result_type = ['TrainEpisode', 'EvalEpisode']
     result_type = ['TrainEpisode']
 
     title = "%s, %s: %s (%d runs)" % (env_name, agent_name, custom_save_name, num_runs)
@@ -229,9 +213,6 @@ if __name__ == "__main__":
                 print('the best param setting of ' + agent_name + ' is ' + str(BestInd))
 
         legends = [agent_name + ', ' + str(num_runs) + ' runs']
-
-        # plt.fill_between(opt_range, bestlc - lcse, bestlc + lcse, alpha=0.2)
-        # plt.plot(opt_range, bestlc, linewidth=1.0, label=legends)
 
         for i in range(num_type):
             plot_idx = int(type_best_arr[i])

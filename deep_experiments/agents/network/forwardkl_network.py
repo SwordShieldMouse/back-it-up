@@ -1,16 +1,13 @@
 from agents.network.base_network import BaseNetwork
-import numpy as np
 import environments
-
-import torch
-import torch.nn as nn
+import numpy as np
 import torch.optim as optim
-
 import quadpy
 import itertools
 from scipy.special import binom
 from .representations.separate_network import *
 from utils.main_utils import write_summary
+
 
 class ForwardKLNetwork(BaseNetwork):
     def __init__(self, config):
@@ -24,6 +21,7 @@ class ForwardKLNetwork(BaseNetwork):
         self.writer = config.writer
         self.writer_step = 0
 
+        # use_true_q is only applicable for ContinuousBandits Environment where true action-value function is available
         self.use_true_q = False
         if config.use_true_q == "True":
             self.use_true_q = True
@@ -41,13 +39,8 @@ class ForwardKLNetwork(BaseNetwork):
         self.use_hard_policy = config.use_hard_policy
 
         # create network
-        if 'ContinuousBandits' in config.env_name:
-            self.pi_net = LinearPolicyNetwork(self.state_dim, self.action_dim, self.action_max[0])
-        else:
-            self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
-
+        self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
         self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim)
-
         self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
 
         if self.use_target:
@@ -66,10 +59,12 @@ class ForwardKLNetwork(BaseNetwork):
 
         dtype = torch.float32
 
+        # Numerical Integration (Clenshaw-Curtis)
         if self.action_dim == 1:
-            self.N = config.N_param  # 1024
+            self.N = config.N_param
 
             scheme = quadpy.line_segment.clenshaw_curtis(self.N)
+
             # cut off endpoints since they should be zero but numerically might give nans
             self.intgrl_actions = (torch.tensor(scheme.points[1:-1], dtype=dtype).unsqueeze(-1) * torch.Tensor(self.action_max)).to(
                 torch.float32)
@@ -88,7 +83,7 @@ class ForwardKLNetwork(BaseNetwork):
             points = [np.array([0.])] + [scheme.points[1:-1] for scheme in schemes]
             weights = [np.array([2.])] + [scheme.weights[1:-1] for scheme in schemes]
 
-            # precalculate actions and weights
+            # pre-calculate actions and weights
             self.intgrl_actions = []
             self.intgrl_weights = []
 
@@ -104,6 +99,7 @@ class ForwardKLNetwork(BaseNetwork):
                         torch.tensor([points[k[i]][j[i]] for i in range(self.action_dim)], dtype=dtype))
                     self.intgrl_weights.append(
                         coeff * np.prod([weights[k[i]][j[i]].squeeze() for i in range(self.action_dim)]))
+
             self.intgrl_weights = torch.tensor(self.intgrl_weights, dtype=dtype)
             self.intgrl_actions = torch.stack(self.intgrl_actions) * self.action_max
             self.intgrl_actions_len = np.shape(self.intgrl_actions)[0]
@@ -118,17 +114,6 @@ class ForwardKLNetwork(BaseNetwork):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         action, log_prob, z, pre_mean, mean, std = self.pi_net.evaluate(state_batch)
 
-        #for dim in range(np.shape(action)[1]):
-            # for tf 1.8
-            #write_summary(self.writer, self.writer_step, pre_mean[0][dim], tag='pre_mean/[{}]'.format(dim))
-            #write_summary(self.writer, self.writer_step, mean[0][dim], tag='mean/[{}]'.format(dim))
-            #write_summary(self.writer, self.writer_step, std[0][dim], tag='std/[{}]'.format(dim))
-
-            # for tf 1.14 and above
-            # self.writer.add_scalar('mean/[{}]'.format(dim), mean[0][dim], self.writer_step)
-            # self.writer.add_scalar('std/[{}]'.format(dim), std[0][dim], self.writer_step)
-
-        #self.writer_step += 1
         return action.detach().numpy()
 
     def predict_action(self, state_batch):
@@ -177,12 +162,11 @@ class ForwardKLNetwork(BaseNetwork):
                 tiled_state_batch = state_batch.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1)
                 stacked_state_batch = tiled_state_batch.reshape(-1, self.state_dim)
 
+                # predict_true_q
                 if self.use_true_q:
-                    # predict_true_q
                     intgrl_q_val = torch.from_numpy(self.predict_true_q(stacked_state_batch, self.stacked_intgrl_actions)).to(torch.float32)
                 else:
                     intgrl_q_val = self.q_net(stacked_state_batch, self.stacked_intgrl_actions)
-
 
                 tiled_intgrl_q_val = intgrl_q_val.reshape(-1, self.intgrl_actions_len) / self.entropy_scale
 
@@ -210,16 +194,10 @@ class ForwardKLNetwork(BaseNetwork):
                 # 1x1x1
                 dummy_state_batch = torch.FloatTensor([0]).to(self.device).unsqueeze(-1).unsqueeze(-1)
                 dummy_action_batch = torch.FloatTensor([getattr(environments.environments, self.config.env_name).get_max()]).to(self.device).unsqueeze(-1).unsqueeze(-1)
-
-                print()
                 policy_loss = (-(self.pi_net.get_logprob(dummy_state_batch, dummy_action_batch)).reshape(-1, 1)).mean()
 
             else:
                 raise ValueError("Need to find explicit maximum, and need trueQ")
-
-        #write_summary(self.writer, self.writer_step, policy_loss, tag='loss/pi')
-        #write_summary(self.writer, self.writer_step, q_value_loss, tag='loss/q')
-        #write_summary(self.writer, self.writer_step, value_loss, tag='loss/v')
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()

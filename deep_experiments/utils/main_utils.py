@@ -6,15 +6,7 @@ import tensorflow as tf
 # [p] is a dictionary of agent parameters
 def create_agent(agent_string, config):
 
-    if agent_string == 'HydraReverseKL':
-        from agents.HydraReverseKL import HydraReverseKL
-        return HydraReverseKL(config)
-
-    elif agent_string == 'HydraForwardKL':
-        from agents.HydraForwardKL import HydraForwardKL
-        return HydraForwardKL(config)
-
-    elif agent_string == 'ReverseKL':
+    if agent_string == 'ReverseKL':
         from agents.ReverseKL import ReverseKL
         return ReverseKL(config)
 

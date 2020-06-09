@@ -1,17 +1,13 @@
 from agents.network.base_network import BaseNetwork
-import numpy as np
 
-import torch
-import torch.nn as nn
 import torch.optim as optim
-
 import quadpy
 import itertools
 from scipy.special import binom
 import environments
 from .representations.separate_network import *
 from utils.main_utils import write_summary
-
+import numpy as np
 
 class ReverseKLNetwork(BaseNetwork):
     def __init__(self, config):
@@ -25,6 +21,7 @@ class ReverseKLNetwork(BaseNetwork):
         self.writer = config.writer
         self.writer_step = 0
 
+        # use_true_q is only applicable for ContinuousBandits Environment where true action-value function is available
         self.use_true_q = False
         if config.use_true_q == "True":
             self.use_true_q = True
@@ -43,13 +40,8 @@ class ReverseKLNetwork(BaseNetwork):
         self.use_baseline = config.use_baseline
 
         # create network
-        if 'ContinuousBandits' in config.env_name:
-            self.pi_net = LinearPolicyNetwork(self.state_dim, self.action_dim, self.action_max[0])
-        else:
-            self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
-
+        self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
         self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim)
-
         self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
 
         if self.use_target:
@@ -68,6 +60,7 @@ class ReverseKLNetwork(BaseNetwork):
 
         dtype = torch.float32
 
+        # Numerical Integration (Clenshaw-Curtis)
         if self.action_dim == 1:
             self.N = config.N_param  # 1024
 
@@ -80,7 +73,7 @@ class ReverseKLNetwork(BaseNetwork):
             self.intgrl_actions_len = np.shape(self.intgrl_actions)[0]
 
         else:
-            self.l = config.l_param  # 5
+            self.l = config.l_param
 
             n_points = [1]
             for i in range(1, self.l):
@@ -119,25 +112,11 @@ class ReverseKLNetwork(BaseNetwork):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         action, log_prob, z, pre_mean, mean, std = self.pi_net.evaluate(state_batch)
 
-        #for dim in range(np.shape(action)[1]):
-            # for tf 1.8
-        #    write_summary(self.writer, self.writer_step, pre_mean[0][dim], tag='pre_mean/[{}]'.format(dim))
-        #    write_summary(self.writer, self.writer_step, mean[0][dim], tag='mean/[{}]'.format(dim))
-        #    write_summary(self.writer, self.writer_step, std[0][dim], tag='std/[{}]'.format(dim))
-
-            # for tf 1.14 and above
-            # self.writer.add_scalar('mean/[{}]'.format(dim), mean[0][dim], self.writer_step)
-            # self.writer.add_scalar('std/[{}]'.format(dim), std[0][dim], self.writer_step)
-
-        #self.writer_step += 1
-
         return action.detach().numpy()
 
     def predict_action(self, state_batch):
 
         state_batch = torch.FloatTensor(state_batch).to(self.device)
-
-        # mean, log_std = self.pi_net(state_batch)
         _, _, _, _, mean, std = self.pi_net.evaluate(state_batch)
 
         return mean.detach().numpy()
@@ -174,7 +153,6 @@ class ReverseKLNetwork(BaseNetwork):
             elif self.config.q_update_type == 'non_sac':
                 with torch.no_grad():
                     log_prob_batch = torch.clamp(self.pi_net.get_logprob(state_batch, action_batch.unsqueeze_(1)).squeeze(-1), -10)
-                    #write_summary(self.writer, self.writer_step, log_prob_batch.mean(), tag='logprob_mean')
                 target_v_val = (reward_batch - self.entropy_scale * log_prob_batch.detach()) + gamma_batch * target_next_v_val.detach()
             else:
                 raise ValueError("invalid config.q_update_type")
@@ -233,6 +211,7 @@ class ReverseKLNetwork(BaseNetwork):
                     # raise NotImplementedError()
                     intgrl_q_val = self.q_net(stacked_state_batch, self.stacked_intgrl_actions)
 
+                    # subtracting baseline to reduce variance
                     if self.use_baseline:
                         intgrl_v_val = v_val.unsqueeze(1).repeat(1, self.intgrl_actions_len, 1).reshape(-1, 1)
                         intgrl_multiplier = intgrl_q_val.squeeze() - intgrl_v_val.squeeze()
@@ -248,12 +227,6 @@ class ReverseKLNetwork(BaseNetwork):
 
             else:
                 raise ValueError("Invalid self.optim_type")
-
-        # for tf 1.8
-        #write_summary(self.writer, self.writer_step, policy_loss, tag='loss/pi')
-        #write_summary(self.writer, self.writer_step, q_value_loss, tag='loss/q')
-        #write_summary(self.writer, self.writer_step, value_loss, tag='loss/v')
-
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()

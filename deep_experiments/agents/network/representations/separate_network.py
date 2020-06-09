@@ -1,14 +1,10 @@
 import torch
 torch.set_default_dtype(torch.float32)
 import torch.nn as nn
-import torch.optim as optim
 
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import MultivariateNormal
-
-import numpy as np
-
 
 
 class ValueNetwork(nn.Module):
@@ -80,7 +76,6 @@ class PolicyNetwork(nn.Module):
 
         mean = self.mean_linear(x)
         std = F.softplus(torch.clamp(self.log_std_linear(x), -10, 2), threshold=10)
-        # log_std = torch.clamp(self.log_std_linear(x), self.log_std_min, self.log_std_max)
         # std = torch.exp(log_std)
 
         return mean, std
@@ -105,7 +100,7 @@ class PolicyNetwork(nn.Module):
         mean *= self.action_scale
         return action, log_prob, z, pre_mean, mean, std,
 
-    def get_logprob(self, states, tiled_actions, epsilon=1e-6):
+    def get_logprob(self, states, tiled_actions):
 
         normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale
         atanh_actions = self.atanh(normalized_actions)
@@ -122,7 +117,7 @@ class PolicyNetwork(nn.Module):
         stacked_log_prob = log_prob.permute(1, 0, 2)
         return stacked_log_prob
 
-    def get_distribution(self, mean, std, epsilon=1e-6):
+    def get_distribution(self, mean, std):
 
         try:
             # std += epsilon
@@ -142,100 +137,6 @@ class PolicyNetwork(nn.Module):
     def get_action(self, state):
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         mean, std = self.forward(state)
-        normal = Normal(mean, std)
-        z = normal.sample()
-        action = torch.tanh(z)
-
-        action = action.detach().cpu().numpy()
-        return action[0]
-
-
-class LinearPolicyNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim, action_scale, init_w=3e-3, log_std_min=-20, log_std_max=2):
-        super(LinearPolicyNetwork, self).__init__()
-
-        torch.set_default_dtype(torch.float32)
-
-        self.log_std_min = log_std_min
-        self.log_std_max = log_std_max
-
-        self.mean_linear = nn.Linear(state_dim, action_dim)
-        self.mean_linear.bias.data.uniform_(-0.8, -0.8)
-
-        p = np.log(np.exp(0.1)-1)
-        self.log_std_linear = nn.Linear(state_dim, action_dim)
-        self.log_std_linear.weight.data.uniform_(-init_w, init_w)
-        self.log_std_linear.bias.data.uniform_(p, p)
-
-        self.action_dim = action_dim
-        self.action_scale = action_scale
-        self.device = torch.device("cpu")
-
-    def forward(self, state):
-
-        mean = self.mean_linear(state)
-
-        # log_std = torch.clamp(self.log_std_linear(state), self.log_std_min, self.log_std_max)
-        # std = torch.exp(log_std)
-
-        std = F.softplus(self.log_std_linear(state), threshold=10)
-
-        return mean, std
-
-    def evaluate(self, state, epsilon=1e-6):
-        mean, std = self.forward(state)
-
-        normal = self.get_distribution(mean, std)
-
-        z = normal.sample()
-        action = torch.tanh(z)
-        log_prob = normal.log_prob(z)
-
-        if len(log_prob.shape) == 1:
-            log_prob.unsqueeze_(-1)
-        log_prob -= torch.log(1 - action.pow(2) + epsilon).sum(-1, keepdim=True)
-
-        # scale to correct range
-        action *= self.action_scale
-
-        mean = torch.tanh(mean)
-        mean *= self.action_scale
-        return action, log_prob, z, mean, std
-
-    def get_logprob(self, states, tiled_actions, epsilon=1e-6):
-
-        normalized_actions = tiled_actions.permute(1, 0, 2) / self.action_scale
-        atanh_actions = self.atanh(normalized_actions)
-
-        mean, std = self.forward(states)
-        normal = self.get_distribution(mean, std)
-
-        log_prob = normal.log_prob(atanh_actions)
-
-        if len(log_prob.shape) == 2:
-            log_prob.unsqueeze_(-1)
-
-        log_prob -= torch.log(1 - normalized_actions.pow(2) + epsilon).sum(dim=-1,keepdim=True)
-        stacked_log_prob = log_prob.permute(1, 0, 2).reshape(-1, 1)
-
-        return stacked_log_prob
-
-    def get_distribution(self, mean, std):
-        if self.action_dim == 1:
-            normal = Normal(mean, std)
-        else:
-            normal = MultivariateNormal(mean, torch.diag_embed(std))
-
-        return normal
-
-    def atanh(self, x):
-        return (torch.log(1 + x) - torch.log(1 - x)) / 2
-
-    def get_action(self, state):
-        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-        mean, log_std = self.forward(state)
-        std = torch.log(1+log_std.exp())
-
         normal = Normal(mean, std)
         z = normal.sample()
         action = torch.tanh(z)

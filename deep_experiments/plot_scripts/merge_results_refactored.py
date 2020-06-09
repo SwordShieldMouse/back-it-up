@@ -12,11 +12,6 @@ from utils import get_agent_parse_info
 from collections import OrderedDict
 from shutil import copyfile
 
-# old usage:
-# python3 /Users/sungsulim/Documents/projects/ActorExpert/RLControl/plot_scripts/mergefile_new_ma.py
-# /Users/sungsulim/Documents/projects/ActorExpert/RLControl/jsonfiles/environment/${ENV_NAME}.json
-# ${ENV_NAME}results $NUM_SETTINGS $NUM_RUNS $AGENT_NAME
-
 # new usage:
 # python3 /Users/sungsulim/Documents/projects/ActorExpert/RLControl/plot_scripts/merge_results_refactored.py
 # $RESULT_DIR $ROOT_LOC $ENV_NAME $AGENT_NAME $NUM_RUNS $USE_MOVING_AVG

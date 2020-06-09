@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def get_agent_parse_info(agent_json_data, divide_type=None):
 
     # pre_divider, num_types, post_divider
@@ -36,7 +37,5 @@ def get_agent_parse_info(agent_json_data, divide_type=None):
 
     # type_arr: actual array with the target parse_type
     # pre_divider: i think # settings before target parse_type
-    # num_type: ?
-    # post_divider: ?
     # num_settings: total # settings
     return type_arr, pre_divider, num_type, post_divider, num_settings

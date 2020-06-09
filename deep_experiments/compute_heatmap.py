@@ -28,6 +28,7 @@ import torch.nn.functional as F
 show_label = True
 save_plot = True
 
+use_tanh = True
 compute_grad = False
 compute_log_kl_loss = False
 
@@ -237,18 +238,24 @@ def compute_pi_logprob(mean_std_batch, action_arr):
 
     permuted_action_arr = action_arr.permute(1, 0) if len(action_arr.shape) > 1 else action_arr
 
-    logprob = Normal(permuted_mean_std_batch[0], F.softplus(permuted_mean_std_batch[1])).log_prob(custom_atanh(permuted_action_arr))
-    logprob = logprob.permute(1,0) if len(action_arr.shape) > 1 else logprob
 
-    logprob -= torch.log(1 - torch.pow(action_arr, 2))
+    if use_tanh:
+        logprob = Normal(permuted_mean_std_batch[0], F.softplus(permuted_mean_std_batch[1])).log_prob(custom_atanh(permuted_action_arr))
+        logprob = logprob.permute(1, 0) if len(action_arr.shape) > 1 else logprob
+        logprob -= torch.log(1 - torch.pow(action_arr, 2))
+    else:
+        logprob = Normal(permuted_mean_std_batch[0], F.softplus(permuted_mean_std_batch[1])).log_prob(permuted_action_arr)
+        logprob = logprob.permute(1,0) if len(action_arr.shape) > 1 else logprob
 
     assert not torch.isnan(logprob).any()
 
     # (batch_size, actions_in_batch)
     return logprob
 
+
 def custom_atanh(x):
     return (torch.log(1 + x) - torch.log(1 - x)) / 2
+
 
 def hard_forward_kl_loss(mean_std_batch):
 

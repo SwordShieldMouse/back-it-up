@@ -22,7 +22,7 @@ from find_agent_best_setting import get_xyrange
 
 show_labels = True
 
-display_idx = 1  # IDX to determine whether to plot train_episode or eval_episode (0: Train, 1: Eval)
+display_idx = 0  # IDX to determine whether to plot train_episode or eval_episode (0: Train, 1: Eval)
 
 agents = ['ForwardKL', 'ReverseKL']
 
@@ -157,10 +157,10 @@ if display_idx == 0:
 
         if show_labels:
             plt.xticks(loc_arr, val_arr)
-            plt.yticks([-40, -35, -30], [-40, -35, -30])
+            plt.yticks([-40, -30, -20, -10, 0], [-40, -30, -20, -10, 0])
         else:
             plt.xticks(loc_arr, [])
-            plt.yticks([-40, -35, -30], [])  # [0, 2000, 4000, 6000, 7000])
+            plt.yticks([-40, -30, -20, -10, 0], [])  # [0, 2000, 4000, 6000, 7000])
     else:
         plt.xticks(opt_range[::50], np.linspace(0.0, float(EVAL_INTERVAL_MIL_STEPS * 1e3 * (xmax - 1)),
                                                 int(TOTAL_MIL_STEPS / EVAL_INTERVAL_MIL_STEPS) + 1)[::50])

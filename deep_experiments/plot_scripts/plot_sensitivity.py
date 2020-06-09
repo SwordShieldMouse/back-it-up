@@ -9,7 +9,7 @@ import json
 
 # list of agent.json names
 agents = ['ForwardKL', 'ReverseKL']
-params = ['actor_critic_dim', 'pi_lr', 'qf_vf_lr', 'entropy_scale', 'q_update_type']
+params = ['actor_critic_dim', 'pi_lr', 'qf_vf_lr', 'entropy_scale']
 
 store_dir = str(sys.argv[1])
 env_name = str(sys.argv[2])

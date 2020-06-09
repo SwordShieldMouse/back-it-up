@@ -41,16 +41,16 @@ def get_xyrange(envname):
         ymax = [2.0, 2.0]
 
     elif envname == 'Pendulum-v0':
-        ymin = [-1400, -1400]
+        ymin = [-1600, -1600]
         ymax = [-100, -100]
 
     elif envname == 'Reacher-v2':
-        ymin = [-50, -20]
+        ymin = [-80, -80]
         ymax = [0, 0]
 
     elif envname == "Swimmer-v2":
         ymin = [0, 0]
-        ymax = [50, 50]
+        ymax = [40, 40]
 
     else:
         raise ValueError("Invalid environment name")
@@ -94,6 +94,10 @@ if __name__ == "__main__":
 
     type_arr, pre_divider, num_type, post_divider, num_settings = get_agent_parse_info(agent_json, divide_type=parse_type)
 
+    # To save npy files separately
+    if not os.path.exists(merged_result_dir + '/npy'):
+        os.makedirs(merged_result_dir + '/npy')
+
     ### Save idx for parsing best settings for each type
     # type_idx_dict = {}
     # for t in range(num_type):
@@ -121,7 +125,9 @@ if __name__ == "__main__":
     EVAL_EPISODES = env_json['EvalEpisodes']
 
      # Plot type
-    result_type = ['TrainEpisode', 'EvalEpisode']
+    # Disabled Evaluation
+    # result_type = ['TrainEpisode', 'EvalEpisode']
+    result_type = ['TrainEpisode']
 
     title = "%s, %s: %s (%d runs)" % (env_name, agent_name, custom_save_name, num_runs)
 
@@ -236,6 +242,13 @@ if __name__ == "__main__":
             plt.fill_between(opt_range, plot_lc - plot_lcse, plot_lc + plot_lcse, alpha=0.2)
             plt.plot(opt_range, plot_lc, linewidth=1.0, label='best {}: {}'.format(type_arr[i], plot_idx))
 
+            # save each best settings
+            lc_name = '{}/npy/{}_{}_{}_{}_{}_avg.npy'.format(merged_result_dir, env_name, agent_name, result, parse_type, type_arr[i])
+            lcse_name = '{}/npy/{}_{}_{}_{}_{}_se.npy'.format(merged_result_dir, env_name, agent_name, result, parse_type, type_arr[i])
+
+            np.save(lc_name, plot_lc)
+            np.save(lcse_name, plot_lcse)
+
         plt.legend(loc="best")
 
         if show_plot:
@@ -248,11 +261,10 @@ if __name__ == "__main__":
         savelcse = lcse
 
         # # save the best params
-        savefilename_avg = merged_result_dir + env_name + '_' + agent_name + '_' + result + '_BestResult_avg.npy'
-        savefilename_se = merged_result_dir + env_name + '_' + agent_name + '_' + result + '_BestResult_se.npy'
+        savefilename_avg = merged_result_dir + 'npy/' + env_name + '_' + agent_name + '_' + result + '_BestResult_avg.npy'
+        savefilename_se = merged_result_dir + 'npy/' + env_name + '_' + agent_name + '_' + result + '_BestResult_se.npy'
         np.save(savefilename_avg, savelc)
         np.save(savefilename_se, savelcse)
-
 
         # just call plot_Bimodal.py
         if plot_each_runs:

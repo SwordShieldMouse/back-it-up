@@ -22,14 +22,15 @@ from shutil import copyfile
 # $RESULT_DIR $ROOT_LOC $ENV_NAME $AGENT_NAME $NUM_RUNS $USE_MOVING_AVG
 
 ###### SETTINGS ######
-moving_avg_window = 10
+moving_avg_window = 20
 
 ######################
 
 def movingaverage (values, window):
-    weights = np.repeat(1.0, window)/window
-    sma = np.convolve(values, weights, 'valid')
-    return sma
+    # weights = np.repeat(1.0, window)/window
+    # sma = np.convolve(values, weights, 'valid')
+    # return sma
+    return [np.mean(values[max(0, i - (window-1)):i+1]) for i in range(len(values))]
 
 
 if len(sys.argv)!=7:
@@ -83,9 +84,13 @@ print("Num settings: {}".format(num_settings))
 print("Num runs: {}".format(num_runs))
 print("Use moving avg: {}".format(use_moving_avg))
 
+# Disabled Evaluation
+# suffix = ['_EpisodeRewardsLC.txt','_EvalEpisodeMeanRewardsLC.txt','_EvalEpisodeStdRewardsLC.txt','_Params.txt']
+# save_suffix = ['_TrainEpisodeMeanRewardsLC.txt','_TrainEpisodeStdRewardsLC.txt','_EvalEpisodeMeanRewardsLC.txt','_EvalEpisodeStdRewardsLC.txt','_Params.txt']
 
-suffix = ['_EpisodeRewardsLC.txt','_EvalEpisodeMeanRewardsLC.txt','_EvalEpisodeStdRewardsLC.txt','_Params.txt']
-save_suffix = ['_TrainEpisodeMeanRewardsLC.txt','_TrainEpisodeStdRewardsLC.txt','_EvalEpisodeMeanRewardsLC.txt','_EvalEpisodeStdRewardsLC.txt','_Params.txt']
+suffix = ['_EpisodeRewardsLC.txt', '_Params.txt']
+save_suffix = ['_TrainEpisodeMeanRewardsLC.txt', '_TrainEpisodeStdRewardsLC.txt', '_Params.txt']
+
 
 missingindexes = []
 train_mean_rewards = []
@@ -122,26 +127,31 @@ for setting_num in range(num_settings):
 
             # add dummy
             lc_0 = np.zeros(1) + np.nan # will be padded
-            lc_1 = np.zeros(eval_lc_length) + np.nan
+
+            print("Warning: Evaluation does not work")
+            # lc_1 = np.zeros(eval_lc_length) + np.nan
 
             train_lc_arr.append(lc_0)
-            eval_mean_lc_arr.append(lc_1)
+            # eval_mean_lc_arr.append(lc_1)
 
             print(' setting ' + train_rewards_filename + ' does not exist')
             missingindexes.append(num_settings * run_num + setting_num)
             continue
 
         lc_0 = np.loadtxt(train_rewards_filename, delimiter=',')
-        lc_1 = np.loadtxt(eval_mean_rewards_filename, delimiter=',') # [:eval_lc_length+9] temporary solution for Pendulum-v0
+        # lc_1 = np.loadtxt(eval_mean_rewards_filename, delimiter=',') # [:eval_lc_length+9] temporary solution for Pendulum-v0
 
         # compute moving window
         if use_moving_avg:
+
+            # print("og length: {}".format(len(lc_0)))
             lc_0 = movingaverage(lc_0, moving_avg_window)
-            lc_1 = movingaverage(lc_1, moving_avg_window)
+            # lc_1 = movingaverage(lc_1, moving_avg_window)
+            # print("processed length: {}".format(len(lc_0)))
 
         train_lc_arr.append(lc_0)
         train_lc_length_arr.append(len(lc_0))
-        eval_mean_lc_arr.append(lc_1)
+        # eval_mean_lc_arr.append(lc_1)
 
     # find median train ep length (truncate or pad with nan)
     try:
@@ -165,13 +175,13 @@ for setting_num in range(num_settings):
             train_lc_arr[i] = np.append(train_lc_arr[i], np.zeros(pad_length) + np.nan)
 
     train_lc_arr = np.array(train_lc_arr)
-    eval_mean_lc_arr = np.array(eval_mean_lc_arr)
+    # eval_mean_lc_arr = np.array(eval_mean_lc_arr)
 
 
     if run_non_count == num_runs:
         print('setting ' + str(setting_num) + ' does not exist')
         print(np.shape(train_lc_arr), train_lc_arr)
-        print(np.shape(eval_mean_lc_arr), eval_mean_lc_arr)
+        # print(np.shape(eval_mean_lc_arr), eval_mean_lc_arr)
         # exit() ## Perhaps continue?? TODO
 
     #### Need to have same size
@@ -181,20 +191,12 @@ for setting_num in range(num_settings):
 
 
     # TODO: process eval_mean_lc_arr, eval_std_lc together and append to eval_mean_rewards, eval_std_rewards
-    eval_combined_mean_lc = np.nanmean(eval_mean_lc_arr, axis=0)
-    eval_mean_rewards.append(eval_combined_mean_lc)
-    eval_std_rewards.append(np.nanstd(eval_mean_lc_arr, axis=0))
-    
-    #std_mean = np.nanmean(np.square(eval_std_lc), axis=0)
-    #diff_squared_mean = np.nanmean(np.square(eval_mean_lc_arr - eval_combined_mean_lc), axis=0)
-
-    #eval_std_rewards.append(np.sqrt(std_mean + diff_squared_mean))
-    # print(np.shape(np.nanmean(train_lc_arr, axis=0)))
-    # print(np.shape(np.nanmean(eval_mean_lc_arr, axis=0)))
-    # input()
+    # eval_combined_mean_lc = np.nanmean(eval_mean_lc_arr, axis=0)
+    # eval_mean_rewards.append(eval_combined_mean_lc)
+    # eval_std_rewards.append(np.nanstd(eval_mean_lc_arr, axis=0))
 
     '''read in params file'''
-    paramfile = store_dir + env_name + '_' + agent_name + '_setting_' + str(setting_num) + '_run_*' + suffix[3]
+    paramfile = store_dir + env_name + '_' + agent_name + '_setting_' + str(setting_num) + '_run_*' + suffix[-1]
     files = glob.glob(paramfile)
     if len(files)<1:
         continue
@@ -217,17 +219,17 @@ for idx, item in enumerate(train_mean_rewards):
         train_std_rewards[idx] = np.append(train_std_rewards[idx], np.zeros(pad_length) + np.nan)
 
 print("max train median length: ", max_median_length)
-# print(train_mean_rewards[0])
-# print(eval_mean_rewards[0])
-# print(np.shape(train_mean_rewards), np.shape(eval_mean_rewards))
-# input()
-eval_mean_rewards = np.array(eval_mean_rewards)
-eval_std_rewards = np.array(eval_std_rewards)
 
-allres = [train_mean_rewards, train_std_rewards, eval_mean_rewards, eval_std_rewards, params]
+# eval_mean_rewards = np.array(eval_mean_rewards)
+# eval_std_rewards = np.array(eval_std_rewards)
+
+# allres = [train_mean_rewards, train_std_rewards, eval_mean_rewards, eval_std_rewards, params]
+allres = [train_mean_rewards, train_std_rewards, params]
 for i in range(len(save_suffix)):
     name = merged_dir + env_name + '_' + agent_name + save_suffix[i]
-    if i == 4:
+
+    # if i == 4:
+    if i == 2:
         name = params_fn
 
     print('Saving...' + name)

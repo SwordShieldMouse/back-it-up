@@ -34,7 +34,6 @@ STD_PARAM_MIN, STD_PARAM_MAX = np.log(np.exp(STD_MIN)-1), np.log(np.exp(STD_MAX)
 action_scale = 1
 env_name = 'ContinuousBanditsNormalized'
 
-# dummy agent, just using params from this json
 agent_params = {
 
     "entropy_scale": [0, 0.01, 0.1, 0.4, 1],
@@ -203,14 +202,7 @@ def main():
                     tiled_z = z.repeat([intgrl_actions_len])
                     boltzmann_prob = exp_q_val / tiled_z
 
-                    del tiled_z
-                    del constant_shift
-                    del q_val
-                    del exp_q_val
-                    del z
-
                     loss = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, None, None, all_candidates)
-                    # losses = reverse_kl_loss(intgrl_weights, intgrl_actions, boltzmann_prob, q_val, unshifted_z, all_candidates)
 
                     del boltzmann_prob
 

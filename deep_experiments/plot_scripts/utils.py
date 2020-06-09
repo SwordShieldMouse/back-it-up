@@ -34,4 +34,9 @@ def get_agent_parse_info(agent_json_data, divide_type=None):
         num_type = None
         post_divider = None
 
+    # type_arr: actual array with the target parse_type
+    # pre_divider: i think # settings before target parse_type
+    # num_type: ?
+    # post_divider: ?
+    # num_settings: total # settings
     return type_arr, pre_divider, num_type, post_divider, num_settings

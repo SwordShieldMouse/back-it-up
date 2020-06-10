@@ -6,21 +6,21 @@
         "pi_lr": [1e-2, 1e-3, 1e-4, 1e-5],
         "qf_vf_lr": [1e-1, 1e-2, 1e-3],
 
-        "sample_for_eval": ["False"],
-        "use_true_q": ["False"],
+        "sample_for_eval": [false],
+        "use_true_q": [false],
 
-        "entropy_scale": [0],
+        "entropy_scale": [1, 0.1, 0.01, 0],
 
         "l_param": [6],
         "N_param": [64],
         "optim_type": ["intg"],
-        "q_update_type": ["sac"],
+        "q_update_type": ["non_sac"],
         "use_replay": [true],
-        "use_target": [true],
+        "use_target": [false],
         "batch_size": [32],
 
-        "use_hard_policy": [true],
-        "use_baseline": [true]
+        "use_baseline": [true],
+        "use_hard_value": [true]
 
     }
 }

@@ -20,23 +20,20 @@ class ForwardKLNetwork(BaseNetwork):
 
         self.writer = config.writer
         self.writer_step = 0
-
-        # use_true_q is only applicable for ContinuousBandits Environment where true action-value function is available
-        self.use_true_q = False
-        if config.use_true_q == "True":
-            self.use_true_q = True
-
         self.rng = np.random.RandomState(config.random_seed)
         self.entropy_scale = config.entropy_scale
-
-        self.use_target = config.use_target
 
         if config.use_replay:
             self.batch_size = config.batch_size
         else:
             self.batch_size = 1
 
+        # use_true_q is only applicable for ContinuousBandits Environment where true action-value function is available
+        self.use_true_q = config.use_true_q
+
+        self.use_target = config.use_target
         self.use_hard_policy = config.use_hard_policy
+        self.use_hard_value = config.use_hard_value
 
         # create network
         self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
@@ -147,11 +144,11 @@ class ForwardKLNetwork(BaseNetwork):
             if self.config.q_update_type == 'sac':
                 new_action, new_log_prob, _, _, _, _ = self.pi_net.evaluate(state_batch)
                 new_q_val = self.q_net(state_batch, new_action)
-                target_v_val = new_q_val - self.entropy_scale * new_log_prob
+                target_v_val = (new_q_val - self.entropy_scale * new_log_prob) if not self.use_hard_value else new_q_val
 
             elif self.config.q_update_type == 'non_sac':
                 log_prob_batch = self.pi_net.get_logprob(state_batch, action_batch.unsqueeze_(1)).squeeze(-1)
-                target_v_val = (reward_batch - self.entropy_scale * log_prob_batch) + gamma_batch * target_next_v_val
+                target_v_val = ((reward_batch - self.entropy_scale * log_prob_batch) + gamma_batch * target_next_v_val) if not self.use_hard_value else (reward_batch + gamma_batch * target_next_v_val)
             else:
                 raise ValueError("invalid config.q_update_type")
             value_loss = nn.MSELoss()(v_val, target_v_val.detach())

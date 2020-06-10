@@ -14,15 +14,8 @@ class ReverseKL_Network_Manager(BaseNetwork_Manager):
         super(ReverseKL_Network_Manager, self).__init__(config)
 
         self.rng = np.random.RandomState(config.random_seed)
-
-        self.sample_for_eval = False
-        if config.sample_for_eval == "True":
-            self.sample_for_eval = True
-
-        self.use_true_q = False
-        if config.use_true_q == "True":
-            self.use_true_q = True
-
+        self.sample_for_eval = config.sample_for_eval
+        self.use_true_q = config.use_true_q
         self.use_target = config.use_target
 
         # define network

@@ -193,9 +193,16 @@ class ReverseKLNetwork(BaseNetwork):
                     integrands = torch.exp(stacked_intgrl_logprob) * (intgrl_multiplier.detach()/self.entropy_scale - stacked_intgrl_logprob)
 
             policy_loss = (-(integrands * self.intgrl_weights.repeat(self.batch_size))).reshape(self.batch_size, self.intgrl_actions_len).sum(-1).mean(-1)
+
+        elif self.optim_type == 'll':
+
+            # loglikelihood update
+            if self.entropy_scale == 0:
+                policy_loss = (-log_prob * (new_q_val - v_val).detach()).mean()
+            else:
+                policy_loss = (-log_prob * ((new_q_val - v_val)/self.entropy_scale - log_prob).detach()).mean()
         else:
             raise ValueError("Invalid self.optim_type")
-
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()

@@ -252,7 +252,7 @@ if __name__ == "__main__":
 
             for i in range(num_type):
                 print("*** plotting each run for {}: {} --- {}".format(parse_type, type_arr[i], int(type_best_arr[i])))
-                os.system("python3 {}/plot_scripts/plot_Bimodal.py {}results {}/jsonfiles/environment/{}.json {} {} {} {}_{}_{} {}".format(
+                os.system("python3 {}/plot_scripts/plot_each_run.py {}results {}/jsonfiles/environment/{}.json {} {} {} {}_{}_{} {}".format(
                     root_dir, env_name, root_dir, env_name, num_runs, agent_name, int(type_best_arr[i]), custom_save_name, parse_type, type_arr[i], result))
 
 

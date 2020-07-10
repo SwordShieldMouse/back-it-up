@@ -7,6 +7,7 @@ import sys
 import json
 
 from utils import get_agent_parse_info
+from plot_config import get_xyrange
 
 import os
 
@@ -26,35 +27,6 @@ plot_each_runs = True
 eval_last_N = True
 last_N_ratio = 0.5
 ##############################
-
-
-def get_xyrange(envname):
-    xmax = None
-
-    if envname == 'ContinuousBandits':
-        ymin = [-0.5, -0.5]
-        ymax = [2.0, 2.0]
-
-    elif envname == 'Pendulum-v0':
-        ymin = [-1600, -1600]
-        ymax = [-100, -100]
-
-    elif envname == 'Reacher-v2':
-        ymin = [-80, -80]
-        ymax = [0, 0]
-
-    elif envname == "Swimmer-v2":
-        ymin = [0, 0]
-        ymax = [40, 40]
-
-    else:
-        raise ValueError("Invalid environment name")
-
-    if xmax is None:
-        return None, ymin, ymax
-    else:
-        return xmax, ymin, ymax
-
 
 if __name__ == "__main__":
 

@@ -35,6 +35,7 @@ class ReverseKLNetwork(BaseNetwork):
         self.use_target = config.use_target
         self.use_hard_value = config.use_hard_value
         self.use_baseline = config.use_baseline
+        self.use_scaled_kl = config.use_scaled_kl
 
         # create network
         self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
@@ -202,10 +203,16 @@ class ReverseKLNetwork(BaseNetwork):
                 multiplier = new_q_val
 
             # loglikelihood update
-            if self.entropy_scale == 0:
-                policy_loss = (-log_prob * multiplier.detach()).mean()
-            else:
+            # scaled kl
+            if self.use_scaled_kl:
                 policy_loss = (-log_prob * (multiplier - self.entropy_scale * log_prob).detach()).mean()
+
+            # og kl
+            else:
+                if self.entropy_scale == 0:
+                    policy_loss = (-log_prob * multiplier.detach()).mean()
+                else:
+                    policy_loss = (-log_prob * (multiplier/self.entropy_scale - log_prob).detach()).mean()
         else:
             raise ValueError("Invalid self.optim_type")
 

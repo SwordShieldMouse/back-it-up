@@ -3,8 +3,8 @@
     "sweeps": {
         "actor_critic_dim": [128],
 
-        "pi_lr": [1e-3, 1e-4, 1e-5],
-        "qf_vf_lr": [1e-2, 1e-3, 1e-4],
+        "pi_lr": [1e-2, 1e-3, 1e-4, 1e-5],
+        "qf_vf_lr": [1e-1, 1e-2, 1e-3],
 
         "sample_for_eval": [false],
         "use_true_q": [false],
@@ -16,7 +16,7 @@
         "optim_type": ["ll"],
         "q_update_type": ["sac"],
         "use_replay": [true],
-        "use_target": [false],
+        "use_target": [true],
         "batch_size": [32],
 
         "use_baseline": [true],

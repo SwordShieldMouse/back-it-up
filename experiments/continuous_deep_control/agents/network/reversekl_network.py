@@ -196,11 +196,16 @@ class ReverseKLNetwork(BaseNetwork):
 
         elif self.optim_type == 'll':
 
+            if self.use_baseline:
+                multiplier = new_q_val - v_val
+            else:
+                multiplier = new_q_val
+
             # loglikelihood update
             if self.entropy_scale == 0:
-                policy_loss = (-log_prob * (new_q_val - v_val).detach()).mean()
+                policy_loss = (-log_prob * multiplier.detach()).mean()
             else:
-                policy_loss = (-log_prob * ((new_q_val - v_val) - self.entropy_scale * log_prob).detach()).mean()
+                policy_loss = (-log_prob * (multiplier - self.entropy_scale * log_prob).detach()).mean()
         else:
             raise ValueError("Invalid self.optim_type")
 

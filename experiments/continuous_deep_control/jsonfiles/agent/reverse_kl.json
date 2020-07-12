@@ -20,7 +20,8 @@
         "batch_size": [32],
 
         "use_baseline": [true],
-        "use_hard_value": [false]
+        "use_hard_value": [false],
+        "use_scaled_kl": [true]
 
     }
 }

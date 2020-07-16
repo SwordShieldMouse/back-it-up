@@ -16,7 +16,7 @@
         "optim_type": ["reparam"],
         "q_update_type": ["sac"],
         "use_replay": [true],
-        "use_target": [true],
+        "use_target": [false],
         "batch_size": [32],
 
         "use_baseline": [true],

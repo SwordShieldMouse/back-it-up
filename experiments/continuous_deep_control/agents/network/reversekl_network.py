@@ -225,7 +225,7 @@ class ReverseKLNetwork(BaseNetwork):
             else:
 
                 if self.entropy_scale == 0:
-                    policy_loss = - multiplier
+                    policy_loss = (-multiplier).mean()
                 else:
                     policy_loss = (log_prob - multiplier / self.entropy_scale).mean()
         else:

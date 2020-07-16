@@ -213,6 +213,21 @@ class ReverseKLNetwork(BaseNetwork):
                     policy_loss = (-log_prob * multiplier.detach()).mean()
                 else:
                     policy_loss = (-log_prob * (multiplier/self.entropy_scale - log_prob).detach()).mean()
+
+        elif self.optim_type == 'reparam':
+            if self.use_baseline:
+                multiplier = new_q_val - v_val.detach()
+            else:
+                multiplier = new_q_val
+
+            if self.use_scaled_kl:
+                policy_loss = (self.entropy_scale * log_prob - multiplier).mean()
+            else:
+
+                if self.entropy_scale == 0:
+                    policy_loss = - multiplier
+                else:
+                    policy_loss = (log_prob - multiplier / self.entropy_scale).mean()
         else:
             raise ValueError("Invalid self.optim_type")
 

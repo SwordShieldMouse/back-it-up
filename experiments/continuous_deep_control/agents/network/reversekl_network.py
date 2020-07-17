@@ -8,6 +8,7 @@ import environments
 from .representations.separate_network import *
 from utils.main_utils import write_summary
 import numpy as np
+# from torchviz.dot import make_dot
 
 
 class ReverseKLNetwork(BaseNetwork):
@@ -55,6 +56,7 @@ class ReverseKLNetwork(BaseNetwork):
         self.pi_optimizer = optim.RMSprop(self.pi_net.parameters(), lr=self.learning_rate[0])
         self.q_optimizer = optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate[1])
         self.v_optimizer = optim.RMSprop(self.v_net.parameters(), lr=self.learning_rate[1])
+
 
         dtype = torch.float32
 
@@ -147,7 +149,7 @@ class ReverseKLNetwork(BaseNetwork):
                 new_action, log_prob, _, _, _, _ = self.pi_net.evaluate(state_batch)
                 new_q_val = self.q_net(state_batch, new_action)
 
-                target_v_val = (new_q_val.detach() - self.entropy_scale * log_prob.detach()) if not self.use_hard_value else new_q_val.detach()
+                target_v_val = (new_q_val - self.entropy_scale * log_prob).detach() if not self.use_hard_value else new_q_val.detach()
 
             elif self.config.q_update_type == 'non_sac':
                 with torch.no_grad():
@@ -215,6 +217,7 @@ class ReverseKLNetwork(BaseNetwork):
                     policy_loss = (-log_prob * (multiplier/self.entropy_scale - log_prob).detach()).mean()
 
         elif self.optim_type == 'reparam':
+
             if self.use_baseline:
                 multiplier = new_q_val - v_val.detach()
             else:
@@ -230,6 +233,12 @@ class ReverseKLNetwork(BaseNetwork):
                     policy_loss = (log_prob - multiplier / self.entropy_scale).mean()
         else:
             raise ValueError("Invalid self.optim_type")
+
+        # for debugging/visualization
+        # dot = make_dot(policy_loss)
+        # dot.format = 'png'
+        # dot.render('policy_loss')
+        # exit()
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()

@@ -33,6 +33,8 @@ class SoftQNetwork(nn.Module):
 
         self.linear1 = nn.Linear(state_dim + action_dim, layer_dim)
         self.linear2 = nn.Linear(layer_dim, layer_dim)
+        # self.linear1 = nn.Linear(state_dim, layer_dim)
+        # self.linear2 = nn.Linear(layer_dim + action_dim, layer_dim)
         self.linear3 = nn.Linear(layer_dim, 1)
 
         self.linear3.weight.data.uniform_(-init_w, init_w)
@@ -45,11 +47,16 @@ class SoftQNetwork(nn.Module):
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
         x = self.linear3(x)
+
+        # x = F.relu(self.linear1(state))
+        # x = torch.cat([x, action], 1)
+        # x = F.relu(self.linear2(x))
+        # x = self.linear3(x)
         return x
 
 
 class PolicyNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim, layer_dim, action_scale, init_w=3e-3, log_std_min=-20, log_std_max=2):
+    def __init__(self, state_dim, action_dim, layer_dim, action_scale, init_w=3e-3, log_std_min=-10, log_std_max=2):
         super(PolicyNetwork, self).__init__()
 
         self.log_std_min = log_std_min
@@ -75,7 +82,9 @@ class PolicyNetwork(nn.Module):
         x = F.relu(self.linear2(x))
 
         mean = self.mean_linear(x)
-        std = F.softplus(torch.clamp(self.log_std_linear(x), -10, 2), threshold=10)
+        std = F.softplus(torch.clamp(self.log_std_linear(x), self.log_std_min, self.log_std_max), threshold=10)
+        # log_std = F.tanh(self.log_std_linear(x))
+        # log_std = self.log_std_min + 0.5 * (self.log_std_max - self.log_std_min) * (log_std + 1)
         # std = torch.exp(log_std)
 
         return mean, std
@@ -85,19 +94,18 @@ class PolicyNetwork(nn.Module):
 
         normal = self.get_distribution(pre_mean, std)
 
-        z = normal.sample()
+        z = normal.rsample()
         action = torch.tanh(z)
         log_prob = normal.log_prob(z)
 
         if len(log_prob.shape) == 1:
             log_prob.unsqueeze_(-1)
-        log_prob -= torch.log(1 - action.pow(2) + epsilon).sum(-1, keepdim=True)
+        log_prob -= torch.log(self.action_scale * (1 - action.pow(2)) + epsilon).sum(-1, keepdim=True)
 
         # scale to correct range
-        action *= self.action_scale
+        action = action * self.action_scale
 
-        mean = torch.tanh(pre_mean)
-        mean *= self.action_scale
+        mean = torch.tanh(pre_mean) * self.action_scale
         return action, log_prob, z, pre_mean, mean, std,
 
     def get_logprob(self, states, tiled_actions):

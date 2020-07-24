@@ -22,7 +22,7 @@
         "use_hard_policy": [false],
         "use_hard_value": [false],
 
-        "n_action_points": [500]
+        "n_action_points": [128]
 
     }
 }

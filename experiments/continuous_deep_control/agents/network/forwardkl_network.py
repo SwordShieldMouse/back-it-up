@@ -56,6 +56,10 @@ class ForwardKLNetwork(BaseNetwork):
 
         dtype = torch.float32
 
+        # for WIS
+        self.n_action_points = config.n_action_points
+        self.action_scale = self.action_max[0]
+
         # Numerical Integration (Clenshaw-Curtis)
         if self.action_dim == 1:
             self.N = config.N_param
@@ -182,6 +186,38 @@ class ForwardKLNetwork(BaseNetwork):
 
                 integrands = boltzmann_prob * tiled_intgrl_logprob
                 policy_loss = (-(integrands * self.tiled_intgrl_weights).sum(-1)).mean(-1)
+
+            elif self.optim_type == 'wis':
+                mus, stds = self.pi_net.forward(state_batch)  # (32, 1), (32, 1)
+                normal = self.pi_net.get_distribution(mus, stds)
+                raw_actions = normal.sample_n(self.n_action_points) # (500, 32, 1)
+                actions = torch.tanh(raw_actions)
+                assert raw_actions.shape == (self.n_action_points, mus.shape[0], mus.shape[1])
+
+                orig = normal.log_prob(raw_actions)  # (500, 32, 1)
+                correction = torch.log(self.action_scale * (1 - actions.pow(2)) + 1e-6).sum(dim=-1, keepdim=True)
+                assert torch.isnan(orig).sum() == 0
+                assert torch.isnan(correction).sum() == 0
+
+                if len(orig.shape) == 2:
+                    orig.unsqueeze_(-1)
+
+                log_pdfs = orig - correction
+
+                log_pdfs = log_pdfs.permute(1, 0, 2).squeeze(-1)  # (32, 500)
+                actions = actions.permute(1, 0, 2)  # (32, 500, 1)
+                tiled_state_batch = state_batch.unsqueeze(1).repeat(1, self.n_action_points, 1)
+                stacked_state_batch = tiled_state_batch.reshape(-1, self.state_dim)
+                stacked_action_batch = actions.reshape(-1, self.action_dim)
+                stacked_q_val = self.q_net(stacked_state_batch, stacked_action_batch)  # (32 * 500, 1)
+                tiled_q_val = stacked_q_val.reshape(-1, self.n_action_points)  # (32, 500)
+
+                with torch.no_grad():
+                    max_arg = torch.max(tiled_q_val / self.entropy_scale - log_pdfs, axis=1, keepdim=True)[0]
+                    rho = torch.exp(tiled_q_val / self.entropy_scale - log_pdfs - max_arg)
+
+                ratio = rho / rho.sum(-1, keepdim=True)
+                policy_loss = - torch.sum(ratio * log_pdfs, axis=-1).mean()
 
             else:
                 raise ValueError("Invalid optim_type")

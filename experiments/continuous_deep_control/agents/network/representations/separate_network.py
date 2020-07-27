@@ -94,9 +94,9 @@ class PolicyNetwork(nn.Module):
 
         normal = self.get_distribution(pre_mean, std)
 
-        z = normal.rsample()
-        action = torch.tanh(z)
-        log_prob = normal.log_prob(z)
+        raw_action = normal.rsample()
+        action = torch.tanh(raw_action)
+        log_prob = normal.log_prob(raw_action)
 
         if len(log_prob.shape) == 1:
             log_prob.unsqueeze_(-1)
@@ -106,7 +106,34 @@ class PolicyNetwork(nn.Module):
         action = action * self.action_scale
 
         mean = torch.tanh(pre_mean) * self.action_scale
-        return action, log_prob, z, pre_mean, mean, std,
+        return action, log_prob, raw_action, pre_mean, mean, std,
+
+    # TODO: merge with evaluate
+    def evaluate_multiple(self, state, num_actions, epsilon=1e-6):
+        # state: (batch_size, state_dim)
+        pre_mean, std = self.forward(state)
+
+        normal = self.get_distribution(pre_mean, std)
+
+        raw_action = normal.sample_n(num_actions)  # (num_actions, batch_size, action_dim)
+        action = torch.tanh(raw_action)
+        assert raw_action.shape == (num_actions, pre_mean.shape[0], pre_mean.shape[1])
+
+        log_prob = normal.log_prob(raw_action)
+
+        if len(log_prob.shape) == 2:
+            log_prob.unsqueeze_(-1)
+
+        log_prob -= torch.log(self.action_scale * (1 - action.pow(2)) + epsilon).sum(dim=-1, keepdim=True)
+
+        log_prob = log_prob.permute(1, 0, 2).squeeze(-1)  # (batch_size, num_actions)
+        action = action.permute(1, 0, 2)  # (batch_size, num_actions, 1)
+
+        mean = torch.tanh(pre_mean) * self.action_scale
+
+        # dimension of raw_action might be off
+        return action, log_prob, raw_action, pre_mean, mean, std
+
 
     def get_logprob(self, states, tiled_actions, epsilon = 1e-6):
 

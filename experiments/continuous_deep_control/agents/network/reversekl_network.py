@@ -57,8 +57,10 @@ class ReverseKLNetwork(BaseNetwork):
         self.q_optimizer = optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate[1])
         self.v_optimizer = optim.RMSprop(self.v_net.parameters(), lr=self.learning_rate[1])
 
-
         dtype = torch.float32
+
+        # for multiple samples
+        self.n_action_points = config.n_action_points
 
         # Numerical Integration (Clenshaw-Curtis)
         if self.action_dim == 1:
@@ -216,6 +218,38 @@ class ReverseKLNetwork(BaseNetwork):
                 else:
                     policy_loss = (-log_prob * (multiplier/self.entropy_scale - log_prob).detach()).mean()
 
+        # TODO: refactor this code
+        elif self.optim_type == 'll_multiple':
+
+            # actions: (batch_size, n_actions, action_dim)
+            # log_pdfs: (batch_size, n_actions)
+            actions, log_pdfs, _, _, _, _ = self.pi_net.evaluate_multiple(state_batch, self.n_action_points)
+            stacked_log_prob = log_pdfs.reshape(-1, 1)
+
+            tiled_state_batch = state_batch.unsqueeze(1).repeat(1, self.n_action_points, 1)
+            stacked_state_batch = tiled_state_batch.reshape(-1, self.state_dim)
+            stacked_action_batch = actions.reshape(-1, self.action_dim)
+            stacked_q_val = self.q_net(stacked_state_batch, stacked_action_batch)  # (batch_size * n_actions, 1)
+
+            # reusing v_val and just stacking them
+            # (batch_size * n_actions, 1)
+            stacked_v_val = v_val.unsqueeze(1).repeat(1, self.n_action_points, 1).reshape(-1, 1)
+
+            if self.use_baseline:
+                multiplier = stacked_q_val - stacked_v_val
+            else:
+                multiplier = stacked_q_val
+
+            # scaled kl
+            if self.use_scaled_kl:
+                policy_loss = (-stacked_log_prob * (multiplier - self.entropy_scale * stacked_log_prob).detach()).mean()
+            # og kl
+            else:
+                if self.entropy_scale == 0:
+                    policy_loss = (-stacked_log_prob * multiplier.detach()).mean()
+                else:
+                    policy_loss = (-stacked_log_prob * (multiplier / self.entropy_scale - stacked_log_prob).detach()).mean()
+
         elif self.optim_type == 'reparam':
 
             if self.use_baseline:
@@ -231,6 +265,38 @@ class ReverseKLNetwork(BaseNetwork):
                     policy_loss = (-multiplier).mean()
                 else:
                     policy_loss = (log_prob - multiplier / self.entropy_scale).mean()
+
+        # TODO: refactor this code
+        elif self.optim_type == 'reparam_multiple':
+            # actions: (batch_size, n_actions, action_dim)
+            # log_pdfs: (batch_size, n_actions)
+            actions, log_pdfs, _, _, _, _ = self.pi_net.evaluate_multiple(state_batch, self.n_action_points)
+            stacked_log_prob = log_pdfs.reshape(-1, 1)
+
+            tiled_state_batch = state_batch.unsqueeze(1).repeat(1, self.n_action_points, 1)
+            stacked_state_batch = tiled_state_batch.reshape(-1, self.state_dim)
+            stacked_action_batch = actions.reshape(-1, self.action_dim)
+            stacked_q_val = self.q_net(stacked_state_batch, stacked_action_batch)  # (batch_size * n_actions, 1)
+
+            # reusing v_val and just stacking them
+            # (batch_size * n_actions, 1)
+            stacked_v_val = v_val.unsqueeze(1).repeat(1, self.n_action_points, 1).reshape(-1, 1)
+            ####
+
+            if self.use_baseline:
+                multiplier = stacked_q_val - stacked_v_val.detach()
+            else:
+                multiplier = stacked_q_val
+
+            if self.use_scaled_kl:
+                policy_loss = (self.entropy_scale * stacked_log_prob - multiplier).mean()
+            else:
+
+                if self.entropy_scale == 0:
+                    policy_loss = (-multiplier).mean()
+                else:
+                    policy_loss = (stacked_log_prob - multiplier / self.entropy_scale).mean()
+
         else:
             raise ValueError("Invalid self.optim_type")
 

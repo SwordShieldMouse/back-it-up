@@ -188,24 +188,9 @@ class ForwardKLNetwork(BaseNetwork):
                 policy_loss = (-(integrands * self.tiled_intgrl_weights).sum(-1)).mean(-1)
 
             elif self.optim_type == 'wis':
-                mus, stds = self.pi_net.forward(state_batch)  # (32, 1), (32, 1)
-                normal = self.pi_net.get_distribution(mus, stds)
-                raw_actions = normal.sample_n(self.n_action_points) # (500, 32, 1)
-                actions = torch.tanh(raw_actions)
-                assert raw_actions.shape == (self.n_action_points, mus.shape[0], mus.shape[1])
 
-                orig = normal.log_prob(raw_actions)  # (500, 32, 1)
-                correction = torch.log(self.action_scale * (1 - actions.pow(2)) + 1e-6).sum(dim=-1, keepdim=True)
-                assert torch.isnan(orig).sum() == 0
-                assert torch.isnan(correction).sum() == 0
+                actions, log_pdfs, _, _, _, _ = self.pi_net.evaluate_multiple(state_batch, self.n_action_points)
 
-                if len(orig.shape) == 2:
-                    orig.unsqueeze_(-1)
-
-                log_pdfs = orig - correction
-
-                log_pdfs = log_pdfs.permute(1, 0, 2).squeeze(-1)  # (32, 500)
-                actions = actions.permute(1, 0, 2)  # (32, 500, 1)
                 tiled_state_batch = state_batch.unsqueeze(1).repeat(1, self.n_action_points, 1)
                 stacked_state_batch = tiled_state_batch.reshape(-1, self.state_dim)
                 stacked_action_batch = actions.reshape(-1, self.action_dim)

@@ -115,7 +115,7 @@ class PolicyNetwork(nn.Module):
 
         normal = self.get_distribution(pre_mean, std)
 
-        raw_action = normal.sample_n(num_actions)  # (num_actions, batch_size, action_dim)
+        raw_action = normal.rsample(sample_shape=(num_actions,))  # (num_actions, batch_size, action_dim)
         action = torch.tanh(raw_action)
         assert raw_action.shape == (num_actions, pre_mean.shape[0], pre_mean.shape[1])
 

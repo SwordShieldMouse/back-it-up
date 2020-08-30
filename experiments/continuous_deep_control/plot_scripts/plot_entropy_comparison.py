@@ -6,7 +6,7 @@ import numpy as np
 import sys
 import json
 from matplotlib.lines import Line2D
-from find_agent_best_setting import get_xyrange
+from plot_config import get_xyrange
 from collections import OrderedDict, defaultdict
 
 # Usage
@@ -15,9 +15,18 @@ from collections import OrderedDict, defaultdict
 # STORE_DIR: stored_dir (should have mergedENVNAMEResults, which should also contain npy/
 # PARSE_TYPE: parse_type (should be the same when generating npys)
 
-show_labels = False
+show_labels = True
 show_plot = False
-agents = ['ForwardKL', 'ReverseKL']
+
+agents = ['ForwardKL']
+markers = ['o', 'x']
+marker_sizes = [8, 14]
+mews = [5, 3]
+
+# agents = ['ReverseKL']
+# markers = ['x']
+# marker_sizes = [14]
+# mews = [3]
 
 window_ma = 20
 
@@ -159,10 +168,6 @@ plt.xlim(xlimt)
 plt.ylim(ylimt)
 
 handle_arr = []
-
-markers = ['o', 'x']
-marker_sizes = [8, 14]
-mews = [5, 3]
 
 for jdx, ag in enumerate(agents):
     for idx, t in enumerate(temps):

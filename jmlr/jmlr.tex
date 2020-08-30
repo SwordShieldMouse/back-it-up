@@ -143,17 +143,20 @@ In this work, we highlight and investigate the difference between the forward an
 In policy optimization, an explicit parameterized policy is learned to approximate the optimal policy. The most common methods are policy gradient (PG) methods, which iteratively update the policy parameter using the gradient of either the discounted return or the average reward, given by the {policy gradient theorem} \citep{sutton2000policy}.
 Although not a recent invention, with early work introducing Actor-Critic \citep{sutton1984}, policy gradient methods have recently seen a surge of renewed interest given their ease of application in high-dimensional, continuous action spaces when combined with neural networks \citep{schulman2015high,wang2016sample}. Many recent developments include learning deterministic polices \citep{silver2014deterministic,lillicrap2015continuous}, trust-regions \citep{schulman2015trust,schulman2017proximal}, continuous-action extensions of Q-learning \citep{ haarnoja2017reinforcement,lim2018actor,ryu2019caql}, probabilistic approaches \citep{abdolmaleki2018maximum,fellows2019virel}, and entropy regularization \citep{haarnoja2017reinforcement, haarnoja2018soft}.
 
-One way to navigate this proliferation is to revisit the insight that many policy gradient methods can be seen as approximate policy iteration (API). To find an optimal policy, API methods \citep{bertsekas2011approximate,scherrer2014approximate} interleave approximate policy evaluation---the estimation of value functions---and (approximate) policy improvement, where the policy is greedified with respect to the action-values. Numerous papers have linked PG methods to policy iteration \citep{sutton2000policy,kakade2002approximately,perkins2002existence,perkins2003convergent,wagner2011reinterpretation,wagner2013optimistic,scherrer2014local,bhandari2019global}, including recent work connecting maximum-entropy policy gradient and value-based methods \citep{o2016combining,nachum2017bridging, schulman2017equivalence, nachum2019algaedice}.
-The connection between PG and \emph{Approximate} PI arises because parameterized policies only allow for approximate greedification. For exact policies, greedification is straightforward: the policy is set to the maximal action for the approximate action-values, for each state. 
-For parameterized policies, however, this is rarely possible. One option is to minimize distance to a Boltzmann distribution on the action-values \citep{wagner2011reinterpretation}, such as with a reverse KL divergence \citep{haarnoja2018soft} or a forward KL divergence \citep{vieillard2019deep}.
+One way to navigate this proliferation is to revisit the insight that many policy gradient methods can be seen as approximate policy iteration (API). To find an optimal policy, API methods \citep{bertsekas2011approximate,scherrer2014approximate} interleave approximate policy evaluation---understanding how a policy is currently performing with a value function---and (approximate) policy improvement, making the current policy better based on policy-evaluation information. 
+The policy improvement step is sometimes called the \textit{greedification} step, which refers to the fact that in exact PI, the subsequent policy is set to be the greedy action at each stat (i.e., the action that maximizes the current action-value function).
+Numerous papers have linked PG methods to policy iteration \citep{sutton2000policy,kakade2002approximately,perkins2002existence,perkins2003convergent,wagner2011reinterpretation,wagner2013optimistic,scherrer2014local,bhandari2019global}, including recent work connecting maximum-entropy policy gradient and value-based methods \citep{o2016combining,nachum2017bridging, schulman2017equivalence, nachum2019algaedice}.
+The connection between PG and \emph{Approximate} PI arises because parameterized policies only allow for approximate greedification. Viewing one gradient step (PG) as a policy greedification step (API) suggests that one way to understand PG methods is to understand their greedification steps. For tabular policies, greedification is straightforward: the policy is set to the maximal action for the approximate action-values, for each state. 
+For parameterized policies, however, this is rarely possible as not all policies will be representable by a given function approximator class. 
+One option is to minimize the KL divergence of the current policy to a Boltzmann distribution over the action values \citep{wagner2011reinterpretation}. 
+The use of a Boltzmann distribution is common in pseudo-likelihood methods \citep{kober2009policy,neumann2011variational,levine2018reinforcement}, ensuring that one has a target distribution based on the action-values. The KL divergence is a convenient choice because stochastically estimating the objective only requires the ability to sample from the distributions and evaluate the values of the distributions at single points. It is unclear, however, whether to use the reverse or the forward KL divergence. That is, should the policy $\pi$ be the first argument of the KL divergence, or should it be the Boltzmann distribution over the action values? For example, \citet{neumann2011variational} argues in favour of the reverse KL divergence as such a resulting policy would be cost-averse, while \citet{norouzi2016reward} uses the forward KL divergence to induce a policy that is more exploratory (i.e., has a more diverse state visitation distribution). 
 
 In this work, we investigate how one should perform the greedification step for parameterized policies. In particular, for a given action-value estimate, we investigate the difference between using a forward and reverse KL divergence, with and without entropy regularization. 
-
-Despite the fact that both have been used, there is little investigation into the differences between these two choices; the reverse KL is the typical default. The reverse KL without entropy regularization corresponds to a standard Actor-Critic update and is easy to compute. More recently, it was shown that the reverse KL guarantees policy improvement when the KL can be minimized separately for each state \citep[p.~4]{haarnoja2018soft}. At the same time, reverse KL objectives have known problems, primarily that they are non-convex, even in an ideal case with a linear Boltzmann policy. For contextual bandits, \citet{chen2019surrogate} showed improved performance when using a surrogate, forward KL objective for the smoothed risk. The forward KL divergence is also used in supervised learning, in the form of the cross-entropy loss. It remains unclear which of the two objectives is superior for greedification.
-
+Despite the fact that both have been used, there is little investigation into the differences between these two choices for approximate greedification; the reverse KL is the typical default. The reverse KL without entropy regularization corresponds to a standard Actor-Critic update and is easy to compute. More recently, it was shown that the reverse KL guarantees policy improvement when the KL can be minimized separately for each state \citep[p.~4]{haarnoja2018soft}. At the same time, reverse KL objectives have known problems, primarily that they are non-convex, even in an ideal case with a linear Boltzmann policy. For contextual bandits, \citet{chen2019surrogate} showed improved performance when using a surrogate, forward KL objective for the smoothed risk. The forward KL divergence is also used in supervised learning, in the form of the cross-entropy loss. No work thus far has explored the differences between the KLs in the framewokr of what policy improvement guarantees can be provided, and whether the conditions of any such poliy improvement results hold in experimental settings.
+% SS: Update the above claim after reviewing the literature mentioned by NeurIPS reviewers
 
 We provide some clarity on this question in this work, with the following contributions. First, we highlight four choices for greedication: forward or reverse KL to a Boltzmann distribution on the action-values, with or without entropy regularization. 
-Second, we provide several theoretical insights into policy improvement for forward and reverse KLs. We highlight that the policy improvement result for the reverse KL extends to certain function-approximation settings, and provide a counterexample where optimizing for the forward KL can fail to induce policy improvement. Nevertheless, we show that under some additional conditions, optimizing for the forward KL can induce policy improvement.  Finally, we empirically investigate the behaviour of the reverse and forward KL, with varying levels of entropy regularization, providing some evidence that the reverse KL can converge faster, but can sometimes converge to worse solutions than the forward KL, particularly under continuous actions. 
+Second, we provide several theoretical insights into policy improvement for forward and reverse KLs. We highlight that the policy improvement result for the reverse KL extends to certain function-approximation settings, and provide a counterexample where optimizing for the forward KL can fail to induce policy improvement. Nevertheless, we show that under some additional conditions, optimizing for the forward KL can induce policy improvement.  Finally, we empirically investigate the behaviour of the reverse and forward KL, with varying levels of entropy regularization, providing some evidence that on controlled small-scale experiments, the reverse KL can converge faster, but can sometimes converge to worse solutions than the forward KL, particularly under continuous actions. On large-scale benchmarks, we find no consistent superiority of either KL divergence over the other, but observe interesting trends influenced by the forward KL, entropy regularization, and the function approximation architecture.
 
 
 \section{Problem Formulation}
@@ -185,11 +188,14 @@ This procedure can be interpreted as Approximate Policy Iteration (API). API met
    
 \section{Approximate Greedification with KL Divergences}\label{sec:sac}
 
-In this section, we discuss the use of KL Divergences to perform approximate greedification. We outline four possible options: (1) forward KL and reverse KL and (2) with or without entropy regularization. We show that many PG variants can be seen as API with the greedification step as an instance of one of these four choices. A categorization of PG variants is given in Appendix A. 
+In this section, we discuss the use of KL Divergences to perform approximate greedification. We outline four possible options: (1) forward KL and reverse KL and (2) with or without entropy regularization. We show that many PG variants can be seen as API with the greedification step as an instance of one of these four choices. % A categorization of PG variants is given in Appendix A. 
 
-\textbf{KL Divergences}
+\textbf{KL Divergence}
 
-Given two probability distributions $p, q$ on $\actionspace$, the KL divergence between $p$ and $q$ is defined as $ \KL(p \parallel q) \defeq \int_\actionspace p(a) \log\frac{p(a)}{q(a)}\, da$,
+Given two probability distributions $p, q$ on $\actionspace$, the KL divergence between $p$ and $q$ is defined as:
+\begin{align}
+\KL(p \parallel q) \defeq \int_\actionspace p(a) \log\frac{p(a)}{q(a)}\, da,
+\end{align}
 %
 where $p$ is assumed to be {absolutely continuous} \citep{billingsley2008probability} with respect to $q$, to ensure that the KL divergence exists. 
 %
@@ -198,21 +204,42 @@ The KL divergence is not symmetric. This asymmetry leads to the two possible cho
 
 \textbf{Approximate Greedification}
 
-Either KL divergence could be used for greedification of $\pi$ at a given state $s$ by setting $q_\theta = \pi_\policyparams(\cdot | s)$ and $p =  \boltzmannQ(s, \cdot)$, where $\boltzmannQ$ is defined by $\boltzmannQ(s, a) \propto \exp(\Qhat(s, a)\tau^{-1})$.
+Either KL divergence could be used for greedification of $\pi$ at a given state $s$ by setting $q_\theta = \pi_\policyparams(\cdot | s)$ and $p =  \boltzmannQ(s, \cdot)$, where $\boltzmannQ$ is defined as:
+\begin{align}
+%\boltzmannQ(s, a) \propto \exp(\Qhat(s, a)\tau^{-1})
+\boltzmannQ(s, a) \defeq \frac{exp(Q(s,a)\tau^{-1}}{\int_\actionspace exp(Q(s,b)\tau^{-1} db}
+\end{align}
 %
-$\boltzmannQ$ provides the optimal (soft) greedification w.r.t. $\Qhat$. To understand why, we define the soft value functions \citep{ziebart2010modeling}, where an entropy term $\entropy(\pi(\cdot \mid s))$ is added to the reward. $V^{\pi}_{soft}(s) \defeq  \Ex_\pi\left[ \sum_{k = 0}^\infty \gamma^k \left[ r(S_k, A_k) + \tau \entropy(\pi(\cdot|S_k))\right] \mid S_0 = s \right]$. We can also define the soft action-value: $Q^{\pi}_{soft}(s,a) \defeq  \Ex_\pi\left[ r(S_0, A_0) + \gamma \Ex_{S_1}[V(S_1)] \mid S_0 = s, A_0 = a \right]$.
+$\boltzmannQ$ provides the optimal (soft) greedification with respect to $\Qhat$. To understand why, we define the soft value functions \citep{ziebart2010modeling}. First, we define the \textit{entropy} of a distribution, which captures how ``spread out'' the distribution is. The higher the entropy, the less the probability mass of $\pi(\cdot|s)$ is concentrated in any particular area.
+\begin{align*}
+    \entropy(\pi(\cdot \mid s)) := - \int_\actionspace \pi(a \mid s) \log \pi(a \mid s)\, da.
+\end{align*}
 
-If we set $\pi'(\cdot | s) = \boltzmannQ(s, \cdot)$ for all $s \in \statespace$, then $Q^{\pi'}_{soft}(s,a) \ge Q^{\pi}_{soft}(s,a)$ for all $(s,a)$ \citep[Theorem 4]{haarnoja2017reinforcement}. As $\tau$ approaches zero, $Q^{\pi}_{soft}(s,a)$ approaches $Q^{\pi'}(s,a)$, and so this result generally motivates using $\boltzmannQ$ as a target policy for greedification. The KL divergences are non-negative and are zero iff $\pi'(\cdot \mid s) = \boltzmannQ(s, \cdot)$ almost everywhere.  
+Now, we define the soft value functions; they are essentially just regular value functions where an entropy term is added to the reward. 
+\begin{equation*}
+    V^{\pi}_\tau(s) \defeq  \Ex_\pi\left[ \sum_{k = 0}^\infty \gamma^k \left[ r(S_k, A_k) + \tau \entropy(\pi(\cdot|S_k))\right] \mid S_0 = s \right] 
+\end{equation*}
+We can also define the soft action-value function. 
+\begin{align*}
+    Q^{\pi}_\tau(s,a) \defeq  r(s, a) + \gamma \Ex_{s' \sim p(\cdot \mid s, a)}[V^\pi_\tau(s')]
+\end{align*}
+We can also write the state-value function in terms of the action-value function.
+\begin{align*}
+    V^\pi_\tau(s) = \Ex_\pi[Q^\pi_\tau(s, a) - \tau \log \pi(a \mid s)].
+\end{align*}
+Intuitively, the soft value functions penalize determinism in our policies. Using soft value functions instead of (regular) value functions changes the RL problem slightly, as we are no longer interested in just the return, but rather the return plus the determinism penalty. 
 
-Define the (scaled) \textbf{Reverse KL} for greedification at a given state $s$ and action-value $\Qhat$:%, with corresponding gradient, as
+If we set $\pi'(\cdot | s) = \boltzmannQ_\tau(s, \cdot)$ for all $s \in \statespace$, then $Q^{\pi'}_\tau(s,a) \ge Q^{\pi}_\tau(s,a)$ for all $(s,a)$ \citep[Theorem 4]{haarnoja2017reinforcement}. As $\tau$ approaches zero, $Q^{\pi}_\tau(s,a)$ approaches $Q^{\pi}(s,a)$, which is a motivation using $\boltzmannQ_\tau$ as a target policy for greedification.
+
+Define the \textbf{Reverse KL} for greedification at a given state $s$ and action-value $\Qhat$ ($\Qhat$ may be soft or not):%, with corresponding gradient, as
 %
 \begin{align*}
- \text{RKL}(\policyparams; s, \Qhat) &\defeq \tau\KL\left( \pi_\policyparams(\cdot \mid s_t) \parallel \boltzmannQ(s_t, \cdot) \right) \propto -\tau\entropy(\pi_\policyparams(\cdot \mid s)) - \int_\actionspace  \pi_\policyparams(a \mid s) {Q(s, a)}\, da 
+ \text{RKL}(\policyparams; s, \Qhat) &\defeq \KL\left( \pi_\policyparams(\cdot \mid s_t) \parallel \boltzmannQ(s_t, \cdot) \right)% \propto -\entropy(\pi_\policyparams(\cdot \mid s)) - \tau^{-1}\int_\actionspace  \pi_\policyparams(a \mid s) {Q(s, a)}\, da 
     %\nabla_\policyparams \text{RKL}(\policyparams; s, \Qhat)
     %&= -\tau\nabla_\policyparams \entropy(\pi_\policyparams(\cdot \mid s)) - \int_\actionspace \nabla_\policyparams \pi_\policyparams(a \mid s) {Q(s, a)}\, da \nonumber
 \end{align*}
 %
-The scaling with $\tau$ is used to make the magnitude of the KL more consistent across different choices of $\tau$; the optimal value with or without the scaling is the same. 
+%The scaling with $\tau$ is used to make the magnitude of the KL more consistent across different choices of $\tau$; the optimal value with or without the scaling is the same. 
 Notice that $\tau$ plays the role of an entropy regularization parameter: a larger $\tau$ results in more entropy regularization on $\pi_\policyparams(\cdot \mid s)$.
 We can take a limiting case with no entropy regularization to get the \textbf{Hard Reverse KL}.
 %
@@ -220,25 +247,28 @@ We can take a limiting case with no entropy regularization to get the \textbf{Ha
     \text{Hard RKL}(\policyparams; s, \Qhat) \defeq \lim_{\tau \to 0} \text{RKL}(\policyparams; s, \Qhat) &= -\int_\actionspace \pi_\theta(a \mid s) Q(s, a)\, da
 \end{align}
 % AC: this result is somewhat mentioned on page 6 here: https://arxiv.org/pdf/1702.08892.pdf
-The gradient of \Cref{eq:hard-reverse-KL} is exactly the inner term of the policy gradient in \Cref{eq:policy-gradient-thm}! 
-This means that the typical policy gradient update in actor-critic can be thought of as a greedification step with a hard reverse KL. This correspondence is maintained even when averaging across all states for the full greedification objective, as discussed in Appendix B.
+If we view the action-value Q as fixed, the gradient of \Cref{eq:hard-reverse-KL} is exactly the inner term of the policy gradient in \Cref{eq:policy-gradient-thm}.
+This means that the typical policy gradient update in actor-critic can be thought of as a greedification step with a hard reverse KL. %This correspondence is maintained even when averaging across all states for the full greedification objective, as discussed in Appendix B.
 
-Similarly, we can define the \textbf{Forward KL} for greedification %at a given state $s$ and action-value $\Qhat$: %this time omitting the entropy term which does not involve $\policyparams$
+Similarly, we can define the \textbf{Forward KL} for greedification 
 %
-% AC: not sure why there are two equations for the forward KL
 \begin{align}
 \text{FKL}(\policyparams; s, \Qhat) &\defeq  %-\tau \int_\actionspace \boltzmannQ(s, a) \log \pi_\policyparams(a \mid s)\, da \\
     %&\propto \tau\entropy(\boltzmannQ(s, \cdot)) - \tau \int_\actionspace \boltzmannQ(s, a) \log \pi_\policyparams(a \mid s)\, da = 
     \KL\left(\boltzmannQ(s, \cdot)  \parallel \pi_\policyparams(\cdot \mid s) \right)\nonumber%\\
 %\nabla_\policyparams \text{FKL}(\policyparams; s, \Qhat) &=  -\tau \int_\actionspace \boltzmannQ(s, a) \nabla_\policyparams \log \pi_\policyparams(a \mid s)\, da \nonumber
 \end{align}
-Finally, we can again consider a limiting case, where the temperature parameters goes to zero, to get a \textbf{Hard Forward KL} objective with a non-soft policy
+Finally, we can again consider a limiting case, where the temperature parameters goes to zero, to get the \textbf{Hard Forward KL} objective.
 %
-\begin{align}
-  \text{Hard FKL}(\policyparams; s, \Qhat) \defeq  \lim_{\tau \to 0} \text{FKL}(\policyparams; s, \Qhat) = -\log \pi_\policyparams(\argmax_a Q(s, a) \mid s)
-\end{align}
+\begin{align*}
+  \text{Hard FKL}(\policyparams; s, \Qhat) &\defeq  \lim_{\tau \to 0} \text{FKL}(\policyparams; s, \Qhat) \\
+  &= -\lim_{\tau \to 0}\int_\actionspace \frac{\exp(Q(s, a)\tau^{-1})}{\int_\actionspace \exp(Q(s, b)\tau^{-1}) \, db} \log \pi_\policyparams(a \mid s) \, da\\
+    &= -\int_\actionspace \lim_{\tau \to 0} \frac{\exp(Q(s, a)\tau^{-1})}{\int_\actionspace \exp(Q(s, b)\tau^{-1}) \, db} \log \pi_\policyparams(a \mid s) \, da \\
+    &= -\int_\actionspace 1_{a = \argmax_b Q(s, b)} \log \pi_\policyparams(a \mid s) \, da \\
+    &= -\log \pi_\policyparams(\argmax_a Q(s, a) \mid s) 
+\end{align*}
 %
-This expression looks quite similar to the cross-entropy loss in supervised classification, if one views the maximum action of $Q(s, \cdot)$ as the correct class of state $s$. The FKL has been used for a CPI algorithm \citep{vieillard2019deep}, but we are unaware of any literature that analyzes the Hard FKL. Derivations of these four KL divergences are included in Appendix C.
+This expression looks quite similar to the cross-entropy loss in supervised classification, if one views the maximum action of $Q(s, \cdot)$ as the correct class of state $s$. The FKL has been used for a CPI algorithm \citep{vieillard2019deep}, but we are unaware of any literature that analyzes the Hard FKL. %Derivations of these four KL divergences are included in Appendix C.
 
 Although switching $\pi_\policyparams$ and $\boltzmannQ$ might seem like a small change, there are several consequences. The forward KL is popularly known to be \textit{mean-seeking}: to minimize the forward KL, $\pi_\policyparams$ will likely place mass on the $a$ with the largest probability mass according to $\boltzmannQ$. Furthermore, the forward KL can be more difficult to optimize because it requires access to $\boltzmannQ$ to sample the gradient. But, favourably, if $\pi_\theta$ is parameterized with a Boltzmann distribution over $\theta$, then the forward KL is convex with respect to $\theta$. The reverse KL, on the other hand, is characterized as \textit{mode-seeking}: if $\boltzmannQ(s, a)$ is small for a given $a$, then $\pi_\theta(a \mid s)$ is also forced to be small. The RKL can also be easier to optimize as access to $p$ is not required to sample the gradient. Less favourably, however, it is generally not convex with respect to $\theta$, even if $\pi_\theta$ is parameterized with a Boltzmann distribution. 
 

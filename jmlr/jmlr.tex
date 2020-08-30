@@ -53,6 +53,8 @@
 \usepackage{enumitem}
 \usepackage{cleveref}
 \usepackage{subcaption}
+\usepackage{algorithm, algpseudocode}
+\usepackage{algorithmicx}
 
 \usepackage{pgfplots}
 \pgfplotsset{compat=newest}
@@ -137,14 +139,12 @@ In this work, we highlight and investigate the difference between the forward an
 \end{keywords}
 
 \section{Introduction}
-% SS: Not yet incorportated Intro from Alan's Intro
+
 In policy optimization, an explicit parameterized policy is learned to approximate the optimal policy. The most common methods are policy gradient (PG) methods, which iteratively update the policy parameter using the gradient of either the discounted return or the average reward, given by the {policy gradient theorem} \citep{sutton2000policy}.
 Although not a recent invention, with early work introducing Actor-Critic \citep{sutton1984}, policy gradient methods have recently seen a surge of renewed interest given their ease of application in high-dimensional, continuous action spaces when combined with neural networks \citep{schulman2015high,wang2016sample}. Many recent developments include learning deterministic polices \citep{silver2014deterministic,lillicrap2015continuous}, trust-regions \citep{schulman2015trust,schulman2017proximal}, continuous-action extensions of Q-learning \citep{ haarnoja2017reinforcement,lim2018actor,ryu2019caql}, probabilistic approaches \citep{abdolmaleki2018maximum,fellows2019virel}, and entropy regularization \citep{haarnoja2017reinforcement, haarnoja2018soft}.
 
-% Removing the unpublished work lim2018 that we will update after this paper.
 One way to navigate this proliferation is to revisit the insight that many policy gradient methods can be seen as approximate policy iteration (API). To find an optimal policy, API methods \citep{bertsekas2011approximate,scherrer2014approximate} interleave approximate policy evaluation---the estimation of value functions---and (approximate) policy improvement, where the policy is greedified with respect to the action-values. Numerous papers have linked PG methods to policy iteration \citep{sutton2000policy,kakade2002approximately,perkins2002existence,perkins2003convergent,wagner2011reinterpretation,wagner2013optimistic,scherrer2014local,bhandari2019global}, including recent work connecting maximum-entropy policy gradient and value-based methods \citep{o2016combining,nachum2017bridging, schulman2017equivalence, nachum2019algaedice}.
 The connection between PG and \emph{Approximate} PI arises because parameterized policies only allow for approximate greedification. For exact policies, greedification is straightforward: the policy is set to the maximal action for the approximate action-values, for each state. 
-%This exact case is possible, for example, in the discrete action setting where there is no explicit parameterized policy, and greedy actions can simply be taken according to the action-values. 
 For parameterized policies, however, this is rarely possible. One option is to minimize distance to a Boltzmann distribution on the action-values \citep{wagner2011reinterpretation}, such as with a reverse KL divergence \citep{haarnoja2018soft} or a forward KL divergence \citep{vieillard2019deep}.
 
 In this work, we investigate how one should perform the greedification step for parameterized policies. In particular, for a given action-value estimate, we investigate the difference between using a forward and reverse KL divergence, with and without entropy regularization. 
@@ -232,40 +232,17 @@ Similarly, we can define the \textbf{Forward KL} for greedification %at a given 
     \KL\left(\boltzmannQ(s, \cdot)  \parallel \pi_\policyparams(\cdot \mid s) \right)\nonumber%\\
 %\nabla_\policyparams \text{FKL}(\policyparams; s, \Qhat) &=  -\tau \int_\actionspace \boltzmannQ(s, a) \nabla_\policyparams \log \pi_\policyparams(a \mid s)\, da \nonumber
 \end{align}
-%%
-%% A possible advantage of the forward KL is that the Boltzmann operator is invariant to constant shifts, suggesting that the forward KL may be more robust to function approximation error than the reverse KL. Another possible advantage is that if $\pi_\policyparams$ is a softmax policy, then the forward KL is convex with respect to $\policyparams$, leading to a possibly easier optimization problem. 
-%% AC: Maybe shouldn't mention this if we don't test this explicitly
-%% MARTHA: Though, neat hypothesis. 
-%
-%%Thus, if for every $s \in \statespace$ there is $c_s \in \R$ such that for all $a \in \actionspace$, $Q(s, a) = Q^*(s, a) + c_s$, then $\KL\left(\boltzmannQ(s, \cdot)  \parallel \pi_\policyparams(\cdot \mid s) \right) = \KL\left(\boltzmannQ^*(s, \cdot)  \parallel \pi_\policyparams(\cdot \mid s) \right)$. 
-%
-%%With a continuous action space, it is necessary to approximate the integral in \Cref{eq:sac-forward-kl-gradient}. One option is to sample from $BQ(s, \cdot)$. However, doing so does not scale well to high dimensional action spaces. Our approach here is to approximate \Cref{eq:sac-forward-kl-gradient} through numerical integration given in \citet{gerstner1998numerical}.
-%
 Finally, we can again consider a limiting case, where the temperature parameters goes to zero, to get a \textbf{Hard Forward KL} objective with a non-soft policy
 %
 \begin{align}
-%  \text{Hard FKL}(\policyparams; s, \Qhat) \defeq  \lim_{\tau \to 0} \text{FKL}(\policyparams; s, \Qhat) = -\log \pi_\policyparams(\argmax_a Q(s, a) \mid s)
+  \text{Hard FKL}(\policyparams; s, \Qhat) \defeq  \lim_{\tau \to 0} \text{FKL}(\policyparams; s, \Qhat) = -\log \pi_\policyparams(\argmax_a Q(s, a) \mid s)
 \end{align}
 %
 This expression looks quite similar to the cross-entropy loss in supervised classification, if one views the maximum action of $Q(s, \cdot)$ as the correct class of state $s$. The FKL has been used for a CPI algorithm \citep{vieillard2019deep}, but we are unaware of any literature that analyzes the Hard FKL. Derivations of these four KL divergences are included in Appendix C.
 
 Although switching $\pi_\policyparams$ and $\boltzmannQ$ might seem like a small change, there are several consequences. The forward KL is popularly known to be \textit{mean-seeking}: to minimize the forward KL, $\pi_\policyparams$ will likely place mass on the $a$ with the largest probability mass according to $\boltzmannQ$. Furthermore, the forward KL can be more difficult to optimize because it requires access to $\boltzmannQ$ to sample the gradient. But, favourably, if $\pi_\theta$ is parameterized with a Boltzmann distribution over $\theta$, then the forward KL is convex with respect to $\theta$. The reverse KL, on the other hand, is characterized as \textit{mode-seeking}: if $\boltzmannQ(s, a)$ is small for a given $a$, then $\pi_\theta(a \mid s)$ is also forced to be small. The RKL can also be easier to optimize as access to $p$ is not required to sample the gradient. Less favourably, however, it is generally not convex with respect to $\theta$, even if $\pi_\theta$ is parameterized with a Boltzmann distribution. 
 
-% AC: this last sentence is a bit unclear. I think a part of it is already captured by the discussion about probability mass forcing
-%Furthermore, the reverse KL tries to match the target distribution only within its current distribution and would be sensitive to initialization.
-
-% AC: moving to the appendix for space
-% \textbf{The Weighting over States} 
-
-% The above greedification objectives, and corresponding gradients, are defined per state. To specify the full greedification objective across states, we need a weighting $d: \statespace \rightarrow [0, \infty)$ on the relative importance of each state; under function approximation, the agent requires this distribution to trade-off accuracy of greedification across states. The full objective for the RKL is $\int_\statespace d(s) \text{RKL}(\policyparams; s, \Qhat)$; the other objectives are specified similarly.  
-
-% This role of the weighting might seem quite different from the typical role in the policy gradient, but there are some clear connections. When looking at the gradient of the Hard RKL with weighting $d$, we have $- \int_\statespace d(s)\int_\actionspace Q(s,a) \nabla \pi_\theta(a \mid s) \, da\, ds$. For this to correspond to the true policy gradient, when $\tau = 0$, the weighting should be $d = d^\pi$; otherwise, this greedification step may in fact not correspond to the gradient of any function \citep{nota2019policy}. The weighting $d^\pi$ indicates that the weighting for greedification should be higher in states closer to the start state, visited by policy $\pi$. This choice is sensible for allocating function approximation resources, since it is key to get action selection as accurate as possible in early states, since it has downstream effects. Nevertheless, other choices are possible. An open, and worthwhile, question is to better understand what weightings in greedification avoid poor fixed points and improve convergence rates. 
-
-%However, other choices for the weighting are possible. Many algorithms in practice use a uniform weighting on observed data. It is as yet not well understood what weighting is ideal, nor the implications from deviating from the policy gradient weighting. There are, however, some insights from both CPI and from the literature on policy gradients. It is clear that there are some instances where using $d \neq d^\pi$ results in convergence to poor stationary point: $\int_\statespace d(s)\int_\actionspace Q^{\pi_\theta}(s,a) \nabla \pi_\theta(a \mid s) \, da \ ds = 0$ for a certain $d$ that produces a highly suboptimal $\pi_\theta$, whereas weighting by $d = d^{\pi_\theta}$ (or with an emphatic weighting) does not \citep{imani2018off}. This counterexample assumes exact $Q = Q^{\pi_\theta}$, but still has implications for API, if an exact policy evaluation step is used. Further, it is likely a similar such example could be found for nearly accurate $Q$. On the other hand, the work on CPI indicates that the weighting with $d^\pi$ can require a large number of samples to get accurate gradient estimates, and moving to a more uniform weighting over states is significantly better \citep{kakade2002approximately}. 
-
-%We summarize the connections to existing policy gradient methods in Appendix \ref{}, including the choices for the weighting, the forward or reverse KL with or without entropy regularization, and the choice of what $\Qhat$ is estimated. 
-
-% \section{Policy Improvement Properties of the KL Divergences}
+%---------------------------------------------------------------------------------------------------------------------------------------
 \section{Theoretical Results}
 
 In this section, we consider the policy improvement guarantees, or lack thereof, for the reverse and forward KL. To the best of our knowledge, there is as yet only one with guarantees: the reverse KL when assuming exact minimization in each state \citep[Lemma 2]{haarnoja2018soft}. We first provide an extension of this result to rely only upon reverse KL minimization \textit{on average} across states. Next, we provide a counterexample where optimizing the forward KL \textit{does not} induce policy improvement.  Finally, we discuss further assumptions that can be made to ensure that forward KL does induce policy improvement.
@@ -394,7 +371,6 @@ Since the KL divergence is non-negative, the inequality we just derived implies 
 \noindent Note that we cannot set $\tau = 0$ in the above proof as we divide by $\tau$ in $\boltzmannQ$. 
 
 We remark that the guarantee for \Cref{prop:avg-reverse-kl} is in terms of $\eta_\tau$, whereas the result in \Cref{lem:stronger-sac} is in terms of $Q^\pi_\tau$. The reason for this distinction is that in assuming an average KL reduction in \Cref{prop:avg-reverse-kl}, there does not seem to be a way to extract the action values on a per-state basis. Hence, the guarantee must of necessity be an average guarantee across states, rather than a guarantee for the value function at each state. 
-
 
 
 % forward KL
@@ -643,10 +619,6 @@ From Gibbs's inequality, the entropy of any distribution is strictly less than t
     \entropy(\pinew(\cdot \mid s)) &\leq \entropy(\pinew(\cdot \mid s), \piold(\cdot \mid s))\\
     -\Ex_\pinew[\log \pinew(\cdot \mid s)] &\leq - \Ex_\pinew[\log \piold(\cdot \mid s))]
 \end{align*}
-% \begin{align*}
-%     \entropy(\piold(\cdot \mid s)) &\leq \entropy(\piold(\cdot \mid s), \pinew(\cdot \mid s))\\
-%     -\Ex_\piold[\log \piold(\cdot \mid s)] &\leq - \Ex_\piold[\log \pinew(\cdot \mid s))]
-% \end{align*}
 Applying this inequality,
 \begin{align*}
     \Ex_{d^\pinew, \pinew}[A_\tau^\piold(s, a)] &\geq \tau \Ex_{d^\pinew}[\Ex_{\piold}[\log \piold(\cdot \mid s)] - \Ex_{\pinew}[\log \pinew(\cdot \mid s)]]\\
@@ -654,32 +626,8 @@ Applying this inequality,
     &\geq 0\\
     &\quad \triangleright \text{by the entropy assumption of the Corollary}
 \end{align*}
-%     &\geq\tau \Ex_{d^\pinew, \pinew}[\log \pinew(\cdot \mid s)] - \tau \Ex_{d^\pinew, \pinew}[\log \piold(\cdot \mid s)]\\
-%     &\quad \triangleright \text{using the assumption in the Corollary}\\
-%     &= \tau \Ex_{d^\pinew}[\KL(\pinew(\cdot \mid s) \parallel \piold(\cdot \mid s)]]
-% \end{align*}
-% Hence, the RHS of \Cref{lemma:soft-performance-difference} is non-negative, meaning that $\eta_\tau(\pinew) \geq \eta_\tau(\piold)$.
-% To show that $\eta_\tau(\pinew) \geq \eta_\tau(\piold)$ with \Cref{lemma:soft-performance-difference}, it suffices to verify that
-% \begin{align*}
-%     \Ex_{d^\pinew, \pinew}[A_\tau^\piold(s, a)] \geq -\tau \Ex_{d^\pinew}[\KL(\pinew(\cdot \mid s) \parallel \piold(\cdot \mid s))].
-% \end{align*}
-% It will therefore suffice to show that
-% \begin{align*}
-%     &\tau \Ex_{d^\pinew}[\Ex_{\piold}[\log \piold(\cdot \mid s)] - \Ex_{\pinew}[\log \piold(\cdot \mid s)]] \\
-%     &\quad\geq -\tau \Ex_{d^\pinew}[\KL(\pinew(\cdot \mid s) \parallel \piold(\cdot \mid s))].
-% \end{align*}
-% Let's write out the KL divergence.
-% \begin{align*}
-%     -\tau\Ex_{d^\pinew}[\KL(\pinew(\cdot \mid s) &\parallel \piold(\cdot \mid s))] \\
-%     &= \tau\Ex_{d^\pinew}[\entropy(\pinew(\cdot \mid s))  + \Ex_\pinew[\log \piold(\cdot \mid s)]]\\
-%     &\leq \tau \Ex_{d^\pinew}[\entropy(\piold(\cdot \mid s)) + \Ex_\pinew[\log \piold(\cdot \mid s)]]\\
-%     &\quad \triangleright \text{from the entropy assumption in the Corollary}\\
-%     &= \tau \Ex_{d^\pinew}[ \Ex_\pinew[\log \piold(\cdot \mid s)] - \Ex_\piold[\log \piold(\cdot \mid s)] ]\\
-%     &\quad \triangleright \text{expanding the definition of entropy}
-% \end{align*}
-% The claim follows. 
 \end{proof}
-% \noindent The entropy assumption in \Cref{cor:fkl-pi} does not seem unreasonable; it only requires that $\pinew$ ``commit'' more than $\piold$. This ``committing'' seems natural to occur, as $\pinew$ hopefully selects actions with higher action-value more often than $\piold$.
+
 \noindent The entropy assumption in \Cref{cor:fkl-pi} is a bit strange; for $\pinew$ to be better, it must ``commit'' less to actions, the opposite of what we would expect a policy to do when learning optimal actions. 
 
 \subsection{Summary}
@@ -692,54 +640,90 @@ Here are some takeaways of the above discussion.
 
 There are some limitations of this theory. We had to assume a finite action space for \Cref{prop:forward-kl-surrogate-2}. The reason here was to ensure that we could sensibly manipulate the remainder terms in the Taylor expansions. A general treatment of action spaces would at least require some work into the measurability and integrability of such terms as a function of the action. Moreover, the theory developed in this chapter is under ideal settings, assuming in particular access to the true value functions. For \Cref{prop:forward-kl-surrogate-2,cor:fkl-pi}, the looseness of the bounds we employed resulted in extremely strong sufficient conditions for FKL policy improvement. As we will see in our experiments, the FKL is often able to induce policy improvement in practice, suggesting a gap between the theory developed and the practical performance. 
 
-\section{Optimization Behavior in Microworlds}
-% \martha{This my proposed organization of the experiments}
+%------------------------------------------------------------------------------------------------------------------------------
+\section{Optimization Behavior in Microworlds} 
+The goal in this section is to understand differences between FKL and RKL in terms of (1) the loss surface and (2) the behaviour of iterates optimized under the losses. By behaviour, we mean whether the iterates reach multiple local optima, how stable iterates under that loss are, and how often iterates reach the global optimum (or optima). Given the fine-grained nature of our questions, we focus upon small-scale environments, which we call \textit{microworlds}. Doing so allows us to avoid any possible confounding factors associated with larger, more complicated environments, and furthermore allows us more fully to separate any issues to do with stochasticity. 
 
-The goal in this section is to understand differences between FKL and RKL in terms of (1) the optimization surface and (2) the optimization paths of the iterates. We use two types of low-dimensional microworlds to allow us to visualize and thoroughly investigate behavior. Any omitted experimental details may be found in Appendix F. 
+We begin with continuous actions, and note results for discrete actions in \Cref{sec:microworld-discrete-actions}. We use two types of low-dimensional microworlds to allow us to visualize and thoroughly investigate behavior.
+
+Our first microworld is a \textbf{Bimodal Bandit} in \Cref{fig:bimodal-bandit}. For continuous actions, we designed a continuous bandit with action space $[-1, 1]$ and reward function $Q(a) := \exp( -\tfrac{1}{2} (\tfrac{2 a + 1}{0.2})^2 ) + \tfrac{3}{2} \exp(-\tfrac{1}{2} (\tfrac{2 a - 1}{0.2})^2)$. The two unequal modes at -0.5 and 0.5 enable us to test the mean-seeking and mode-seeking behavior as well as simulate a realistic scenario where the agent's policy parameterization (here, unimodal) cannot represent the true distribution (bimodal). For discrete actions, we designed a discrete bandit with rewards $(1, 1.5)$. 
+
+Our second microworld is the \textbf{Switch-Stay} domain in \Cref{fig:switch-stay}. From $s_0$, action $0$ (stay) gives a reward of 1 and transitions to state $0$. From $s_1$, action 0 gives a reward of 2 and transitions to $s_1$. From $s_0$, action 1 (switch) gives a reward of -1 and transitions to $s_1$, while action 1 from $s_1$ gives a reward of 0 and transitions to $s_0$. 
+
+To adapt this environment to the continuous action setting, we treat actions $> 0$ as switch and actions $\leq 0$ as stay.  We set $\gamma = 0.9$ to ensure that the optimal action from $s_0$ is to switch, which ensures the existence of a short-term/long-term trade-off inherent to realistic RL environments. 
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.5\linewidth]{figs/bandit/bimodal-bandit.png}
+    \caption{Continuous-action Bimodal Bandit.}
+    \label{fig:bimodal-bandit}
+\end{figure}
 
 
-\textbf{Bimodal Bandit:} We designed a continuous bandit with action space $[-1, 1]$ and reward function $Q(a) := \exp( -\tfrac{1}{2} (\tfrac{2 a + 1}{0.2})^2 ) + \tfrac{3}{2} \exp(-\tfrac{1}{2} (\tfrac{2 a - 1}{0.2})^2)$. The two unequal modes at -0.5 and 0.5 enable us to test the mean-seeking and mode-seeking behavior as well as simulate a realistic scenario where the agent's policy parameterization (here, unimodal) cannot represent the true distribution (bimodal). 
-%We also designed a discrete bandit with 1-Gaussian rewards with mean $(1.5, 2, 2)$.
+\begin{figure}[!htb]
+  \hspace*{10em}\resizebox{0.4\columnwidth}{!}{%
+\begin{tikzpicture}[auto,node distance=10mm,>=latex,font=\small]
+    \tikzstyle{round}=[thick,draw=black,circle]
 
-\textbf{Switch-Stay:} The two-state, two action, deterministic Switch-Stay MDP has the following dynamics. From $s_0$, action $0$ (stay) gives a reward of 1 and transitions to state $0$. From $s_1$, action 0 gives a reward of 2 and transitions to $s_1$. From $s_0$, action 1 (switch) gives a reward of -1 and transitions to $s_1$, while action 1 from $s_1$ gives a reward of 0 and transitions to $s_0$. 
-To adapt this environment to the continuous action setting, we treat actions $> 0$ as switch and actions $\leq 0$ as stay.  We set $\gamma = 0.9$ to ensure that the optimal action from $s_0$ is to switch. 
+    \node[round] (s0) {$s_0$};
+    \node[round,right=20mm of s0] (s1) {$s_1$};
 
-\myparagraph{Algorithms} 
-All policies are tabular in the state. We use Clenshaw-Curtis quadrature \citep{clenshaw1960method} to calculate the losses; in Appendix H, we note additional results for Monte Carlo integration. We use the true action-values; in the bimodal bandit, the action-value is given by the reward function, while in Switch-Stay it is calculated (i.e., not learned). For policy parameterizations, in continuous action settings we use a Gaussian policy with mean and variance learned as $(\hat{\mu}, \log(1+\exp(\hat{\sigma}))$ and in discrete action settings we use a softmax policy. The action sampled from the learned Gaussian is passed through $\tanh$ to ensure that the action is in the feasible range $[-1, 1]$ and to avoid the bias induced in the policy gradient when action ranges are not enforced \citep{chou2017improving}. Finally, we use the Adam optimizer \citep{kingma2014adam}. Results for RMSprop were similar to those for Adam, while results for SGD indicated slower learning or convergence for both FKL and RKL. See Appendix H for these additional results. 
-% and to avoid the bias induced in the policy gradient when action ranges are not enforced \citep{chou2017improving}. 
+    \draw[->] (s0) to [out=45, in=135] node {-1} (s1);
+    \draw [->] (s0) to [out=135,in=225, loop] node {1} (s0);
+    \draw [->] (s1) to [out=210,in=330] node{0} (s0);
+    \draw [->] (s1) to [out=45,in=-45, loop] node {2} (s1);
+\end{tikzpicture}}
+    \caption{Switch-Stay.}
+    \label{fig:switch-stay}
+\end{figure}%
+
+\subsection{Implementation Details}
+\noindent All policies are tabular in the state. To calculate the FKL and RKL for the continuous action setting, we use the Clenshaw-Curtis \citep{clenshaw1960method} numerical integration scheme with 1024 points from the package quadpy \citep{schlomerquadpy}, excluding the first and the last points at -1 and 1 because of numerical stability. Numerical integration is used to minimize any confounding influence of stochasticity on the behaviour, but we also note additional results for Monte Carlo integration in \Cref{sec:stochastic-microworld}.
+
+To calculate the Hard FKL, we use the true maximum action as determined by the environment. In the discrete action setting, we may calculate the non-hard FKL losses in closed form by summing across all actions. For Switch-Stay, we calculate and optimize the mean KL across the two states.
+
+We use the true action-values when calculating the KL losses; in the bimodal bandit, the action-value is given by the reward function, while in Switch-Stay it is calculated (i.e., not learned). For policy parameterizations, in continuous action settings we use a Gaussian policy with mean and variance learned as $(\hat{\mu}, \log(1+\exp(\hat{\sigma}))$ and in discrete action settings we use a softmax policy. The action sampled from the learned Gaussian is passed through $\tanh$ to ensure that the action is in the feasible range $[-1, 1]$ and to avoid the bias induced in the policy gradient when action ranges are not enforced \citep{chou2017improving}. 
+
+Finally, we use the RMSprop optimizer \citep{tieleman2012lecture}. Overall trends for Adam \citep{kingma2014adam} were similar to those for RMSprop, while results for SGD resulted in slower learning for both FKL and RKL and a wider range of limit points, most likely due to oscillation from the constant step-size. We focus on RMSprop here to avoid any confounding factors associated with momentum. 
 
 
-\myparagraph{Optimization Surface for the Bimodal Bandit}
-We visualize the KL loss surfaces in \Cref{fig:bandit-heatmap} with five different temperatures. The heatmaps depict the loss for each mean and standard deviation pair. The last row depicts the target distribution over which the KL loss is optimized. 
+\subsection{Continuous Action Results in the Bimodal Bandit}
+Firstly, we might expect the FKL to have a smoother loss surface. Given that policies often are part of an exponential class (e.g., softmax policy), having the policy $\pi$ be the second argument of $\KL(p \parallel q)$ might be advantageous as $\KL(p \mid \pi)$ removes the exponential in $\pi$. 
 
-The surfaces suggest the following. 
-\textbf{1)} FKL has a single optimum across temperature values while the RKL has two optima around the bimodal peaks.
-\textbf{2)} The FKL surface seems much smoother than the RKL surface, suggesting that iterates under the FKL will more likely reach the global optimum than iterates under the RKL. The smoothness of the RKL landscape increases with temperature.
-\textbf{3)} As the temperature decreases, the target distribution becomes unimodal; making the mean and the mode become identical; the global optimum for both the FKL and RKL is at the optimal peak.
-\textbf{4)} As the temperature increases the relative density at the peaks decreases in the target distribution; contrary to our beliefs, RKL starts to exhibit mean-seeking behaviors converging to the same mean between the peaks. 
-\textbf{5)} At $\tau=0$, although the target distribution is unimodal, we do not optimize over the dirac delta directly in hard RKL, and hence bimodality is observed.
+\subsubsection{Loss Surface}
+% \myparagraph{Optimization Surface for the Bimodal Bandit}
+We visualize the KL loss surfaces in \Cref{fig:bandit-heatmap} with five different temperatures. The heatmaps depict the loss for each mean and standard deviation pair. The last row depicts the target distribution over which the KL loss is optimized. The surfaces suggest the following. 
 
-% AC: breaking it up into what seems to be logical parts to increase readability
-We also considered the effects of numerical integration and the $\tanh$ transformation.
-\textbf{6)} FKL seems to be more robust to numerical integration error. When reducing the number of integration points, there was no visible difference in the FKL loss surface but wavelet patterns are observed in the RKL loss surface (Appendix H).
-\textbf{7)} The optimization surface for the Gaussian policy without $\tanh$ transformation is shown in Appendix H. Without $\tanh$ transformation suboptima appears along the edges in all soft RKL surfaces, while FKL loss surface seems unaffected.
+\textbf{1)} The FKL surface has a single valley, while the RKL surface has two valleys that are separated from one another. In this sense, the FKL surface seems much smoother than the RKL surface, suggesting that iterates under the FKL will more likely reach the global optimum than iterates under the RKL, which seem likely to fall into either of the valleys. 
 
-\begin{figure}
+\textbf{2)} The smoothness of the RKL landscape increases with temperature as the gap between the peaks becomes less steep. A higher temperature also causes the valley in the FKL map to become less sharply peaked, and for the optimal $\mu$ to move closer to 0. The optimal $\mu$ for the FKL seems to move more quickly to zero, as $\tau$ increases, than the optimal $\mu$ for the RKL, although both eventually reach 0. It is possible that the FKL may become suboptimal sooner than the RKL as $\tau$ increases. 
+
+\textbf{3)} It may seem strange that two valleys exist for the RKL at $\tau = 0$ given that the target distribution is unimodal. Note, however, that when $\tau = 0$, the loss function is no longer a distributional loss; that is, we are no longer minimizing any pseudo-distance between the policy and a distribution. 
+
+
+% \textbf{3)} As the temperature decreases, the target distribution becomes unimodal; making the mean and the mode become identical; the global optimum for both the FKL and RKL is at the optimal peak.
+
+% We also considered the effects of numerical integration and the $\tanh$ transformation.
+% \textbf{6)} FKL seems to be more robust to numerical integration error. When reducing the number of integration points, there was no visible difference in the FKL loss surface but wavelet patterns are observed in the RKL loss surface (Appendix H).
+% \textbf{7)} The optimization surface for a Gaussian policy without the $\tanh$ transformation is shown in Appendix H. In this setting, suboptima appear along the edges in all soft RKL surfaces, while FKL loss surface seems unaffected.
+
+\begin{figure}[!htb]
     \centering
     \includegraphics[width=0.99\columnwidth]{figs/bandit/trueQ/heatmaps/heatmap_combined.pdf}
     \caption{KL loss over mean and standard deviation across temperature. Note that the actual action taken applies $\tanh$ to the samples of the resulting distribution (i.e., the optimal mean is at $\tanh^{-1}(0.5) \approx 0.55$). FKL loss has been upper-bounded for better visualization of minima. Arrows indicate the global minimum.}
     \label{fig:bandit-heatmap}
 \end{figure}
 
-% \begin{figure}[ht]
+% \begin{figure}[!htb]
 %   \centering
-%   \begin{subfigure}[b]{0.4\linewidth}
+%   \begin{subfigure}[b]{1\linewidth}
 %     \centering
 %     \includegraphics[width=\columnwidth]{figs/bandit/notlearnQ/modes=1/adam/mean_forward_optim=adam_modes=1_lr=0.01.png}
 %     \caption{Forward KL.}
 %     \label{fig:bandit-mean-forward-adam}
-%   \end{subfigure}\hspace{15pt}%
-%   \begin{subfigure}[b]{0.4\linewidth}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{1\linewidth}
 %     \centering
 %     \includegraphics[width=\columnwidth]{figs/bandit/notlearnQ/modes=1/adam/mean_reverse_optim=adam_modes=1_lr=0.01.png}
 %     \caption{Reverse KL.}
@@ -748,108 +732,622 @@ We also considered the effects of numerical integration and the $\tanh$ transfor
 %   \caption{Each plot tracks the mean over 1000 gradient steps of each of 1000 iterates. Each iterate is represented as a translucent, coloured dot with alpha value $0.01$. Temperature is varied on the $x$-major-axis and initial standard deviation $\sigma_0$ is varied on the $y$-major axis. Colour-coded by $\sigma_0$.}
 % \end{figure}
 
-\myparagraph{Optimization Path in the Bimodal Bandit}
-To investigate optimization behaviour further, we visualize 1000 random (mean, standard deviation) iterates over 1000 gradient steps to minimize either the FKL or RKL. (Appendix H) The mean is initialized uniformly in $(-0.95, 0.95)$ and $\hat{\sigma}$ is initialized uniformly in $(\log(\exp(0.1) - 1), \log(\exp(1) - 1))$, so that the initial standard deviation $\sigma_0$ is in $(0.1, 1)$. We only show one learning rate, but results are similar for different learning rates.
+\subsubsection{Behaviour}
+To confirm whether our intuitions about the smooth loss surface result in iterates that reach the global optimum, we visualize 1000 random (mean, standard deviation) iterates over 1000 gradient steps to minimize either the FKL or RKL. The mean is initialized uniformly in $(-0.95, 0.95)$ and $\hat{\sigma}$ is initialized uniformly in $(\log(\exp(0.1) - 1), \log(\exp(1) - 1))$, so that the initial standard deviation $\sigma_0$ is in $(0.1, 1)$. We only show one learning rate, but results are similar for different learning rates. From looking at \Cref{fig:bandit-mean-forward-rmsprop,fig:bandit-mean-reverse-rmsprop}, we observe the following.
 
-From looking at Figures 7A, 7B in Appendix H, we observe the following. 
-%From looking at \Cref{fig:bandit-mean-forward-adam,fig:bandit-mean-reverse-adam}, we observe the following.
-\textbf{1)} FKL seems to facilitate more stable convergence of the iterates to the optimal mode when $\sigma_0 > 0.3$. Indeed, outside of that setting, all iterates converge to a single optimum across all temperatures.
+\begin{figure}[!htb]
+  \centering
+  \begin{subfigure}[b]{1\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/bandit/notlearnQ/modes=1/rmsprop/mean_forward_optim=rmsprop_modes=1_lr=0.01.png}
+    \caption{Forward KL.}
+    \label{fig:bandit-mean-forward-rmsprop}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{1\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/bandit/notlearnQ/modes=1/rmsprop/mean_reverse_optim=rmsprop_modes=1_lr=0.01.png}
+    \caption{Reverse KL.}
+    \label{fig:bandit-mean-reverse-rmsprop}
+  \end{subfigure}
+  \caption{Each plot tracks the mean over 1000 gradient steps of each of 1000 iterates. Each iterate is represented as a translucent, coloured dot with alpha value $0.01$. Temperature is varied on the $x$-major-axis and initial standard deviation $\sigma_0$ is varied on the $y$-major axis. Colour-coded by $\sigma_0$. Learning rate is 0.01.}
+\end{figure}
+
+\textbf{1)} FKL seems to facilitate more stable convergence of the iterates to the global optimum when $\sigma_0 > 0.3$. Indeed, within that setting, all iterates converge to a single optimum across all temperatures. 
+
 \textbf{2)} Behaviour can vary across different standard deviation initializations. For $\tau < 0.4$, FKL iterates learn the optimal mode for all settings except when the $\sigma_0 < 0.3$. The achieved limit points of RKL iterates can differ depending on $\sigma_0$, such as with $\tau = 0.4$. 
+
 \textbf{3)} RKL iterates converge to different local optima. The only case in which RKL iterates only converged to the optimal mode was for $\tau = 0.01$. 
+
+\textbf{4)} At $\tau = 0.4$, FKL iterates converged to a point closer to zero than the RKL points, some of which remained at 0.5. This observation is consistent with our visualization of the loss surface, where the global optimum of the FKL loss moved to 0 more quickly than did the global optimum of the RKL loss. 
 % 
 
-These results are consistent with the FKL and RKL heatmaps, suggesting that the FKL has a much smoother optimization landscape that directs iterates to global minima. An earlier version of this experiment used integration points within the range $[-0.98, 0.98]$, rather than using all points but \{-1, 1\}. In this earlier setting, RKL iterates often diverged for $\sigma_0 > 0.3$ while FKL iterates maintained the same behaviour, suggesting that FKL is more robust to this type of truncation error than RKL. %Divergence of iterates in RKL occurs for larger $\sigma_0$, at $\tau = 0.01, 0.1$ where the iterates seem to fall into the suboptima at bottom corners of the heatmap. (Visualization of the gradients can be found in Appendix G)
-% we suspect that the Gaussian policy parameterisation may be a factor in the instability of some RKL iterates. It's also interesting to note that divergence of the RKL iterates only seems to occur for the temperatures $\tau = 0.01, 0.1$. 
+These results are generally consistent with the FKL and RKL heatmaps, suggesting that for large enough $\sigma_0$, the FKL has a much smoother optimization landscape that directs iterates to the global minimum, but the global minimum might be suboptimal with respect to the original target distribution. One discrepancy with the visualization of the loss surfaces, however, is that both RKL and FKL exhibited limit points that do not appear to correspond to any optima on the heatmaps. In particular, FKL with $\sigma_0 < 0.3$ and $\tau \leq 0.1$ have iterates that stay in a neighbourhood away from 0, while the RKL at $\tau = 0.4$ and $\sigma_0 < 0.3$ has iterates that converge to 0. The same phenomenon was also present with both smaller and larger learning rates, and with RMSprop and SGD. While our initial surprise at the RKL limit point may be due to a limitation of our heatmaps---indeed, 0 might be a local minimum that is hard to distinguish amidst the dark area of \Cref{fig:bandit-heatmap}---the FKL limit point is more puzzling. The area around the line $\sigma = 0.3$ in \Cref{fig:bandit-heatmap} for $\tau = 0.01$ seems not to contain a local optimum. 
 
-% For this experiment, we also considered the behavior when the policy parameterization is sufficient to represent the true bimodal distribution. These plots are in Appendix G. Overall, the behaviour is much messier, and we found it difficult to draw firm conclusions given the difficulty of optimizing a multimodal policy. 
-
-\paragraph{Optimization Path on Continuous Switch-Stay}
-Next, we investigate the optimization behavior when there is more than one state: the Switch-Stay environment. %Based on our results for the bandit setting, we run three sets of experiments with three different standard deviation initializations, such that $\sigma_0$ is in $(0.1, 0.3), (0.3, 1)$. 
-For all of these experiments, we initialized means in the range $(-0.95, 0.95)$. All experiments are run for 500 gradient steps and each experiment has 1000 iterates. The learning rate was set to $0.005$, but results were similar for other learning rates. We plot the value function of the final policy for each iterate and experiment in \Cref{fig:cont-switch-stay-forward,fig:cont-switch-stay-reverse}, by visualizing the value function polytope \citep{dadashi2019value}. 
+An earlier version of this experiment used integration points within the range $[-0.98, 0.98]$, rather than using all points but \{-1, 1\}. In this earlier setting, RKL iterates often diverged for $\sigma_0 > 0.3$ while FKL iterates maintained the same behaviour, suggesting that FKL is more robust to this type of bias than RKL. We comment more on the effect of numerical integration error in \Cref{sec:stochastic-microworld}. %Divergence of iterates in RKL occurs for larger $\sigma_0$, at $\tau = 0.01, 0.1$ where the iterates seem to fall into the suboptima at bottom corners of the heatmap. (Visualization of the gradients can be found in Appendix G)
 
 
-\begin{figure}[ht]
+\subsection{Switch-Stay}
+Given our previous results, we might expect the FKL to perform better. If FKL iterates can reach the global optimum more easily, surely those policies would be better than policies updated under the RKL? One important factor, which we explore further below, is that the global minimum of the FKL objective may not correspond well with the optimal solution of the original, unregularized objective. 
+
+We investigate the behavior of iterates when there is more than one state: the Switch-Stay environment. As a simple instantiation of the full RL problem, we are interested in understanding any possible differences between FKL and RKL in the presence of short-term/long-term trade-offs. In particular, on Switch-Stay, from state 0 one should incur a short-term penalty by switching to state 1 to maximize return, given that $\gamma = 0.9$.
+
+Another reason why we selected the Switch-Stay environment is for ease of visualization. Since the MDP has only two states, one can plot any value function as a point on a 2-dimensional plane. In particular, one can view the entire space of value functions, shown recently to be a polytope in the discrete-action setting \citep{dadashi2019value}. Plotting the value function corresponding to a policy as it changes over time allows us to view the progress of an algorithm and avoids the stochasticity inherent in performing rollouts and plotting learning curves.
+
+To plot the boundary of the value function polytope in Switch-Stay, we plot the value functions corresponding to semi-deterministic policies (i.e., policies that are deterministic in at least one state) \citep{dadashi2019value}. Given a policy $\pi$, the value function $\vpi$ is calculated exactly as $(I - \gamma P_\pi)^{-1}r_\pi$, where $P_\pi$ and $r_\pi$ are respectively the transition matrix and the reward function induced by $\pi$. 
+
+In the continuous version of switch-stay, we treat any action $ \leq 0$ as stay, and any action $ > 0$ as switch. To calculate the value function corresponding to a continuous policy $\pi$, we convert $\pi$ to an equivalent discrete policy $\pi_{\mathrm{discrete}}$ of the underlying discrete MDP. The conversion requires the calculation of the probability that $\pi$ outputs an action $\leq 0$ in each state, which we do with numerical integration of the policy PDF. We then calculate the value function of $\pi$ as $(I - \gamma P_{\pi_{\mathrm{discrete}}})^{-1}r_{\pi_{\mathrm{discrete}}}$.
+
+For the hard FKL, we require access to the greedy action of the action-value function. In the continuous-action setting, this greedy action is usually infeasible to obtain. For the purposes of this experiment, if the greedy action is stay, we represent it in $[-1, 1]$ by drawing a uniform random number from $[-1, 0]$. If the greedy action is switch, we represent it as a uniform random number in $[0, 1]$. This design choice is meant to simulate noisy access to the greedy action in practice. 
+
+As the policy is tabular in the states, we simply use the mean KL across states as the loss. 
+
+\subsubsection{Behaviour}
+% \paragraph{Optimization Path on Continuous Switch-Stay}
+ %Based on our results for the bandit setting, we run three sets of experiments with three different standard deviation initializations, such that $\sigma_0$ is in $(0.1, 0.3), (0.3, 1)$. 
+For all of these experiments, we initialized means in the range $(-0.95, 0.95)$. All experiments are run for 500 gradient steps and each experiment has 1000 iterates. We plot the value function of the final policy for each iterate and experiment in \Cref{fig:cont-ss-poly-0.005,fig:cont-ss-poly-0.01}, by visualizing the value function polytope \citep{dadashi2019value}. 
+
+\begin{figure}[!htb]
   \centering
-  \begin{subfigure}[b]{0.45\linewidth}
+  \begin{subfigure}[b]{0.6\linewidth}
     \centering
-    \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/cont_poly.png}
-    \caption{Forward KL.}
+    \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/polytope_forward_optim=rmsprop_lr=0.005.png}
+    \caption{Forward KL, learning rate = $0.005$.}
     \label{fig:cont-switch-stay-forward}
-  \end{subfigure}\hspace{15pt}%
-  \begin{subfigure}[b]{0.45\linewidth}
+  \end{subfigure}%\hspace{15pt}
+  
+  \begin{subfigure}[b]{0.6\linewidth}
         \centering
-        \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/polytope_reverse_optim=adam_lr=0.005.png}
-        \caption{Reverse KL.}
+        \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/polytope_reverse_optim=rmsprop_lr=0.005.png}
+        \caption{Reverse KL, learning rate = $0.005$.}
         \label{fig:cont-switch-stay-reverse}
   \end{subfigure}
-  \caption{Each subplot plots the final value functions on the continuous version of switch-stay after 500 gradient steps, $\gamma = 0.9$, for 1000 iterates. Each iterate is represented by a translucent dot with alpha value $0.01$. Using Adam. Temperature is varied on the $x$-major-axis.}
+  \caption{Each subplot plots the final value functions on the continuous version of switch-stay after 500 gradient steps with $\gamma = 0.9$ for 1000 iterates. The top-right corner of the polytope in each subplot is the optimal value function and the bottom-left corner is the pessimal value function. Each iterate is represented by a translucent dot with alpha value $0.01$. Using RMSprop. Temperature is varied on the $x$-major-axis.}
+  \label{fig:cont-ss-poly-0.005}
+\end{figure}
+
+\begin{figure}[!htb]
+    \centering
+    \begin{subfigure}{0.6\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/polytope_forward_optim=rmsprop_lr=0.01.png}
+    \caption{Forward KL, learning rate = $0.01$.}
+    \label{fig:cont-switch-stay-forward-0.01}
+  \end{subfigure}%\hspace{15pt}
+  \begin{subfigure}[b]{0.6\linewidth}
+        \centering
+        \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/polytope_reverse_optim=rmsprop_lr=0.01.png}
+        \caption{Reverse KL, learning rate = $0.01$.}
+        \label{fig:cont-switch-stay-reverse-0.01}
+  \end{subfigure}
+  \caption{See \Cref{fig:cont-ss-poly-0.005}.}
+  \label{fig:cont-ss-poly-0.01}
+\end{figure}
+
+\textbf{1)} FKL with $\tau = 0$ converged noticeably slower than the other temperatures, which seems to be an artifact of our encoding of continuous actions to the underlying discrete dynamics of switch-stay, and the fact that we used random tie-breaking when computing the $\argmax$ for hard FKL. 
+
+\textbf{2)} RKL iterates converge slightly faster than FKL iterates across all temperature settings. RKL iterates with $\tau = 0$ sometimes converged to non-optimal value functions on the corners. 
+
+\textbf{3)} The limiting value functions of the FKL iterates seem more suboptimal than the limiting value functions of the RKL iterates; the latter are closer to the optimal value function of the original MDP. This result is consistent with our observations in the continuous bandit; although the FKL optimum may be more easily reached, that optimal point may be suboptimal with respect to an ``original'' objective (in this case, the optimal value function of the unregularized MDP). 
+
+To further our understanding of \textbf{3)}, we plot the final means and standard deviations of the learned policies for the learning rate of 0.01. In \Cref{fig:final-ss-probs-0,fig:final-ss-probs-1}, we see that the final FKL iterates have higher standard deviation, meaning that the final policies are further from the optimal deterministic policy of the unregularized MDP. Put informally, the FKL tends to ``commit'' less than the RKL.  
+
+In \Cref{fig:final-ss-probs-0,fig:final-ss-probs-1} as well, we note that the spread of the final iterates is much larger for the leftmost column, representing $\tau = 0$, than for any of the other columns. This spread is consistent with the spread observed in the leftmost columns of \Cref{fig:cont-ss-poly-0.005,fig:cont-ss-poly-0.01}. For the RKL, this spread seems to be a representation of the local minima. For the FKL, this result is likely an artifact of our encoding of the maximum action as a uniform random point in either [0, 1] or [-1, 0], depending on if the maximum action is respectively stay or switch. 
+
+\begin{figure}[!htb]
+  \centering
+  \begin{subfigure}[b]{0.85\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/state0_pi_forward_optim=rmsprop_lr=0.01.png}
+    \caption{Forward KL on state 0.}
+    \label{fig:cont-switch-stay-forward-s0}
+  \end{subfigure}\hspace{15pt}
+  
+  \begin{subfigure}[b]{0.85\linewidth}
+        \centering
+        \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/state0_pi_reverse_optim=rmsprop_lr=0.01.png}
+        \caption{Reverse KL on state 0.}
+        \label{fig:cont-switch-stay-reverse-s0}
+  \end{subfigure}
+
+  \caption{Each subplot plots the final mean (x-axis) and standard deviation (y-axis) on the continuous version of switch-stay after 500 gradient steps with $\gamma = 0.9$ for 1000 iterates. Each iterate is represented by a translucent dot with alpha value $0.1$. Using RMSprop with learning rate $0.01$. Temperature is varied on the $x$-major-axis. Every action $\leq 0$ is treated as ``stay'' and every action $> 0$ is treated as ``switch''. The blue dotted line in subplots corresponds to the line $\mu = 0$. }
+  \label{fig:final-ss-probs-0}
 \end{figure}
 
 
-% \begin{figure}
-%   \hspace*{16em}\resizebox{0.2\columnwidth}{!}{%
-% \begin{tikzpicture}[auto,node distance=10mm,>=latex,font=\small]
-%     \tikzstyle{round}=[thick,draw=black,circle]
+\begin{figure}[!htb]
+\centering
+\begin{subfigure}[b]{0.85\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/state1_pi_forward_optim=rmsprop_lr=0.01.png}
+    \caption{Forward KL on state 1.}
+    \label{fig:cont-switch-stay-forward-s1}
+  \end{subfigure}\hspace{15pt}
+  
+  \begin{subfigure}[b]{0.85\linewidth}
+        \centering
+        \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/state1_pi_reverse_optim=rmsprop_lr=0.01.png}
+        \caption{Reverse KL on state 1.}
+        \label{fig:cont-switch-stay-reverse-s1}
+  \end{subfigure}
+  \caption{See \Cref{fig:final-ss-probs-0}.}
+  \label{fig:final-ss-probs-1}
+\end{figure}
 
-%     \node[round] (s0) {$s_0$};
-%     \node[round,right=20mm of s0] (s1) {$s_1$};
+We also note here that when fewer integration points were used in an earlier version of this experiment, RKL exhibited substantial instability and a large number of iterates across temperatures and $\sigma_0$ values converged to suboptimal deterministic policies. This phenomenon might be related to the effect of stochasticity when approximating the KL loss, which is discussed in \Cref{sec:stochastic-microworld}.
 
-%     \draw[->] (s0) to [out=45, in=135] node {-1} (s1);
-%     \draw [->] (s0) to [out=135,in=225, loop] node {1} (s0);
-%     \draw [->] (s1) to [out=210,in=330] node{0} (s0);
-%     \draw [->] (s1) to [out=45,in=-45, loop] node {2} (s1);
-% \end{tikzpicture}}
-%     \caption{Switch-Stay.}
-%     \label{fig:switch-stay}
-% \end{figure}%
-
-
-We observe the following.
-\textbf{1)} The iterates of all methods moved reliably in the direction of the optimal value function. FKL with $\tau = 0$ seemed noticeably slower than the other temperatures, which seems to be an artifact of our encoding of continuous actions to the underlying discrete dynamics of switch-stay, and the fact that we used random tie-breaking when computing the $\argmax$ for hard FKL. 
-\textbf{2)} RKL iterates converge slightly faster than FKL iterates across all temperature settings. RKL iterates with $\tau = 0$ sometimes converged to non-optimal value functions on the corners. RKL seems to ``commit'' more than FKL, given that the RKL objective forces probability mass away from actions with low probability. 
-
-We also note here that when fewer integration points were used in an earlier version of this experiment, RKL exhibited substantial instability and a large number of iterates across temperatures and $\sigma_0$ values converged to suboptimal deterministic policies. 
-
-%These results suggest that optimization of the RKL may be more difficult than FKL optimization. In contrast to the continuous bandit setting, poor behaviour of the RKL iterates was prevalent across all temperatures and standard deviation initializations. 
  
-\myparagraph{What changes with discrete actions?}
-Overall, there is markedly less distinction between RKL and FKL in the discrete action setting with a softmax policy parameterization. We summarize the results here and place the plots in Appendices H.3 and H.4.
-\textbf{1)} In the discrete bandit setting, both RKL and FKL iterates learn the optimal arms. For higher temperatures, both RKL and FKL place some mass on the suboptimal arm. FKL generally maintains equal probability mass amongst the optimal arms, while RKL commits to one or the other optimal arm near the beginning. 
-\textbf{2)} On discrete Switch-Stay, both FKL and RKL iterates move in the direction of the optimal value function, but RKL iterates seem to converge faster. For higher temperatures, the limit point of the iterates is further away from the optimal value function than for lower temperatures. 
+\subsection{Discrete-Action Results}\label{sec:microworld-discrete-actions}
 
-\section{Practical Performance on Benchmark Problems}
-We compare the KL methods on benchmark continuous and discrete-action environments, using non-linear function approximation. Hyperparameter sweeps are performed separately for each domain. We do 30 runs and plot the mean return averaged over the past 20 episodes; shaded areas represent standard errors. Omitted experimental details may be found in Appendix F. 
+Overall, there is markedly less distinction between RKL and FKL in the discrete action setting with a softmax policy parameterization. In the heatmap in \Cref{fig:discrete-heatmap}, the loss surfaces for both KLs are very similar for a given temperature, in contrast to the heatmap for the continuous bandit. As the temperature increases, the black region (region with low loss) moves closer to the middle of the plot, which is consistent with the fact that the target distribution becomes closer to uniform as the temperature increases. 
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=1\columnwidth]{figs/discrete-bandit/heatmaps/discrete.png}
+    \caption{Heatmap for the KLs on the discrete bandit. In a given subplot, the $x$-axis is the logit for the optimal arm and the $y$-axis is the logit for the suboptimal arm.}
+    \label{fig:discrete-heatmap}
+  \end{figure}
 
-\myparagraph{Continuous Actions}
-We compare agents on Pendulum \citep{brockman2016openai}, Reacher, and Swimmer \citep{todorov2012mujoco}, with results shown in Figure \ref{fig_cont}. We exclude Hard FKL in our comparison since it requires access to $\max_a Q(s,a)$, which is difficult to obtain with continuous actions. Overall, FKL performs slightly better than RKL and is more stable.
-In Pendulum, FKL learns a good policy across various temperatures, whereas RKL is more sensitive and performs well only for $\tau = 1$. 
-In Reacher, FKL performed well and was stable for $\tau=0.01, 0.1$, whereas RKL struggle to converge to a good stable policy. 
-In Swimmer, FKL and RKL are almost identical for the best performing temperature, $\tau=1.0$. At lower temperatures, however, both seem to suffer.
-% MARTHAC: I think we decided this is not somthig we can say
-%The difference between soft value function and hard value function is more visible in continuous actions, with soft value functions learning better policies.
+Next, we track the progress of 1000 iterates over 1000 gradient steps. For each iterate, we initialize each logit--one for each arm--uniformly in $(-1, 1)$. The behaviour policy is thus the result of the softmax function applied to the logit vector. 
 
-\myparagraph{Discrete Actions}
-% AC: seems unnecessary to list all the environments if they are in the figure
-We report results in Figure \ref{fig_discrete} for environments from the OpenAI gym \citep{brockman2016openai} and MinAtar \citep{young2019minatar}. Overall, as in our microworlds, neither KL consistently dominates the other. The two notable exceptions are in Freeway and Seaquest. In Seaquest, FKL with a low temperature significantly outperformed other approaches, both in learning speed and final performance. In Freeway, on the other hand, RKL learns slightly faster than FKL for the two reasonable temperatures.  
+When looking at 1000 iterates over 1000 gradient steps, both RKL and FKL iterates learn the optimal arms in \Cref{fig:discrete-bandit-prob-forward-rmsprop,fig:discrete-bandit-prob-reverse-rmsprop}. There is little difference in the behaviour of iterates under either KL; there seems just to be one global optimum to which iterates under either KL converge reliably. 
 
-The results also show that the best choice of temperature is environment-dependent. For example, a temperature of 1 completely failed in Acrobot, whereas a temperature of 1 was best for both RKL and FKL in CartPole. This is likely because agents in CartPole start in a somewhat upright position, and also because CartPole is an easier environment than Acrobot. 
+% \begin{figure}[!htb]
+%   \centering
+%   \begin{subfigure}[b]{1\linewidth}
+%     \centering
+%     \includegraphics[width=1\columnwidth]{figs/discrete-bandit/notlearnQ/adam/prob-adam.png}
+%     \caption{Forward KL, Adam.}
+%     \label{fig:discrete-bandit-prob-forward-adam}
+%   \end{subfigure}%
+  
+%   \begin{subfigure}[b]{1\linewidth}
+%     \centering
+%     \includegraphics[width=1\columnwidth]{figs/discrete-bandit/notlearnQ/adam/prob-reverse-adam.png}
+%     \caption{Reverse KL, Adam. }
+%     \label{fig:discrete-bandit-prob-reverse-adam}
+%   \end{subfigure}
+%   \caption{Each subplot tracks the learned probability of each arm for 1000 iterates over 1000 gradient steps. The learning rate is set to be 0.005 and Adam is the optimizer. }
+% \end{figure}
 
-% slightly irrelevant for the new paragraph
-%In Asterix for $\tau = 0.01$, FKL learns faster at the beginning, but is soon eclipsed by RKL. However, RKL learns faster than FKL with $\tau = 0$, suggesting that any differences between FKL and RKL are temperature-dependent. 
+\begin{figure}[!htb]
+  \centering
+  \begin{subfigure}[b]{1\linewidth}
+    \centering
+    \includegraphics[width=1\columnwidth]{figs/discrete-bandit/notlearnQ/rmsprop/prob_forward_optim=rmsprop_lr=0.005.png}
+    \caption{Forward KL.}
+    \label{fig:discrete-bandit-prob-forward-rmsprop}
+  \end{subfigure}%
+  
+  \begin{subfigure}[b]{1\linewidth}
+    \centering
+    \includegraphics[width=1\columnwidth]{figs/discrete-bandit/notlearnQ/rmsprop/prob_reverse_optim=rmsprop_lr=0.005.png}
+    \caption{Reverse KL. }
+    \label{fig:discrete-bandit-prob-reverse-rmsprop}
+  \end{subfigure}
+  \caption{Each subplot tracks the learned probability of each arm for 1000 iterates over 1000 gradient steps. The learning rate is set to be 0.005. }
+\end{figure}
+
+
+Results for discrete Switch-Stay are in \Cref{fig:discrete-ss-all}. Both FKL and RKL iterates move in the direction of the optimal value function, but RKL iterates seem to converge faster. While a difference in convergence speed did also exist on the continuous version of Switch-Stay, the distinction is less notable here. 
+
+For higher temperatures, the limit point of the iterates is slightly further away from the optimal value function of the original MDP than for lower temperatures. This result is to be expected given that in general, the optimal entropy-regularized policy is different from the optimal non-regularized policy \citep{geist2019theory}.
+
+% \begin{figure}[!htb]
+%   \centering
+%   \begin{subfigure}[b]{0.5\linewidth}
+%     \centering
+%     \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_forward_optim=adam.png}
+%     \caption{Forward KL.}
+%     \label{fig:discrete-switch-stay-forward-adam}
+%   \end{subfigure}%
+%   \begin{subfigure}[b]{0.5\linewidth}
+%         \centering
+%         \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_reverse_optim=adam.png}
+%         \caption{Reverse KL.}
+%         \label{fig:discrete-switch-stay-reverse-adam}
+%   \end{subfigure}
+%   \caption{Final value functions on discrete version of switch-stay after 500 gradient steps, $\gamma = 0.9$. Using Adam.}
+% \end{figure}
+
+% \begin{figure}[!htb]
+%   \centering
+%   \begin{subfigure}[b]{0.85\linewidth}
+%     \centering
+%     \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_forward_optim=adam_lr=[0.005].png}
+%     \caption{Forward KL, learning rate = 0.005.}
+%     \label{fig:discrete-switch-stay-forward-adam0.005}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{0.85\linewidth}
+%         \centering
+%         \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_reverse_optim=adam_lr=[0.005].png}
+%         \caption{Reverse KL, learning rate = 0.005.}
+%         \label{fig:discrete-switch-stay-reverse-adam0.005}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{0.85\linewidth}
+%     \centering
+%     \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_forward_optim=adam_lr=[0.01].png}
+%     \caption{Forward KL, learning rate = 0.01.}
+%     \label{fig:discrete-switch-stay-forward-adam0.01}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{0.85\linewidth}
+%         \centering
+%         \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_reverse_optim=adam_lr=[0.01].png}
+%         \caption{Reverse KL, learning rate = 0.01.}
+%         \label{fig:discrete-switch-stay-reverse-adam0.01}
+%   \end{subfigure}
+%   \caption{Final value functions on discrete version of switch-stay after 500 gradient steps, $\gamma = 0.9$. Using Adam for learning rates = $\{0.005, 0.01\}$.}
+%   \label{fig:discrete-ss-all}
+% \end{figure}
+
+
+\begin{figure}[!htb]
+  \centering
+  \begin{subfigure}[b]{0.85\linewidth}
+    \centering
+    \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_forward_optim=rmsprop_lr=[0.005].png}
+    \caption{Forward KL, learning rate = 0.005.}
+    \label{fig:discrete-switch-stay-forward-adam0.005}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{0.85\linewidth}
+        \centering
+        \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_reverse_optim=rmsprop_lr=[0.005].png}
+        \caption{Reverse KL, learning rate = 0.005.}
+        \label{fig:discrete-switch-stay-reverse-adam0.005}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{0.85\linewidth}
+    \centering
+    \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_forward_optim=rmsprop_lr=[0.01].png}
+    \caption{Forward KL, learning rate = 0.01.}
+    \label{fig:discrete-switch-stay-forward-adam0.01}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{0.85\linewidth}
+        \centering
+        \includegraphics[width=0.8\columnwidth]{figs/switch-stay/notlearnQ/polytope_reverse_optim=rmsprop_lr=[0.01].png}
+        \caption{Reverse KL, learning rate = 0.01.}
+        \label{fig:discrete-switch-stay-reverse-adam0.01}
+  \end{subfigure}
+  \caption{Final value functions on discrete version of switch-stay after 500 gradient steps, $\gamma = 0.9$. Using RMSprop for learning rates $\in \{0.005, 0.01\}$.}
+  \label{fig:discrete-ss-all}
+\end{figure}
+
+
+\subsection{The Impact of Stochasticity}\label{sec:stochastic-microworld}
+Although with discrete actions it is practical to sum across all actions when calculating the KL losses, difficulty emerges with high-dimensional continuous action spaces. Quadrature methods scale exponentially with the dimension of the action-space, leaving methods like Clenshaw-Curtis impractical; Monte-Carlo integration seems the only feasible answer in this setting. 
+
+We repeated the continuous-action microworld experiments to understand any differences induced by using Monte-Carlo integration (i.e., sampling actions from the current policy) instead of Clenshaw-Curtis quadrature to calculate the losses. 
+
+Since Hard FKL only depends upon the maximum action, we do not modify the algorithm in this regime. Hard and soft RKL are modified to use sampled actions from the current policy $\pi$. To derive a sampling-based version of soft FKL, we use weighted importance sampling to approximate the integral $-\int_\actionspace \boltzmannQ(s, a) \log \pi(a \mid s)\, da$, noting that the omitted term $\entropy(\boltzmannQ(\cdot \mid s))$ does not depend on $\pi$. In particular, for samples $\{a_i\}_{i = 1}^n \sim \pi(\cdot \mid s)$ we estimate 
+\begin{align*}
+    -\int_\actionspace \boltzmannQ(s, a) \log \pi(a \mid s)\, da &\approx \sum_{i = 1}^n \rho_i \log \pi(a_i \mid s) ,\\
+    \rho_i &:= \frac{\tilde{\rho}_i}{\sum_{j = 1}^n \tilde{\rho}_j}\\
+    \tilde{\rho}_i &:= \frac{\exp(Q(s, a_i) \tau^{-1})}{\pi(a_i \mid s)}. 
+\end{align*}
+Note that we do not have to estimate $\entropy(\boltzmannQ(s, \cdot))$, the other term in the FKL, as it does not depend on $\pi$. Weighted importance sampling lets us avoid calculating the partition function in $\boltzmannQ$, and may be a fruitful avenue to explore in making FKL practical for high-dimensional action spaces. 
+
+% \begin{figure}[!htb]
+%   \centering
+%   \begin{subfigure}[b]{0.85\linewidth}
+%     \centering
+%     \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/10/mean_forward_optim=adam_modes=1_lr=0.005.png}
+%     \caption{Forward KL.}
+%     \label{fig:10-sample-cont-bandit-forward}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{0.85\linewidth}
+%         \centering
+%         \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/10/mean_reverse_optim=adam_modes=1_lr=0.005.png}
+%         \caption{Reverse KL.}
+%         \label{fig:10-sample-cont-bandit-reverse}
+%   \end{subfigure}
+%   \caption{Continuous bandit with 10 sample points, learning rate = 0.005, with Adam.}
+% \end{figure}
+
+
+\begin{figure}[!htb]
+  \centering
+  \begin{subfigure}[b]{0.85\linewidth}
+    \centering
+    \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/10/mean_forward_optim=rmsprop_modes=1_lr=0.005.png}
+    \caption{Forward KL.}
+    \label{fig:10-sample-cont-bandit-forward}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{0.85\linewidth}
+        \centering
+        \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/10/mean_reverse_optim=rmsprop_modes=1_lr=0.005.png}
+        \caption{Reverse KL.}
+        \label{fig:10-sample-cont-bandit-reverse}
+  \end{subfigure}
+  \caption{Continuous bandit with 10 sample points, learning rate = 0.005, with RMSprop.}
+\end{figure}
+
+
+% \begin{figure}[!htb]
+%   \centering
+%   \begin{subfigure}[b]{0.85\linewidth}
+%     \centering
+%     \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/100/mean_forward_optim=adam_modes=1_lr=0.005.png}
+%     \caption{Forward KL.}
+%     \label{fig:100-sample-cont-bandit-forward}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{0.85\linewidth}
+%         \centering
+%         \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/100/mean_reverse_optim=adam_modes=1_lr=0.005.png}
+%         \caption{Reverse KL.}
+%         \label{fig:100-sample-cont-bandit-reverse}
+%   \end{subfigure}
+%   \caption{Continuous bandit with 100 sample points, learning rate = 0.005, with Adam.}
+% \end{figure}
+
+% \begin{figure}[!htb]
+%   \centering
+%   \begin{subfigure}[b]{0.85\linewidth}
+%     \centering
+%     \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/500/mean_forward_optim=adam_modes=1_lr=0.005.png}
+%     \caption{Forward KL.}
+%     \label{fig:500-sample-cont-bandit-forward}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{0.85\linewidth}
+%         \centering
+%         \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/500/mean_reverse_optim=adam_modes=1_lr=0.005.png}
+%         \caption{Reverse KL.}
+%         \label{fig:500-sample-cont-bandit-reverse}
+%   \end{subfigure}
+%   \caption{Continuous bandit with 500 sample points, learning rate = 0.005, with Adam.}
+% \end{figure}
+
+
+\begin{figure}[!htb]
+  \centering
+  \begin{subfigure}[b]{0.85\linewidth}
+    \centering
+    \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/500/mean_forward_optim=rmsprop_modes=1_lr=0.005.png}
+    \caption{Forward KL.}
+    \label{fig:500-sample-cont-bandit-forward}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{0.85\linewidth}
+        \centering
+        \includegraphics[width=0.8\columnwidth]{figs/bandit/monte-carlo/500/mean_reverse_optim=rmsprop_modes=1_lr=0.005.png}
+        \caption{Reverse KL.}
+        \label{fig:500-sample-cont-bandit-reverse}
+  \end{subfigure}
+  \caption{Continuous bandit with 500 sample points, learning rate = 0.005, with RMSprop.}
+\end{figure}
+
+
+While overall behaviour for the continuous bandit is consistent with the results using Clenshaw-Curtis quadrature, the iterates seem to cluster more slowly around their limit points, or not at all. 
+% \textbf{Switch-Stay}
+
+% \begin{figure}[!htb]
+%   \centering
+%   \begin{subfigure}[b]{0.85\linewidth}
+%     \centering
+%     \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/10/polytope_forward_optim=adam_lr=0.01.png}
+%     \caption{Forward KL.}
+%     \label{fig:10-sample-switch-stay-forward}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{0.85\linewidth}
+%         \centering
+%         \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/10/polytope_reverse_optim=adam_lr=0.01.png}
+%         \caption{Reverse KL.}
+%         \label{fig:10-sample-switch-stay-reverse}
+%   \end{subfigure}
+%   \caption{Switch-stay with 10 sample points, learning rate = 0.01, with Adam.}
+% \end{figure}
+
+\begin{figure}[!htb]
+  \centering
+  \begin{subfigure}[b]{0.85\linewidth}
+    \centering
+    \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/10/polytope_forward_optim=rmsprop_lr=0.01.png}
+    \caption{Forward KL.}
+    \label{fig:10-sample-switch-stay-forward}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{0.85\linewidth}
+        \centering
+        \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/10/polytope_reverse_optim=rmsprop_lr=0.01.png}
+        \caption{Reverse KL.}
+        \label{fig:10-sample-switch-stay-reverse}
+  \end{subfigure}
+  \caption{Switch-stay with 10 sample points, learning rate = 0.01, with RMSprop.}
+\end{figure}
+
+% \begin{figure}[!htb]
+%   \centering
+%   \begin{subfigure}[b]{0.85\linewidth}
+%     \centering
+%     \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/100/polytope_forward_optim=adam_lr=0.01.png}
+%     \caption{Forward KL.}
+%     \label{fig:100-sample-switch-stay-forward}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{0.85\linewidth}
+%         \centering
+%         \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/100/polytope_reverse_optim=adam_lr=0.01.png}
+%         \caption{Reverse KL.}
+%         \label{fig:100-sample-switch-stay-reverse}
+%   \end{subfigure}
+%   \caption{Switch-stay with 100 sample points, learning rate = 0.01, with Adam.}
+% \end{figure}
+
+% \begin{figure}[!htb]
+%   \centering
+%   \begin{subfigure}[b]{0.85\linewidth}
+%     \centering
+%     \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/500/polytope_forward_optim=adam_lr=0.01.png}
+%     \caption{Forward KL.}
+%     \label{fig:500-sample-switch-stay-forward}
+%   \end{subfigure}
+  
+%   \begin{subfigure}[b]{0.85\linewidth}
+%         \centering
+%         \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/500/polytope_reverse_optim=adam_lr=0.01.png}
+%         \caption{Reverse KL.}
+%         \label{fig:500-sample-switch-stay-reverse}
+%   \end{subfigure}
+%   \caption{Switch-stay with 500 sample points, learning rate = 0.01, with Adam.}
+% \end{figure}
+
+
+\begin{figure}[!htb]
+  \centering
+  \begin{subfigure}[b]{0.85\linewidth}
+    \centering
+    \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/500/polytope_forward_optim=rmsprop_lr=0.01.png}
+    \caption{Forward KL.}
+    \label{fig:500-sample-switch-stay-forward}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{0.85\linewidth}
+        \centering
+        \includegraphics[width=0.8\columnwidth]{figs/continuous-switch-stay/monte-carlo/500/polytope_reverse_optim=rmsprop_lr=0.01.png}
+        \caption{Reverse KL.}
+        \label{fig:500-sample-switch-stay-reverse}
+  \end{subfigure}
+  \caption{Switch-stay with 500 sample points, learning rate = 0.01, with RMSprop.}
+\end{figure}
+
+
+On Switch-Stay, more notable differences emerged. RKL iterates converged to minima to which they did not converge in the Clenshaw-Curtis regime, even for larger numbers of sample points. In \Cref{fig:500-sample-switch-stay-reverse}, there is an interesting trend across temperatures. Temperatures below $0.4$ induced many suboptima far from the optimal value function, while temperatures 0.4 and 1 seemed better at clustering RKL iterates near the optimal value function. On the other hand, FKL seemed relatively insensitive both to the temperature and the number of sample points. This relative insensitivity could be due to having a smoother loss landscape to begin with, which tends to direct iterates to a single global optimum. Nevertheless, that global optimum was often quite suboptimal with respect to the unregularized MDP, especially since many RKL iterates were much closer to the optimal policy of the unregularized MDP. 
+
+
+\subsection{Summary}
+Given the amount of data in this chapter, it is helpful to summarize our discussion thus far. 
+\begin{enumerate}
+    \item The relative difference between the KLs in continuous-action settings is larger than that in discrete-action settings. 
+    \item On our bimodal bandit, the FKL was better at directing iterates to the global optimum, excepting some iterates that stayed near the suboptimal mode when the initial standard deviation was set sufficiently low. However, as the temperature increased, the global optimum of the FKL seemed to approach a suboptimal point with respect to the bandit reward function faster than the global optimum of the RKL did. 
+    \item On the continuous version of Switch-Stay, the FKL iterates converged more slowly than the RKL iterates and to a policy that was less optimal, which seemed primarily due to a larger final standard deviation for the FKL iterates. The increased suboptimality of the FKL solution is consistent with our bandit results. 
+    \item In the continuous-action setting, stochastic sampling of the loss function impacted RKL more than FKL. RKL tended to exhibit more spurious minima in this setting, even when increasing the number of sample points in the calculation of the loss. 
+    \item In the discrete-action setting, little significant difference emerged between FKL and RKL. Both converged to nearly identical optima, although the convergence of iterates under FKL seemed slightly slower. 
+\end{enumerate}
+
+We suspect that the differences here are heavily due to the policy parameterization. One reason for the difference in the number of minima seems to be that a Gaussian policy is unimodal, whereas a softmax policy can represent multimodal distributions. As well, given that the behaviour in the bandit setting depended on the initial standard deviation, we hypothesize that the added complexity of learning the standard deviation contributes to the differences we observed between continuous and discrete actions. 
+
+
+We also did not learn action-values in our experiments. Especially given the additional differences between the KLs that we observed with stochasticity, using learned action-values might drastically change our results. In this setting, the accuracy of the action-value estimate would depend on the actions taken by the agent, which in turn are affected by the process of policy optimization. For instance, if an agent tends to commit to an action at a given state and not try other actions, the resulting action-value estimate could be poor. In the literature in general, more investigation into the interplay of learning value functions and policy optimization is necessary. 
+
+%------------------------------------------------------------------------------------------------------------------------------
+\subsection{Practical Performance on Benchmark Problems}
+
+We compare the KL methods on benchmark continuous and discrete-action environments, using non-linear function approximation. Here, we wish to understand (1) if our observations from the microworld experiments apply to more complicated environments and (2) if any new differences as a result of function approximation or increased environment complexity. 
+
+\subsection{Implementation Details}
+\subsubsection{Hyperparameters}
+Hyperparameter sweeps are performed separately for each domain. We sweep over the learning rates $\{10^{-5}, 10^{-4}, 10^{-3}\}$; for Pendulum, we additionally sweep over actor learning rate $10^{-2}$. In the continuous-action setting, we sweep both the actor and the critic learning rate, while in the discrete-action setting we have a shared learning rate because of a shared architecture. We sweep temperatures in $\{0.01, 0.1, 1\}$ for the soft action-value methods and set the temperature in $\boltzmannQ$ and the temperature in the soft action-value function to be the same value. For example, if $\tau = 0.01$, then we learn a soft action-value function with $\tau = 0.01$ and use a KL target distribution proportional to $\exp(Q(s, a) \tau^{-1})$. RMSprop \citep{tieleman2012lecture} is used as the optimizer to be consistent with our focus in the microworld domains. 
+
+We perform 30 runs for all hyperparameter settings and plot the mean return averaged over the past 20 episodes; shaded areas represent standard errors. 
+
+
+\subsubsection{Updating}
+We perform bootstrapping as per the recommendations in \citet{pardo2017time}. If a transition $(s, a, r, sp)$ results in the true termination of the episode, the bootstrap target for value function updates is $r$ instead of the usual $r - \tau \log \pi(a \mid s) + \gamma V(sp)$. If the transition results in a timeout, $r - \tau \log \pi(a \mid s) + \gamma V(sp)$ is used. Otherwise, $r - \tau \log \pi(a \mid s) + \gamma V(sp)$ is used as the bootstrap target. 
+
+On the continuous-action domains we use Clenshaw-Curtis \citep{clenshaw1960method} numerical integration scheme to estimate the FKL and the RKL. To generate the points for Clenshaw-Curtis, we use the Python package, quadpy.\footnote{\url{https://github.com/nschloe/quadpy}}. For computational efficiency, we use 64 points for 1D environments, and $l=6$ for multi-dimensional environments using the nested univariate quadrature formula for Clenshaw-Curtis \citep{gerstner1998numerical}. In learning value functions we learn both $Q(s, a)$ and $V(s)$, using the same target as done in SAC \citep{haarnoja2018soft}. In particular, the target for $V(s)$ is $Q(s, a) - \log(\pi(a \mid s))$. On preliminary experiments, we found that the target of $Q(s, a) - \log(\pi(a \mid s))$ performed better than the target of $r(s) - \tau \log \pi(a \mid s) + \gamma V(s')$ for all methods.
+
+On the discrete-action domains, the value function update target is $r(s) - \tau \log \pi(a \mid s) + \gamma V(s')$ instead of the update that SAC uses, $Q(s, a) - \log \pi(a \mid s)$. Preliminary experiments indicated that the former update was superior for all methods. Both $Q$ and $V$ are learned. 
+
+For reference, we also include the gradient updates of the various KL divergences. 
+\begin{align}
+    &\textbf{RKL}: \nabla_\theta \KL(\pi_\theta(\cdot \mid s) \parallel \boltzmannQ_\tau(s, \cdot)) \nonumber\\
+    &\quad= -\nabla_\theta \entropy(\pi_\theta(\cdot \mid s)) - \int_\actionspace\nabla_\theta \pi_\theta(a \mid s) \log \boltzmannQ_\tau(a \mid s)\, da \label{eq:rkl-gradient}\\
+    &\textbf{FKL}: \nabla_\theta \KL(\boltzmannQ_\tau(s, \cdot) \parallel \pi_\theta(\cdot \mid s) )\nonumber\\
+    &\quad= - \int_\actionspace  \boltzmannQ_\tau(a \mid s) \nabla_\theta \log \pi_\theta(a \mid s) \, da \label{eq:fkl-gradient} \\
+    &\textbf{Hard RKL}: - \int_\actionspace\nabla_\theta \pi_\theta(a \mid s) Q(s, a)\, da \label{eq:hrkl-gradient}\\
+    &\textbf{Hard FKL}: -\nabla_\theta \log \pi_\theta \left(\argmax_b Q(s, b) \mid s\right) \label{eq:hfkl-gradient}.
+\end{align}
+
+\begin{algorithm}
+\caption{Agent for Benchmark Experiments}
+\label{alg:kl-agent}
+\begin{algorithmic}
+    \State Given: policy $\pi_\theta$ (parameters $\theta$); action-value estimate $Q_v$ (parameters $v$); state-value estimate $V_w$ (parameters $w$); experience replay buffer; choice of KL divergence; temperature $\tau \geq 0$; learning rates for $\theta$, $v$, $w$; optimizer (e.g., RMSprop).
+    \For{$t = 0, \ldots,$}
+        \State Draw action $a_t \sim \pi_\theta(\cdot \mid s_t)$
+        \State Observe and store transition $(s_t, a_t, s_{t + 1}, r, \text{DoneFlag})$. Replace the oldest transition if the buffer size limit is reached. 
+        \If{samples in buffer $\geq$ 32}
+            \State Draw random mini-batch of size 32 from buffer. 
+            \For{each transition $(s, a, r, sp, \text{DoneFlag})$ in the mini-batch}
+                \State Calculate KL gradients according to \Cref{eq:rkl-gradient,eq:fkl-gradient,eq:hrkl-gradient,eq:hfkl-gradient}, based on choice of $\tau$ and KL divergence.
+            \EndFor
+            \State Update $w, v$ with DiscreteUpdateValueFunctions if action space is discrete; otherwise call ContinuousUpdateValueFunctions.
+            \State Update $\theta$ with the learning rate and optimizer.
+        \EndIf
+    \EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{DiscreteUpdateValueFunctions}
+\label{alg:discrete-value-update}
+\begin{algorithmic}
+    \State Given: policy $\pi_\theta$ (parameters $\theta$); action-value estimate $Q_v$ (parameters $v$); state-value estimate $V_w$ (parameters $w$); temperature $\tau \geq 0$;  optimizers (e.g., RMSprop) for $v$ and $w$; batch of data $\mathcal{D}$, with each transition written in the form $(s, a, r, sp, \text{DoneFlag})$
+    \State To update the state-value function, pass the following as the gradient to the optimizer for $w$. 
+    \begin{align*}
+        -\Ex_{\mathcal{D}}[(r - \tau \log \pi(a \mid s) + \gamma\cdot (1 - \text{DoneFlag})\cdot V_w(sp) - V(s)) \nabla_w V(s)]
+    \end{align*}
+    \State To update the action-value function, pass the following as the gradient to the optimizer for $v$. 
+    \begin{align*}
+        -\Ex_{\mathcal{D}}[(r + \gamma \cdot (1 - \text{DoneFlag})\cdot V_w(sp) - Q_v(s, a)) \nabla_v Q_v(s, a)]
+    \end{align*}
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{ContinuousUpdateValueFunctions}
+\label{alg:continuous-value-update}
+\begin{algorithmic}
+    \State Given: policy $\pi_\theta$ (parameters $\theta$); action-value estimate $Q_v$ (parameters $v$); state-value estimate $V_w$ (parameters $w$); temperature $\tau \geq 0$; optimizers (e.g., RMSprop) for $v$ and $w$; batch of data $\mathcal{D}$, with each transition written in the form $(s, a, r, sp, \text{DoneFlag})$
+    \State For each state $s$ in the batch $\mathcal{D}$, draw a new action $\tilde{a} \sim \pi_\theta(\cdot \mid s)$.
+    \State To update the state-value function, pass the following as the gradient to the optimizer for $w$. 
+    \begin{align*}
+        \Ex_{\mathcal{D}}[(V_w(s) - Q_v(s, \tilde{a}) + \tau \log \pi_\theta (\tilde{a} \mid s)) \nabla V_w(s)]
+    \end{align*}
+    \State To update the action-value function, pass the following as the gradient to the optimizer for $v$. 
+    \begin{align*}
+        -\Ex_{\mathcal{D}}[(r + \gamma \cdot (1 - \text{DoneFlag})\cdot V_w(sp) - Q_v(s, a)) \nabla_v Q_v(s, a)]
+    \end{align*}
+\end{algorithmic}
+\end{algorithm}
+
+In all our plots, we refer to the number of ``frames'' on the $x$-axis. We use ``frames'' synonomously with ``timestep''. 
+
+\subsubsection{Architecture}
+On our continuous-action domains, all policy and value function networks are implemented as two-layer neural networks of size 128, with ReLU activations. We use experience replay of buffer size $10^6$ with batch size of 32. On our discrete-action domains, we employ the following architectures.
+
+\textbf{OpenAI Gym}: The architecture is a two-layer neural network, with the policy and value functions as separate heads off of the main two-layer body. ReLU activations are used between layers. We report results for three hidden layer sizes: small (32), medium (128), and large (512).
+
+\textbf{MinAtar}: The architecture is a convolutional network into one fully-connected layer for each of the policy, action value function, and state value function. The convolutional layer has 16 3x3 convolutions with stride 1, the same as in \citet{young2019minatar}; we vary the size of the fully-connected layer in $\{32, 128\}$. ReLU activations are used between layers. 
+
+On the discrete-action domains, experience replay is used with a buffer size of $10^5$ and a batch size of 32. 
+
+\subsection{Continuous-Action Results}
+We compare agents on Pendulum \citep{brockman2016openai}, Reacher, and Swimmer \citep{todorov2012mujoco}, with results shown in Figure \ref{fig_cont}. We exclude Hard FKL in our comparison since it requires access to $\max_a Q(s,a)$, which is difficult to obtain with continuous actions. 
+
 
 \begin{figure}[t]
   \centering
-  \begin{subfigure}[b]{0.33\linewidth}
+  \begin{subfigure}[b]{0.5\linewidth}
     \centering
     \includegraphics[width=\columnwidth]{figs/deep/continuous/PD_entropy_comparison.pdf} 
     \caption{Pendulum}\label{fig:pendulum}
   \end{subfigure}%
-  \begin{subfigure}[b]{0.33\linewidth}
+  \begin{subfigure}[b]{0.5\linewidth}
     \centering
     \includegraphics[width=\columnwidth]{figs/deep/continuous/Reacher_entropy_comparison.pdf} 
     \caption{Reacher}\label{fig:reacher}
-  \end{subfigure}%
-  \begin{subfigure}[b]{0.33\linewidth}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{0.5\linewidth}
     \centering
     \includegraphics[width=\columnwidth]{figs/deep/continuous/Swimmer_entropy_comparison.pdf} 
     \caption{Swimmer}\label{fig:swimmer}
@@ -857,94 +1355,115 @@ The results also show that the best choice of temperature is environment-depende
   \caption{Continuous-action environments. Shown are the best hyperparameters for each algorithm, which are selected by largest area under the last half of the learning curve. The colours go from hot (red, temperature = 1) to cool (yellow, temperature = 0). }\label{fig_cont}
 \end{figure}
 
+For certain temperatures, FKL either learns faster than or achieves superior final return to RKL. This difference is especially striking on Pendulum \Cref{fig:pendulum}, where FKL learns vastly faster than RKL for $\tau = 0.1, 0.01$. It's interesting to note that RKL with $\tau = 1$ has a similarly-shaped learning curve to FKL with $\tau = 0.01, 0.1, 1$. In a sense, the higher temperature of RKL with $\tau = 1$ might be compensating for committal behaviour of RKL that we observed in the microworld experiments. It does seem possible to be too non-committal. On Reacher in \Cref{fig:reacher}, FKL with $\tau = 1$ completely fails to learn, while all other settings learn appreciably. Nevertheless, these observations suggest a connection between the impacts of FKL and of entropy regularization, as we discuss further below in the discrete-action setting. 
+
+It is difficult to comment on the importance of the policy parameterization for these experiments relative to our microworld experiments. Any influence from the Gaussian policy parameterization is conflated with function approximation. Moreover, as we will see below, no stark pattern seems to divide continuous and discrete action settings, as one did in our microworld experiments. 
+
+\section{Discrete-Action Results}
+We report results for environments from the OpenAI gym \citep{brockman2016openai} and MinAtar \citep{young2019minatar}. 
+
+
 
 \begin{figure}[t]
   \centering
-  \begin{subfigure}[b]{0.25\linewidth}
+  \begin{subfigure}[b]{1\linewidth}
     \centering
-    \includegraphics[width=\columnwidth]{figs/deep/discrete/labeled_acrobot.png} 
-    \caption{Acrobot
-    }\label{fig:acrobot}
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/acrobot_combined.png} 
+    \caption{Acrobot}\label{fig:acrobot}
   \end{subfigure}%
-  \begin{subfigure}[b]{0.25\linewidth}
+  
+  \begin{subfigure}[b]{1\linewidth}
     \centering
-    \includegraphics[width=\columnwidth]{figs/deep/discrete/CartPole_all_kl.png} 
-    \caption{Cartpole
-    }\label{fig:cartpole}
-  \end{subfigure}%
-  \begin{subfigure}[b]{0.25\linewidth}
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/cartpole_combined.png}
+    \caption{CartPole}\label{fig:cartpole}
+  \end{subfigure}
+  
+  \begin{subfigure}[b]{1\linewidth}
     \centering
-    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_LunarLander_all_kl.png}
-    \caption{Lunar Lander}
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/lunar_combined.png}
+    \caption{Lunar Lander.}
     \label{fig:lunar-lander}
-  \end{subfigure}%
-  \begin{subfigure}[b]{0.25\linewidth}
+  \end{subfigure}
+  \caption{OpenAI Gym discrete-action environments. Plot settings are identical to Figure \ref{fig_cont}.}\label{fig:open-ai}
+\end{figure}
+
+% In Acrobot, FKL dominates RKL for all temperatures except $\tau = 1$, which did not learn at all.  This last trend could be because RKL ``commits'' more to actions with high density (i.e., have lower standard deviation, all other things being equal), which we observed in the microworld experiments as well. In CartPole, FKL at $\tau = 0.01, 0.1$ seems to learn a little bit faster than CartPole for hidden layer size $= 128, 256$. In Lunar Lander, FKL with non-zero temperature consistently matches or exceeds the corresponding learning curve for RKL. Indeed, when $\tau = 0$, a large gap separates FKL and RKL. A possible reason  
+
+The results on the OpenAI Gym environments suggest that for small hidden layer sizes, FKL may be at least as good as RKL, and sometimes better. As the hidden layer size increases, however, this dominance is negated. For a hidden layer size of 128, RKL seems to learn a little bit faster than FKL for $\tau \neq 1$, and RKL has a slightly higher final performance for a hidden layer size of 512, although the difference does not appear to be significant. It is possible that these observations are related to how the optimization landscape of a neural network changes with larger hidden layer sizes. The influence of the choice of policy gradient objective on the optimal function approximation architecture deserves further consideration. 
+
+The superiority of FKL in Lunar Lander for $\tau = 0, 0.01$ and sometimes $\tau = 0.1$ is interesting. For these temperatures, FKL with non-zero temperature consistently matches or exceeds the corresponding learning curve for RKL. Indeed, when $\tau = 0$, a large gap separates FKL and RKL. A possible reason for this dominance is the difficulty of exploration in Lunar Lander: one must learn to manoeuvre the spacecraft, discover the correct landing area, learn how to land correctly, and learn to turn off the fuel. That FKL might ``commit'' less (i.e., have higher standard deviation than RKL, all other things equal) suggests that more actions are tried to facilitate discovery of good actions. We further discuss exploration below in our MinAtar experiments. 
+
+\begin{figure}[!htb]
+  \centering
+  \begin{subfigure}[b]{1\linewidth}
     \centering
-    \includegraphics[width=\columnwidth]{figs/deep/discrete/labeled_asterix.png} 
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/asterix_combined.png} 
     \caption{Asterix
     }\label{fig:asterix}
   \end{subfigure}%
   
-  \begin{subfigure}[b]{0.25\linewidth}
+  \begin{subfigure}[b]{1\linewidth}
     \centering
-    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_breakout_all_kl.png} 
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/breakout_combined.png} 
     \caption{Breakout
     }\label{fig:breakout}
   \end{subfigure}%
-  \begin{subfigure}[b]{0.25\linewidth}
+  
+  \begin{subfigure}[b]{1\linewidth}
     \centering
-    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_freeway_all_kl.png} 
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/freeway_combined.png} 
     \caption{Freeway
     }\label{fig:freeway}
   \end{subfigure}%
-  \begin{subfigure}[b]{0.25\linewidth}
+  \caption{MinAtar discrete-action environments. Plot settings are identical to those in Figure \ref{fig_cont}. }\label{fig:minatar}
+\end{figure}
+\begin{figure}[!htb]
+  \begin{subfigure}[b]{1\linewidth}
     \centering
-    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_seaquest_all_kl.png} 
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/seaquest_combined.png} 
     \caption{Seaquest
     }\label{fig:seaquest}
   \end{subfigure}%
-  \begin{subfigure}[b]{0.25\linewidth}
+  
+  \begin{subfigure}[b]{1\linewidth}
     \centering
-    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_space_invaders_all_kl.png} 
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/space_invaders_combined.png} 
     \caption{Space Invaders
     }\label{fig:space-invaders}
   \end{subfigure}
-  \caption{Discrete-action environments. Plot settings are identical to Figure \ref{fig_cont}. Note that all the algorithms performed poorly on Lunar Lander, on which a return of 200 is considered to be ``solved''. This task is more difficult with long episode limits (set here to 5000) since the agent must learn to turn the fuel off. }\label{fig_discrete}
+  \caption{MinAtar discrete-action environments continued. Plot settings are identical to those in Figure \ref{fig_cont}. }\label{fig:minatar2}
 \end{figure}
 
+As with the OpenAI Gym environments, there is no consistent dominance of either KL over the other in the MinAtar environments. The most striking observation is the superiority of FKL with $\tau = 0$ over all other methods and across both hidden layer sizes on Seaquest in \Cref{fig:seaquest}. As Seaquest is generally considered to be a hard exploration problem, we might expect FKL to perform better because of its relative slowness in moving probability mass to regions with high target density, as with RKL. If this reason were the only relevant factor, we would expect FKL to be superior across all temperatures; however, FKL performs similarly to RKL for the other temperatures, excepting slightly better final performance for $\tau = 0.1$ and a hidden layer size of 32. 
 
+Another possibility to explain the results in Seaquest is to differentiate between the supposed exploration benefits of entropy and of FKL. When we say that a method benefits exploration, we mean that the method induces a state visitation distribution whose support is larger (i.e., covers more of the state space). Accumulating more transitions from more diverse parts of the state space presumably allows for more accurate estimates of the action value function, and hence more reliable policy improvement. Entropy-regularized RL, as it is currently formulated, only benefits exploration by proxy, through penalizing the negative entropy of the policy. In the context of reward maximization, entropy is only a means to an end; at times, the means may conflict with the end. A policy with higher entropy may have a more diverse state visitation distribution, but it may be prevented from exploiting that information to the fullest capacity because of the penalty to negative entropy. In contrast, FKL benefits exploration by causing the agent's policy to commit more slowly to actions that apparently have high value under the current value function estimate. Especially since value function estimates can be atrocious \citep{ilyas2018deep}, this non-committal behaviour may help the policy avoid spurious local optima. However, FKL does not necessarily prevent a policy from committing to a particular action. Furthermore, nothing in principle prevents a policy under the hard FKL from converging to the optimal policy of the original MDP, whereas introducing entropy regularization induces a different optimal, entropy-regularized policy. 
 
+Nevertheless, the effects of entropy and of non-committal behaviour might not be independent in all scenarios. On Freeway in \Cref{fig:freeway}, RKL bests FKL for $\tau = 0.01$, but the opposite is true for $\tau = 0$. It is conceivable that a higher temperature offsets the committal behaviour of RKL enough to impact exploration positively, while when $\tau = 0$, the RKL objective induces the policy to place large mass on actions that only appear to be optimal. A particularly striking failure case of RKL with $\tau = 0$ is on Breakout in \Cref{fig:breakout}, where this setting fails to learn appreciably compared to all other KL and $\tau$ combinations. A next step to investigate the exploration effects of entropy and of FKL would be to plot the induced state distributions of FKL and RKL over time, along with the corresponding value function estimation errors. 
+
+\section{Summary}
+We examined the differences between FKL and RKL in high-dimensional environments that necessitate function approximation. While any differences depended on the environment and the temperature, there are a few key takeaways. 
+\begin{enumerate}
+    \item We hypothesize that using the FKL may benefit exploration (i.e., inducing a state visitation distribution with larger support).
+    \item Entropy-regularization and the FKL in conjunction may both benefit exploration, but may also inhibit learning. 
+    \item The size of the hidden layer, and the function approximation architecture in general, may affect the relative superiority of FKL to RKL. 
+\end{enumerate}
 
 
 
 \section{Discussion and Conclusion} 
-% running summary of observations
-% temperature affects mean/mode-seeking: lower means behaviour is more expected
-% forward seems to have more tightly clustered local minima
-% standard deviation is more unstable for reverse kl
 
-% MARTHAC: I decided to make one unified conclusion, based on results
-% AC: we can't make claims about the minima in the practical benchmark setting
-%Across our continuous-action experiments, using the forward KL provided fewer local minima than the reverse KL, at the possible cost of slower convergence to optima. 
-%
 In our continuous-action microworld experiments, FKL provided fewer local minima than RKL, at the possible cost of slower convergence to optima. When comparing RKL and FKL in practical benchmarks, FKL seemed generally to provide more stable learning and better policies.
 
 In the discrete action setting, there was typically little consistent difference between RKL and FKL, although RKL sometimes learned a little faster and in one environment FKL was significantly better. Performance differences amongst agents were driven more by the choice of temperature. 
 
 The experiments also shed some light on hypothesized differences between RKL and FKL. The optimization differences manifested clearly, but the differences in mean-seeking and mode-seeking behavior were minor. In our experiment with a bimodal action-value, the Boltzmman distribution became effectively unimodal for small $\tau$; RKL and FKL had similar solutions here. For larger $\tau$, resulting in high entropy regularization, both became mean-seeking. Only for specific $\tau$ in-between was there a difference. The theoretical differences in policy improvement also did not seem to manifest in performance; if it played a large role, we might expect periodic policy degradation under FKL in contrast to more consistent improvement from RKL. This suggests that our counterexample is in fact pathological, and that potentially our limited policy improvement result for FKL could be strengthened with weaker conditions on the temperature.
 
-%In our microworld experiments, using the forward KL seemed superior across a range of temperatures and learning rates in a continuous action setting. FKL iterates converged more often to optimal points and exhibited greater stability. In the discrete action setting, there was typically little difference between RKL and FKL, although RKL sometimes learned a little faster.
-%
-%In our non-linear RL experiments, we compared FKL and RKL on popular benchmark environments. There were few consistent differences between FKL and RKL across temperatures and environments for discrete action spaces. For example, FKL seemed to learn faster at the beginning for $\tau = 0.01$ in Asterix, but learned slower than RKL in Freeway at the beginning for $\tau = 0, 0.01$. In continuous-action environments FKL generally learned faster and achieved a superior final return. These results are consistent with what we found in our microworlds, suggesting that FKL, when using a $\tanh$-transformed Gaussian policy, may have a better optimization surface than RKL in general. 
-
 A natural question from this study is why the differences were the largest for continuous actions. One potential reason is the policy parameterization: the Gaussian policy is likely more restrictive than the softmax. 
 A Gaussian policy cannot capture multimodal structure. Learning the standard deviation of a Gaussian policy may be another source of instability. In contrast, a softmax policy can represent multiple modes, and does not separate the parameterization of the measure of central tendency (e.g., mean) and the measure of variation (e.g., standard deviation). 
 With a Gaussian policy, FKL seems to have a better optimization surface (having smooth and single optima across different temperatures) despite the multimodality of the target distribution in our continuous bandit. However, none of these observations may hold for other policy parameterizations. A promising next step is to compare FKL and RKL with different policy parameterizations for continuous actions.  
-%The FKL and RKL differences, or lack thereof, that we observed may depend upon the policy parameterization. In addition to the fact that different policy parameterizations induce a different optimization surfaces, a Gaussian policy cannot capture multimodal structure, leading to the different probability mass trade-offs that FKL and RKL make. Learning the standard deviation of a Gaussian policy may be a further source of instability. In contrast, a softmax policy can represent multiple modes, and does not separate the parameterization of the measure of central tendency (e.g., mean) and the measure of variation (e.g., standard deviation). More work is required into developing and understanding alternative policy parameterizations. 
 
 An important take-away from this work is that the FKL is promising for greedification, even though it is rarely used. To start using it, however, we need simpler ways to optimize it. We used numerical integration here, but such a method does not scale well to high-dimensional action spaces and is susceptible to truncation error. Indeed, two applications of integration are required: (1) to calculate the partition function and (2) to calculate the loss. If $\tau = 0$, then one must instead find the maximum action of a continuous action value function, which seems equally difficult. Sampling-based approaches like importance sampling may be fruitful avenues to explore. 
 
-% MARTHAC: Maybe we have no space for this? And less about FKL and RKL anyway, though i do like it and we could find a way to keep something like it
 %That there was no consistent superiority of soft value functions over hard value functions, or vice versa, may seem disappointing. However, this result is to be expected; different environments have different reward structures and require different degrees of exploration. Some of the results from the practical benchmarks suggest a temperature annealing strategy, where a high initial temperature is set to facilitate exploration, but is gradually annealed to ensure that the policy is sufficiently optimal. We leave open the question of successor frameworks to maximum entropy RL. 
 
 
@@ -958,17 +1477,7 @@ An important take-away from this work is that the FKL is promising for greedific
 
 
 
-\section*{Broader Impact}
-Understanding the behaviour of our agents is essential before we operationalize them in high-stakes scenarios. This need is especially relevant for RL, as current algorithms can exhibit wildly varying behaviour, due to factors such as but not limited to code-bases, practical implementation tricks, and theoretical properties. Our characterization of the tradeoffs in the choice of KL divergence contributes to an understanding of our agents; for instance, having fewer spurious local minima is an advantage for algorthimic transparency and reproducibility. We hope that our work will help inform practitioners about the practical implications of existing algorithms and motivate further work into policy gradient design choices. 
-% MARTHAC: Somewhat redundant with above, and already this is beautiful
-% Authors are required to include a statement of the broader impact of their work, including its ethical aspects and future societal consequences. 
-% Authors should discuss both positive and negative outcomes, if any. For instance, authors should discuss a) 
-% who may benefit from this research, b) who may be put at disadvantage from this research, c) what are the consequences of failure of the system, and d) whether the task/method leverages
-% biases in the data. If authors believe this is not applicable to them, authors can simply state this.
 
-% Use unnumbered first level headings for this section, which should go at the end of the paper. {\bf Note that this section does not count towards the eight pages of content that are allowed.}
-
-% Acknowledgements should go at the end, before appendices and references
 
 \acks{Acknowledgements}
 
@@ -979,6 +1488,8 @@ Understanding the behaviour of our agents is essential before we operationalize 
 
 \appendix
 \section*{Appendix A.}
+
+
 \label{app:theorem}
 
 % Note: in this sample, the section number is hard-coded in. Following

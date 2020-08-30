@@ -1,0 +1,732 @@
+\documentclass{article}
+
+\makeatletter
+\newcommand*{\addFileDependency}[1]{% argument=file name and extension
+  \typeout{(#1)}
+  \@addtofilelist{#1}
+  \IfFileExists{#1}{}{\typeout{No file #1.}}
+}
+\makeatother
+
+\newcommand*{\myexternaldocument}[1]{%
+    \externaldocument{#1}%
+    \addFileDependency{#1.tex}%
+    \addFileDependency{#1.aux}%
+}
+
+
+% \myexternaldocument{./supplementary}
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2020
+
+% ready for submission
+% \usepackage{neurips_2020}
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+%     \usepackage[preprint]{neurips_2020}
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+%     \usepackage[final]{neurips_2020}
+
+% to avoid loading the natbib package, add option nonatbib:
+     \usepackage[nonatbib]{neurips_2020}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+
+% appendix cross-referencing
+\usepackage{xr} 
+
+
+\usepackage[english]{babel}
+\usepackage[square, numbers]{natbib}
+\usepackage{url}
+\bibliographystyle{abbrvnat}
+\setcitestyle{authoryear,open={(},close={)}}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{physics}
+\usepackage{gensymb}
+\usepackage{verbatim}
+\usepackage{amsfonts}
+\usepackage{mathrsfs}
+\usepackage{tikz-cd}
+\usepackage{graphicx}
+\usepackage{grffile} % Added to handle dots in name of images
+\usepackage{microtype}
+\usepackage{centernot}
+\usepackage{mathtools}
+% \usepackage{algpseudocode}
+\usepackage{bm}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{cleveref}
+\usepackage{subcaption}
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\usepackage{tikz}
+\usetikzlibrary{shapes, positioning, quotes, matrix}
+
+
+\pgfplotsset{height=8cm, width=15cm,compat=1.9}
+
+\DeclareMathOperator*{\esssup}{ess\,sup}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\newcommand{\Ex}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand*\diff{\mathop{}\!\mathrm{d}}
+\newcommand*\Diff[1]{\mathop{}\!\mathrm{d^#1}}
+\newcommand{\w}{{\bf w}}
+\newcommand{\bellman}{\mathcal{T}}
+\newcommand{\statespace}{\mathcal{S}}
+\newcommand{\actionspace}{\mathcal{A}}
+\newcommand{\rewardfunction}{r}
+\newcommand{\vpi}{V^\pi}
+\newcommand{\qpi}{Q^\pi}
+\newcommand{\qstar}{Q^*}
+\newcommand{\vstar}{V^*}
+\newcommand{\Qhat}{{Q}}
+\newcommand{\functionspace}{\mathcal{F}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\policyparams}{\theta}
+\newcommand{\boltzmannQ}{\mathcal{B}Q}
+\newcommand{\entropy}{\mathcal{H}}
+\newcommand{\pinew}{{\pi_\mathrm{new}}}
+\newcommand{\piold}{{\pi_\mathrm{old}}}
+
+\newtheorem{definition}{Definition}
+\newtheorem{exercise}{Exercise}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{example}{Example}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+
+\newcommand{\martha}[1]{{\color{blue} #1 }}
+\newcommand{\defeq}{:=}
+\newcommand{\myparagraph}[1]{\textbf{#1} \ \ \ }
+
+\title{Greedification Operators for Policy Optimization: Investigating Forward and Reverse KL Divergences}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+\author{%
+  Alan Chan \\
+  Department of Computing Science\\
+  University of Alberta\\
+  \texttt{achan4@ualberta.ca} \\
+   \And
+   Sungsu Lim \\
+   Department of Computing Science \\
+   University of Alberta \\
+   \texttt{sungsu@ualberta.ca} \\
+   \AND
+   Martha White\\
+   Department of Computing Science \\
+   University of Alberta \\
+   \texttt{whitem@ualberta.ca} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Policy gradient methods typically estimate both explicit policy and value functions. The long-extant view of policy gradient methods as approximate policy iteration---alternating between policy evaluation and policy improvement by greedification---is a helpful framework to elucidate algorithmic choices. Effective policy evaluation under function approximation is being actively investigated; approximate greedification, however, has yet to be systematically explored. In this work, we highlight and investigate four objectives for greedification: forward and reverse KL divergences to a Boltzmann distribution on actions, with and without entropy regularization. We show that reverse KL has stronger theoretical guarantees for policy improvement, though under certain conditions forward KL also guarantees improvement. Finally, we empirically analyze the optimization behaviour and practical performance of these variants. We observe few consistent differences between the reverse and forward KLs on discrete action spaces, but more substantial stability and convergence differences emerge in continuous action spaces. 
+%Policy gradient methods typically estimate both explicit policy and value functions. The long-extant view of policy gradient methods as approximate policy iteration---alternating between policy evaluation and policy improvement---is a helpful frame to elucidate algorithmic choices. In particular, many modern policy gradient methods can be classified by their choice of how to perform approximate greedification of a value function estimate for policy improvement. In this work, we identify one such choice: the use of reverse or forward KL as an objective. We construct a counterexample where forward KL can fail to induce policy improvement in the tabular setting, which contrasts the known policy improvement result for the reverse KL. We also show, however, that forward KL can induce policy improvement under additional assumptions. Finally, we empirically analyze the optimization behaviour and practical performance of our different algorithms. We observe few consistent difference between the reverse and forward KLs on discrete action spaces, but more substantial stability and convergence differences emerge in continuous action spaces. 
+\end{abstract}
+
+% TODOS:
+% 5b Second editting of expriments (Martha)
+% 8. Revisit need for |A| less than infinity, PI improvement for forward KL with tau = 0, and only expected improvement rather than per state improvement for FKL (Alan, Martha)
+% 9. Revisit scaling of RKL and FKL.
+
+\section{Introduction}
+
+In policy optimization, an explicit parameterized policy is learned to approximate the optimal policy. The most common methods are policy gradient (PG) methods, which iteratively update the policy parameter using the gradient of either the discounted return or the average reward, given by the {policy gradient theorem} \citep{sutton2000policy}.
+Although not a recent invention, with early work introducing Actor-Critic \citep{sutton1984}, policy gradient methods have recently seen a surge of renewed interest given their ease of application in high-dimensional, continuous action spaces when combined with neural networks \citep{schulman2015high,wang2016sample}. Many recent developments include learning deterministic polices \citep{silver2014deterministic,lillicrap2015continuous}, trust-regions \citep{schulman2015trust,schulman2017proximal}, continuous-action extensions of Q-learning \citep{ haarnoja2017reinforcement,lim2018actor,ryu2019caql}, probabilistic approaches \citep{abdolmaleki2018maximum,fellows2019virel}, and entropy regularization \citep{haarnoja2017reinforcement, haarnoja2018soft}.
+
+% Removing the unpublished work lim2018 that we will update after this paper.
+One way to navigate this proliferation is to revisit the insight that many policy gradient methods can be seen as approximate policy iteration (API). To find an optimal policy, API methods \citep{bertsekas2011approximate,scherrer2014approximate} interleave approximate policy evaluation---the estimation of value functions---and (approximate) policy improvement, where the policy is greedified with respect to the action-values. Numerous papers have linked PG methods to policy iteration \citep{sutton2000policy,kakade2002approximately,perkins2002existence,perkins2003convergent,wagner2011reinterpretation,wagner2013optimistic,scherrer2014local,bhandari2019global}, including recent work connecting maximum-entropy policy gradient and value-based methods \citep{o2016combining,nachum2017bridging, schulman2017equivalence, nachum2019algaedice}.
+The connection between PG and \emph{Approximate} PI arises because parameterized policies only allow for approximate greedification. For exact policies, greedification is straightforward: the policy is set to the maximal action for the approximate action-values, for each state. 
+%This exact case is possible, for example, in the discrete action setting where there is no explicit parameterized policy, and greedy actions can simply be taken according to the action-values. 
+For parameterized policies, however, this is rarely possible. One option is to minimize distance to a Boltzmann distribution on the action-values \citep{wagner2011reinterpretation}, such as with a reverse KL divergence \citep{haarnoja2018soft} or a forward KL divergence \citep{vieillard2019deep}.
+ 
+% MARTHAC: In the end, we do not explore conservative greedification, and arguably this is orthogonal anyway, since the same greedification operators would be used. 
+%The most commonly used greedification operators are to set the policy to a Boltzmann distribution on the action-values \citep{wagner2011reinterpretation} or to minimize a KL divergence to that Boltzmann distribution \citep{haarnoja2018soft}, and in some cases to use a conservative greedification where the policy is not changed too much between steps, as in conservative policy iteration (CPI) \citep{kakade2002approximately,vieillard2019deep} and trust-region methods \citep{schulman2015trust,schulman2017proximal}.
+
+% MARTHAC: This is too long. Where can we include some of this information?
+%There is increasing work in the theoretical analysis of PG methods. CPI is an early example of theoretical insights into obtaining guaranteed policy improvement with PG \citep{kakade2002approximately}. More recently, \citet{agarwal2019optimality} derive finite-sample and approximation bounds for a variety of policy gradient methods; \citet{neu2017unified,liu2019neural} reformulate TRPO as mirror descent and prove convergence; \citet{ahmed2018understanding} show that entropy regularization may lead to smoother optimization landscapes; and \citet{bhandari2019global}\footnote{We note that the results in \citet{bhandari2019global} bear a striking resemblance to earlier results in \citet{scherrer2014local}. In particular, both works rely on convex policy classes and a closure of the policy class under greedification.} show global optimality of local minima under certain restrictions on the MDP.
+%% MARTHA todo: There must be some works that have lookd in this. What are they?
+%Empirically, however, there has been less insight into the impact of different choices with PG, namely into the impact of different greedification approaches and policy evaluation approaches. In fact, many implementations use an incorrect, simplified gradient \citep{thomas2014bias,imani2018off,nota2019policy}, and it has been shown that improvements for some methods may be due to code-level optimizations rather than algorithmic advances \citep{ilyas2018deep,engstrom2019implementation}.
+%%The policy oscillation phenomon \citep{bertsekas} was empirically investigated under API, showing that parameterized stochastic policies set to Boltzmann distributions mitigated this oscillation compare to exact greedification \citep{wagner2011reinterpretation}. 
+
+% MARTHA: Should we change the above that API has mostly focused on convergence of the whol system, with little insight into the greedification operator?
+In this work, we investigate how one should perform the greedification step for parameterized policies. In particular, for a given action-value estimate, we investigate the difference between using a forward and reverse KL divergence, with and without entropy regularization. 
+% MARTHAC: Too much here. They will see this later, especially in the appendix
+%The update to the policy for many PG methods can be seen as optimizing a reverse KL, though there has been some work using a forward KL \citep{norouzi2016reward,nachum2016improving,agarwal2019learning,vieillard2019deep}, including implicitly some of the work using classification for RL \citep{lagoudakis2003reinforcement,lazaric2010analysis,farahmand2015classificationbased}. 
+Despite the fact that both have been used, there is little investigation into the differences between these two choices; the reverse KL is the typical default. The reverse KL without entropy regularization corresponds to a standard Actor-Critic update and is easy to compute. More recently, it was shown that the reverse KL guarantees policy improvement when the KL can be minimized separately for each state \citep[p.~4]{haarnoja2018soft}. At the same time, reverse KL objectives have known problems, primarily that they are non-convex, even in an ideal case with a linear Boltzmann policy. For contextual bandits, \citet{chen2019surrogate} showed improved performance when using a surrogate, forward KL objective for the smoothed risk. The forward KL divergence is also used in supervised learning, in the form of the cross-entropy loss. It remains unclear which of the two objectives is superior for greedification.
+
+% AC: edits for making it punchier and avoiding duplication of what we'll say
+We provide some clarity on this question in this work, with the following contributions. First, we highlight four choices for greedication: forward or reverse KL to a Boltzmann distribution on the action-values, with or without entropy regularization. %We categorize many PG methods as API with approximate greedification corresponding to one of these variants. This motivates understanding this more high-level choice, to improve PG algorithms and to compare existing algorithms. 
+Second, we provide several theoretical insights into policy improvement for forward and reverse KLs. We highlight that the policy improvement result for the reverse KL extends to certain function-approximation settings, and provide a counterexample where optimizing for the forward KL can fail to induce policy improvement. Nevertheless, we show that under some additional conditions, optimizing for the forward KL can induce policy improvement.  Finally, we empirically investigate the behaviour of the reverse and forward KL, with varying levels of entropy regularization, providing some evidence that the reverse KL can converge faster, but can sometimes converge to worse solutions than the forward KL, particularly under continuous actions. 
+
+%\begin{itemize}[itemsep=1pt,topsep=0pt,leftmargin=8pt]
+%    % MARTHAC: This is so cute, but maybe slightly inaccurate? Should it be: We unify various policy gradient updates as policy improvement steps with KL objectives  
+%    % \item We unify various policy gradient updates under the umbrella of KL optimization. 
+%    \item We rederive the vanilla policy gradient update as optimization of a KL objective and describe four algorithmic variants that can result from KL optimization.
+%    \item We partially extend the policy improvement result in soft actor-critic to function-approximation settings. 
+%    \item We provide a counterexample where optimizing for the forward KL can fail to induce policy improvement. Nevertheless, we show that under some additional conditions, optimizing for the forward KL can induce policy improvement.
+%    % \item We discuss when the forward KL divergence can act as a suitable surrogate for the reverse KL divergence in the function-approximation regime.
+%    \item We empirically investigate the behaviour of the reverse and forward KL in both understandable environments and popular RL control benchmarks.
+%\end{itemize}
+
+
+% OLD STUFF: LEAVING IT HERE TO REFERENCE LATER
+% \textit{Policy gradient} is a popular approach for continuous control in \textit{reinforcement learning} (RL) \citep{sutton2018reinforcement}. The controller, otherwise known as the \textit{policy}, is parameterized by parameters that are modified iteratively to maximize a given objective function. In its most basic form, the direction of modification is given by the \textit{policy gradient theorem} \citep{sutton2000policy} that maximizes either the discounted return or the average reward. Policy gradient may also be interpreted as an approximate version \citep{bertsekas2011approximate,scherrer2014approximate} of \textit{policy iteration} \citep{sutton2018reinforcement}, which attempts to find an optimal policy by interleaving policy evaluation and policy improvement. To perform policy improvement, one must choose a ``policy improvement operator''; given a value function estimate, the output of such an operator is a policy that is (approximately) greedy with respect to that value function estimate. Some choices of an operator include $\epsilon$-greedy \citep{sutton2018reinforcement}, Boltzmann policies \citep{wagner2011reinterpretation}, and conservative policy iteration (CPI) approaches \citep{kakade2002approximately,vieillard2019deep}; we direct the reader to the surveys \cite{bertsekas2011approximate} or \citet{scherrer2014approximate} for a broader discussion on this point. The choice of a policy improvement operator has consequences for convergence and stability \citep{perkins2002existence,perkins2003convergent,wagner2013optimistic}. 
+
+% Although not a recent invention \citep{sutton2000policy}, policy gradient methods have recently seen a surge of renewed interest given their ease of application in high-dimensional continuous action spaces when combined with neural networks \citep{schulman2015high,wang2016sample}.
+
+% Several different policy gradient methods have been proposed in recent years: \textit{(deep) deterministic policy gradient} uses a deterministic policy gradient theorem to approximate a deterministic optimal policy \citep{silver2014deterministic,lillicrap2015continuous}; \textit{trust region policy optimization (TRPO)} \citep{schulman2015trust} and its variant \textit{proximal policy optimization (PPO)} \citep{schulman2017proximal} optimize a surrogate objective to ensure that policy updates do not stray too far from the current data collected; other methods attempt to perform approximate Q-learning \citep{watkins1992q} in continuous action space \citep{ haarnoja2017reinforcement,lim2018actor}; and lastly, some methods optimize a maximum-entropy objective that augment the standard expected return objective with an entropy term \citep{haarnoja2017reinforcement, haarnoja2018soft}. Methods with this maximum-entropy objective have also been shown to have preliminary connection to value-based methods \citep{nachum2017bridging, schulman2017equivalence, nachum2019algaedice}. Indeed, there has been much work in general on connecting policy gradient methods to value-based methods \citep{kakade2002natural,wagner2013optimistic,o2016combining,schulman2017equivalence,lim2018actor}.
+
+% Despite this flurry of work, there is still generally a lack of understanding on what design choices, whether in the objective function or optimization algorithm, are relevant for good performance. Indeed, the improvements claimed by some methods may be due to code-level optimizations rather than algorithmic advances \citep{ilyas2018deep,engstrom2019implementation}. Recent work from the community is encouraging: \citet{agarwal2019optimality} derive finite-sample and approximation bounds for a variety of policy gradient methods; \citet{neu2017unified,liu2019neural} reformulate TRPO as mirror descent and prove convergence; \citet{ahmed2018understanding} show that entropy regularization may lead to smoother optimization landscapes. Our work also follows the long line  Nevertheless, more work should be done into understanding the effect of each design choice.
+
+% In this paper, we focus on understanding optimization of KL objectives as an approximate policy improvement operator \citep{perkins2003convergent}, as done in soft actor-critic \citep{haarnoja2018soft} for example. 
+% %Soft actor-critic has been widely used due to its stability, performance, relative simplicity and theoretical grounding \citep{haarnoja2018soft}. To maximize the entropy-augmented objective, soft actor-critic updates its policy by minimizing the reverse KL divergence to the Boltzmann distribution of its soft action-values. 
+% Although minimizing the reverse KL is essential for the policy improvement result in the tabular setting \citep[p.~4]{haarnoja2018soft}, it is unclear whether the forward KL or reverse KL is more desirable in the regime of function-approximation. The choice of KL divergence is significant as it may greatly impact the optimization landscape of the objective and thus the stability of training and the quality of the resulting policy. In the setting of contextual bandits, \citet{chen2019surrogate} showed that optimizing a composite surrogate objective, involving the forward KL divergence, can achieve better performance than directly optimizing the original objective. Indeed, the forward KL divergence is used in supervised learning, in the form of the cross-entropy loss, rather than the reverse KL divergence. 
+% % AC: Citation for cross-entropy loss needed?
+% %More generally, an arbitrary choice of loss function can lead to incredibly difficult optimization problems \citep{auer1996exponentially}. 
+
+% % In maximum-entropy policy gradient methods so far, the reverse KL divergence is used due to the more tractable sampling from the parameterized policy. 
+
+% \subsection{Contributions}
+% % To understand this divide, in this work we propose a way of approximating the forward KL divergence update without explicitly sampling from the intractable distribution and without importance sampling. This allows us to compare the relative advantages of using the forward or the reverse KL divergence objective in reinforcement learning. 
+% % AC: I think this sort of sounds like the alg is our main contribution, but it's more of an experimental device? Not sure if we should mention it here
+% % SS: I think it should be one of our contributions though, as it hasn't been done before. But yeah we should not make it our main contribution.
+% % AC: As it is phrased, it makes it sound like this is a new state-of-the-art alg, which is not what we want. I'm not entirely sure that it's *that* novel an idea. Numerical integration is a common technique and was used in the all-actions workshop paper.
+
+% %We analyze the comparative advantages of each KL divergence in soft actor-critic, both empirically and theoretically. Specifically, 
+% We have the following contributions. 
+% \begin{itemize}
+%     \item We unify various policy gradient objectives under the umbrella of KL optimization.
+%     \item We provide a counterexample where optimizing for the forward KL in a tabular setting can fail to induce policy improvement.
+%     \item We partially extend the policy improvement result in soft actor-critic to function-approximation settings. 
+%     \item We discuss when the forward KL divergence can act as a suitable surrogate for the reverse KL divergence in the function-approximation regime.
+%     \item We include tabular and function-approximation results that highlight the success and failure cases of reverse and forward KL. %Instead of sampling from the typically intractable distribution involved in the forward KL in continuous action spaces, we utilize numerical integration methods instead, similar to recent work in all-actions policy gradient \citep{petit2019all}. 
+% \end{itemize}
+
+
+\section{Problem Formulation}
+
+We formalize the reinforcement learning \citep{sutton2018reinforcement} problem as a {Markov Decision Process} (MDP), a tuple $(\statespace, \actionspace, \gamma, r, p)$ where $\statespace$ is the state space; $\actionspace$ is the action space; $\gamma \in [0,1]$ is the discount factor; $r : \statespace \times \actionspace \to \R$ is the reward function; and for every $(s, a) \in \statespace \times \actionspace$, $p(\cdot \mid s, a)$ gives the conditional transition probabilities over $\statespace$. A \textit{policy} is a mapping $\pi : \statespace \to \Delta_\actionspace$, where $\Delta_\actionspace$ is the space of probability distributions over $\actionspace$. 
+%
+At every discrete time step $t$, an RL agent observes a state $s_t$, from which it draws an action from its policy: $a_t \sim \pi(\cdot \mid s_t)$. The agent sends the action $a_t$ to the environment, from which it receives the reward signal $r(s_t, a_t)$ and the next state $s_t$. 
+
+A common objective in policy optimization is the value of
+the policy $\pi_\policyparams$ averaged over the start state distribution $\rho_0$: $J(\policyparams) \defeq \int_{\statespace} \rho_0(s) \int_{\actionspace} \pi_\policyparams(a | s) Q^{\pi_\policyparams}(s, a) \, da \, ds$,
+where the action value is $Q^{\pi}(s,a) \defeq \Ex_{\pi, p}\left[ \sum_{k = 0}^\infty \gamma^k r(S_k, A_k) \mid S_0 = s, A_0 = a \right]$.
+The {policy gradient theorem} gives us the gradient of $J(\policyparams)$ \citep{sutton2000policy},
+\begin{align}\label{eq:policy-gradient-thm}
+    \nabla_\policyparams J(\policyparams) &= \int_{\statespace} d^{\pi_\policyparams}(s) \int_{\actionspace} Q^{\pi_\policyparams}(s, a) \nabla_\policyparams \pi_\policyparams(a \mid s)
+    .
+\end{align}
+%
+$d^{\pi_\policyparams}(s) \defeq \!\sum_{t = 0}^\infty \!\gamma^t \Pr(s_t = s \!\mid\! s_0\! \sim \rho_0\!)$ is the {unnormalized discounted state visitation distribution}. 
+
+Because we do not have access to $Q^{\pi_\policyparams}$, approximations are used instead. %For example, in REINFORCE \citep{williams1992simple}, a sampled return from $(s,a)$ is used as an unbiased estimate of $Q^{\pi_\policyparams}(s,a)$. 
+Commonly, a biased but lower-variance choice is to use a learned estimate $\Qhat$ of $Q^{\pi_\policyparams}$, obtained through policy evaluation algorithms like SARSA \citep{sutton2018reinforcement}. In these Actor-Critic algorithms, the actor---the policy---updates with a (biased) estimate of the above gradient, given by this $\Qhat$---the critic. 
+
+This procedure can be interpreted as Approximate Policy Iteration (API). API methods alternate between approximate policy evaluation to obtain a new $\Qhat$ and approximate greedification to get a policy $\pi$ that is more greedy with respect to $\Qhat$. As we show in the next section, the gradient in Equation \eqref{eq:policy-gradient-thm} can be recast as the gradient of a KL divergence to a policy peaked at maximal actions under $\Qhat$; reducing this KL updates the policy to increase its own probabilities of these maximal actions, and so become more greedy with respect to $\Qhat$. Under this view, we obtain a clear separation between estimating $\Qhat$ and greedifying $\pi$. We can be agnostic to the strategy for updating $\Qhat$---we can even use soft action values \citep{ziebart2010modeling} or Q-learning \citep{watkins1992q}---and focus on answering: for a given $\Qhat$, how can we perform an approximate greedification step and which approaches are most effective? 
+   
+\section{Approximate Greedification with KL Divergences}\label{sec:sac}
+
+In this section, we discuss the use of KL Divergences to perform approximate greedification. We outline four possible options: (1) forward KL and reverse KL and (2) with or without entropy regularization. We show that many PG variants can be seen as API with the greedification step as an instance of one of these four choices. A categorization of PG variants is given in Appendix A. 
+%In this section, we explore the use of KL divergences for the policy improvement step in policy gradient methods. By examining the forward and reverse KL, and their limiting cases of 0 temperature, we rederive the policy gradient theorem and also derive an interesting, supervised-learning-like algorithm. We also discuss the potential for and ramifications of using the forward KL. 
+
+\textbf{KL Divergences}
+
+Given two probability distributions $p, q$ on $\actionspace$, the KL divergence between $p$ and $q$ is defined as $ \KL(p \parallel q) \defeq \int_\actionspace p(a) \log\frac{p(a)}{q(a)}\, da$,
+%\begin{equation*}%\label{def:KL}
+%    \KL(p \parallel q) \defeq \int_\actionspace p(a) \log\frac{p(a)}{q(a)}\, da,
+%\end{equation*}
+%
+where $p$ is assumed to be {absolutely continuous} \citep{billingsley2008probability} with respect to $q$, to ensure that the KL divergence exists. 
+%
+The KL divergence is not symmetric. This asymmetry leads to the two possible choices for measuring differences between distributions: the reverse KL and the forward KL. Assume that $p$ is a true distribution that we would like to match with our learned distribution $q_\theta$, where  $q$ is smooth with respect to $\theta \in \R^k$. The \textit{forward} KL divergence is $\KL(p \parallel q_\theta)$ and the \textit{reverse} KL divergence is $\KL(q_\theta \parallel p)$. 
+
+
+\textbf{Approximate Greedification}
+
+Either KL divergence could be used for greedification of $\pi$ at a given state $s$ by setting $q_\theta = \pi_\policyparams(\cdot | s)$ and $p =  \boltzmannQ(s, \cdot)$, where $\boltzmannQ$ is defined by $\boltzmannQ(s, a) \propto \exp(\Qhat(s, a)\tau^{-1})$.
+%
+$\boltzmannQ$ provides the optimal (soft) greedification w.r.t. $\Qhat$. To understand why, we define the soft value functions \citep{ziebart2010modeling}, where an entropy term $\entropy(\pi(\cdot \mid s))$ is added to the reward. $V^{\pi}_{soft}(s) \defeq  \Ex_\pi\left[ \sum_{k = 0}^\infty \gamma^k \left[ r(S_k, A_k) + \tau \entropy(\pi(\cdot|S_k))\right] \mid S_0 = s \right]$. We can also define the soft action-value: $Q^{\pi}_{soft}(s,a) \defeq  \Ex_\pi\left[ r(S_0, A_0) + \gamma \Ex_{S_1}[V(S_1)] \mid S_0 = s, A_0 = a \right]$.
+
+If we set $\pi'(\cdot | s) = \boltzmannQ(s, \cdot)$ for all $s \in \statespace$, then $Q^{\pi'}_{soft}(s,a) \ge Q^{\pi}_{soft}(s,a)$ for all $(s,a)$ \citep[Theorem 4]{haarnoja2017reinforcement}. As $\tau$ approaches zero, $Q^{\pi}_{soft}(s,a)$ approaches $Q^{\pi'}(s,a)$, and so this result generally motivates using $\boltzmannQ$ as a target policy for greedification. The KL divergences are non-negative and are zero iff $\pi'(\cdot \mid s) = \boltzmannQ(s, \cdot)$ almost everywhere.  
+
+Define the (scaled) \textbf{Reverse KL} for greedification at a given state $s$ and action-value $\Qhat$:%, with corresponding gradient, as
+%
+\begin{align*}
+ \text{RKL}(\policyparams; s, \Qhat) &\defeq \tau\KL\left( \pi_\policyparams(\cdot \mid s_t) \parallel \boltzmannQ(s_t, \cdot) \right)% \\
+    %\nabla_\policyparams \text{RKL}(\policyparams; s, \Qhat)
+    %&= -\tau\nabla_\policyparams \entropy(\pi_\policyparams(\cdot \mid s)) - \int_\actionspace \nabla_\policyparams \pi_\policyparams(a \mid s) {Q(s, a)}\, da \nonumber
+\end{align*}
+%
+The scaling with $\tau$ is used to make the magnitude of the KL more consistent across different choices of $\tau$; the optimal value with or without the scaling is the same. 
+Notice that $\tau$ plays the role of an entropy regularization parameter: a larger $\tau$ results in more entropy regularization on $\pi_\policyparams(\cdot \mid s)$.
+We can take a limiting case with no entropy regularization to get the \textbf{Hard Reverse KL}.
+%
+\begin{align}\label{eq:hard-reverse-KL}
+    \text{Hard RKL}(\policyparams; s, \Qhat) \defeq \lim_{\tau \to 0} \text{RKL}(\policyparams; s, \Qhat) &= -\int_\actionspace \pi_\theta(a \mid s) Q(s, a)\, da
+\end{align}
+% AC: this result is somewhat mentioned on page 6 here: https://arxiv.org/pdf/1702.08892.pdf
+The gradient of \Cref{eq:hard-reverse-KL} is exactly the inner term of the policy gradient in \Cref{eq:policy-gradient-thm}! 
+This means that the typical policy gradient update in actor-critic can be thought of as a greedification step with a hard reverse KL. This correspondence is maintained even when averaging across all states for the full greedification objective, as discussed in Appendix B.
+
+% AC: don't need to say state s and action-value Q since we already do so above
+Similarly, we can define the (scaled) \textbf{Forward KL} for greedification %at a given state $s$ and action-value $\Qhat$: %this time omitting the entropy term which does not involve $\policyparams$
+%
+% AC: not sure why there are two equations for the forward KL
+\begin{align}
+\text{FKL}(\policyparams; s, \Qhat) &\defeq  %-\tau \int_\actionspace \boltzmannQ(s, a) \log \pi_\policyparams(a \mid s)\, da \\
+    %&\propto \tau\entropy(\boltzmannQ(s, \cdot)) - \tau \int_\actionspace \boltzmannQ(s, a) \log \pi_\policyparams(a \mid s)\, da = 
+    \tau\KL\left(\boltzmannQ(s, \cdot)  \parallel \pi_\policyparams(\cdot \mid s) \right)\nonumber%\\
+%\nabla_\policyparams \text{FKL}(\policyparams; s, \Qhat) &=  -\tau \int_\actionspace \boltzmannQ(s, a) \nabla_\policyparams \log \pi_\policyparams(a \mid s)\, da \nonumber
+\end{align}
+%%
+%% A possible advantage of the forward KL is that the Boltzmann operator is invariant to constant shifts, suggesting that the forward KL may be more robust to function approximation error than the reverse KL. Another possible advantage is that if $\pi_\policyparams$ is a softmax policy, then the forward KL is convex with respect to $\policyparams$, leading to a possibly easier optimization problem. 
+%% AC: Maybe shouldn't mention this if we don't test this explicitly
+%% MARTHA: Though, neat hypothesis. 
+%
+%%Thus, if for every $s \in \statespace$ there is $c_s \in \R$ such that for all $a \in \actionspace$, $Q(s, a) = Q^*(s, a) + c_s$, then $\KL\left(\boltzmannQ(s, \cdot)  \parallel \pi_\policyparams(\cdot \mid s) \right) = \KL\left(\boltzmannQ^*(s, \cdot)  \parallel \pi_\policyparams(\cdot \mid s) \right)$. 
+%
+%%With a continuous action space, it is necessary to approximate the integral in \Cref{eq:sac-forward-kl-gradient}. One option is to sample from $BQ(s, \cdot)$. However, doing so does not scale well to high dimensional action spaces. Our approach here is to approximate \Cref{eq:sac-forward-kl-gradient} through numerical integration given in \citet{gerstner1998numerical}.
+%
+Finally, we can again consider a limiting case, where the temperature parameters goes to zero, to get a \textbf{Hard Forward KL} objective with a non-soft policy
+%
+\begin{align}
+  \text{Hard FKL}(\policyparams; s, \Qhat) \defeq  \lim_{\tau \to 0} \text{FKL}(\policyparams; s, \Qhat) = -\log \pi_\policyparams(\argmax_a Q(s, a) \mid s)
+\end{align}
+%
+This expression looks quite similar to the cross-entropy loss in supervised classification, if one views the maximum action of $Q(s, \cdot)$ as the correct class of state $s$. The FKL has been used for a CPI algorithm \citep{vieillard2019deep}, but we are unaware of any literature that analyzes the Hard FKL. Derivations of these four KL divergences are included in Appendix C.
+
+Although switching $\pi_\policyparams$ and $\boltzmannQ$ might seem like a small change, there are several consequences. The forward KL is popularly known to be \textit{mean-seeking}: to minimize the forward KL, $\pi_\policyparams$ will likely place mass on the $a$ with the largest probability mass according to $\boltzmannQ$. Furthermore, the forward KL can be more difficult to optimize because it requires access to $\boltzmannQ$ to sample the gradient. But, favourably, if $\pi_\theta$ is parameterized with a Boltzmann distribution over $\theta$, then the forward KL is convex with respect to $\theta$. The reverse KL, on the other hand, is characterized as \textit{mode-seeking}: if $\boltzmannQ(s, a)$ is small for a given $a$, then $\pi_\theta(a \mid s)$ is also forced to be small. The RKL can also be easier to optimize as access to $p$ is not required to sample the gradient. Less favourably, however, it is generally not convex with respect to $\theta$, even if $\pi_\theta$ is parameterized with a Boltzmann distribution. 
+
+% AC: this last sentence is a bit unclear. I think a part of it is already captured by the discussion about probability mass forcing
+%Furthermore, the reverse KL tries to match the target distribution only within its current distribution and would be sensitive to initialization.
+
+% AC: moving to the appendix for space
+% \textbf{The Weighting over States} 
+
+% The above greedification objectives, and corresponding gradients, are defined per state. To specify the full greedification objective across states, we need a weighting $d: \statespace \rightarrow [0, \infty)$ on the relative importance of each state; under function approximation, the agent requires this distribution to trade-off accuracy of greedification across states. The full objective for the RKL is $\int_\statespace d(s) \text{RKL}(\policyparams; s, \Qhat)$; the other objectives are specified similarly.  
+
+% This role of the weighting might seem quite different from the typical role in the policy gradient, but there are some clear connections. When looking at the gradient of the Hard RKL with weighting $d$, we have $- \int_\statespace d(s)\int_\actionspace Q(s,a) \nabla \pi_\theta(a \mid s) \, da\, ds$. For this to correspond to the true policy gradient, when $\tau = 0$, the weighting should be $d = d^\pi$; otherwise, this greedification step may in fact not correspond to the gradient of any function \citep{nota2019policy}. The weighting $d^\pi$ indicates that the weighting for greedification should be higher in states closer to the start state, visited by policy $\pi$. This choice is sensible for allocating function approximation resources, since it is key to get action selection as accurate as possible in early states, since it has downstream effects. Nevertheless, other choices are possible. An open, and worthwhile, question is to better understand what weightings in greedification avoid poor fixed points and improve convergence rates. 
+
+%However, other choices for the weighting are possible. Many algorithms in practice use a uniform weighting on observed data. It is as yet not well understood what weighting is ideal, nor the implications from deviating from the policy gradient weighting. There are, however, some insights from both CPI and from the literature on policy gradients. It is clear that there are some instances where using $d \neq d^\pi$ results in convergence to poor stationary point: $\int_\statespace d(s)\int_\actionspace Q^{\pi_\theta}(s,a) \nabla \pi_\theta(a \mid s) \, da \ ds = 0$ for a certain $d$ that produces a highly suboptimal $\pi_\theta$, whereas weighting by $d = d^{\pi_\theta}$ (or with an emphatic weighting) does not \citep{imani2018off}. This counterexample assumes exact $Q = Q^{\pi_\theta}$, but still has implications for API, if an exact policy evaluation step is used. Further, it is likely a similar such example could be found for nearly accurate $Q$. On the other hand, the work on CPI indicates that the weighting with $d^\pi$ can require a large number of samples to get accurate gradient estimates, and moving to a more uniform weighting over states is significantly better \citep{kakade2002approximately}. 
+
+%We summarize the connections to existing policy gradient methods in Appendix \ref{}, including the choices for the weighting, the forward or reverse KL with or without entropy regularization, and the choice of what $\Qhat$ is estimated. 
+
+% \section{Policy Improvement Properties of the KL Divergences}
+\section{Theoretical Results}
+
+In this section, we consider the policy improvement guarantees, or lack thereof, for the reverse and forward KL. %To the best of our knowledge, there is as yet only one with guarantees: the reverse KL assuming exact minimization in each state \citep[Lemma 2]{haarnoja2018soft}. We first provide an extension of this result to rely only upon reverse KL minimization \textit{on average} across states. Next, we provide a counterexample where optimizing the forward KL \textit{does not} induce policy improvement.  Finally, we discuss further assumptions that can be made to ensure that forward KL does induce policy improvement.
+All proofs may be found in Appendix D. 
+%In the function approximation setting, The forward KL may still not obtain this improvement, but we show that there are some restricted settings where it similar enjoys this improvement.
+Throughout, we assume that the class of policies $\Pi$ consists of policies with finite entropy. First, we note a strengthening of the original result for policy improvement under the reverse KL \citep{haarnoja2018soft}. By examining the proof of Lemma 2, their new policy $\pi_{\mathrm{new}}$ does not have to minimize the reverse KL; rather, it suffices that $\pi_{\mathrm{new}}$ is smaller in reverse KL than $\pi_{\mathrm{old}}$. 
+\begin{proposition}[Policy Improvement under RKL Reduction, Restatement of Lemma 2 \citep{haarnoja2018soft}]\label{lem:stronger-sac}
+For $\piold, \pinew \in \Pi$, if for all $s$
+\begin{align*}
+    \KL(\pinew(\cdot \mid s) \parallel \boltzmannQ^\piold(s, \cdot)) \le \KL(\piold(\cdot \mid s) \parallel \boltzmannQ^\piold(s, \cdot))\nonumber
+\end{align*}
+then $Q^\pinew(s, a) \geq Q^\piold(s, a)$ for all $(s, a)$, where all action-values are soft action values. 
+\end{proposition}
+
+This result is true under expectation given an additional assumption about the entropy.
+
+
+% The average performance guarantee for reverse KL is the following. 
+\begin{proposition}[Policy Improvement under Average RKL Reduction]\label{prop:avg-reverse-kl}
+Assume $|\actionspace| < \infty$. For $\piold, \pinew \in \Pi$, if
+\begin{align}\label{eq:avg-rev-kl-policy-assumption}
+    \Ex_{d^{\pinew}}&[\KL(\piold(\cdot \mid s) \parallel \boltzmannQ^{\piold}(s, \cdot))] \geq \Ex_{d^{\pinew}}[\KL(\pinew(\cdot \mid s) \parallel \boltzmannQ^{\piold}(s, \cdot))] \nonumber
+\end{align}
+and $\Ex_{d^{\pinew}}[\entropy(\piold(\cdot \mid s) - \entropy(\pinew(\cdot \mid s))] \geq 0$, then $\Ex_{\rho_0}[V^{\pinew}(s)] \geq \Ex_{\rho_0}[V^{\piold}(s)]$.
+%
+%\begin{equation*}
+%\Ex_{\rho_0}[V^{\pinew}(s)] \geq \Ex_{\rho_0}[V^{\piold}(s)]
+%.
+%\end{equation*}
+\end{proposition}
+% The conditions for this proposition are satisfied when the conditions for \Cref{lem:stronger-sac} are satisfied. Improvement in all states implies improvement on average across the start states, weighted by $\rho_0$. % AC: not strictly true b/c of the entropy assumption
+
+Unfortunately, the same policy improvement properties do not hold unmodified for the forward KL. 
+\begin{proposition}[Counterexample for Policy Improvement with FKL]\label{lem:forward-kl-counterexample}
+There exists an MDP, a state $s'$, an initial policy $\piold$, policy $\pinew$, and temperature $\tau > 0$ such that
+\begin{equation*}
+    \forall s \in S,\, \KL(\boltzmannQ^\piold(s, \cdot) \parallel \piold(\cdot \mid s) \geq \KL(\boltzmannQ^\piold(s, \cdot) \parallel \pinew(\cdot \mid s))
+    \end{equation*}
+but $\forall a \in \actionspace, \, Q^\pinew(s', a) < Q^\piold(s', a)$, for soft action-values of temperature $\tau$. 
+\end{proposition}
+%
+A natural question is if this counterexample is pathological. %The counterexample is obtained by selecting the temperature so that the KL in a state is just a bit lower for the new policy, but this results in a lower value for actions leading into that state. 
+One may wonder if by selecting a temperature judiciously enough, optimizing for the forward KL might induce policy improvement. With some qualifications, the answer is in the positive. 
+%
+\begin{proposition}[Policy Improvement for FKL with a Sufficiently Low Temperature]\label{prop:forward-kl-surrogate-2}
+Assume a discrete action space with $|\actionspace| < \infty$, with a policy space $\Pi$ that consists of policies where $\pi(a \mid s) > 0$ for all $a$. Assume $\piold, \pinew \in \Pi$ is such that for a state $s$,
+\begin{align}\label{eq:forward-improvement}
+    \KL(\boltzmannQ^{\piold}(s, \cdot) \parallel \pinew (\cdot \mid s)) \leq \KL(\boltzmannQ^{\piold}(s, \cdot) \parallel \piold(\cdot \mid s)),
+\end{align}
+with $\tau \leq C_{\pinew, \piold}$, where $C_{\pinew, \piold}$ is a positive constant that depends on $\pinew$ and $\piold$, and where action values can be soft or non-soft. Then,
+\begin{align*}
+    \sum_a Q^{\piold}(s, a) \piold(a \mid s) \leq \sum_a Q^{\piold}(s, a) \pinew(a \mid s). 
+\end{align*}
+\end{proposition}
+
+
+\begin{corollary}
+If the conditions in \Cref{prop:forward-kl-surrogate-2} hold true for all states $s$, $\eta(\pinew) \geq \eta(\piold)$. 
+\end{corollary}
+%
+If $\pinew$ has a lower forward KL than $\piold$ for sufficiently low temperature, then one can guarantee that $\pinew$ improves on $\piold$. A caveat is that for the conclusion of \Cref{prop:forward-kl-surrogate-2} to hold across all states, it is necessary to choose a positive temperature that satisfies the assumptions of \Cref{prop:forward-kl-surrogate-2} for possibly uncountably many states. Since the condition on $\tau$ in each state depends on $\piold, \pinew$, and $s$, the condition $\tau \le C$ across states might result in a very small $C$ or even $C=0$.  
+ 
+ %the temperature required depends on $\pi_2$ itself, so it may be hard to verify this requirement in practice. Another difficulty is in policy improvement across states. For the conclusion of \Cref{prop:forward-kl-surrogate-2} to hold across an expectation of states, it is necessary to choose a positive temperature that satisfies the assumptions of \Cref{prop:forward-kl-surrogate-2}, for possibly uncountably many states. Such a temperature may not exist.  
+
+% Nevertheless, in the function-approximation regime, $\pi_{\policyparams_{t + 1}}$ might not improve upon  $\pi_{\policyparams_t}$ in reverse KL for all states. We thus cannot count on the policy improvement result in \Cref{lem:stronger-sac} using the reverse KL; it is an open question whether we should use the reverse or forward KL. 
+
+
+% One possible reason why one might choose to optimize the forward KL instead of the reverse KL is if by doing so it is easier to generate a policy $\pi_2$ that satisfies \Cref{eq:avg-rev-kl-policy-assumption}. Indeed, if we assume that $\pi_\policyparams(a \mid s) \propto \exp(\policyparams^\top \phi(s, a))$, then the forward KL is convex with respect to $\policyparams$, whereas the reverse KL generally is not. We have a preliminary result in this direction.
+
+
+% \begin{proposition}\label{prop:forward-kl-surrogate}
+% Let $\phi(s, a)$ be a feature vector for every $(s, a) \in \statespace \times \actionspace$. Fix some distribution $\mu$ over states. Assume that for all $(s, a) \in \statespace \times \actionspace$, $\pi_\policyparams(a \mid s) \propto \exp(\policyparams^\top \phi(s, a))$. Fix an initial parameter $\policyparams_1$ and let $Q_1 := Q^{\pi_{\policyparams_1}}$. Define the state-value function $V_1$ and the advantage function $A_1$ of $\pi_{\policyparams_1}$ analogously. These value functions may be either soft or not soft. Let $\policyparams_2$ be such that 
+% \begin{equation*}
+%     \policyparams_2 \in \argmin_{\policyparams} \Ex_\mu\left[\KL(\boltzmannQ_1(s, \cdot) \parallel \pi_\policyparams(\cdot \mid s))\right],
+% \end{equation*}
+% which we assume to exist. Assume as well that 
+% \begin{align}\label{eq:strong-assumption}
+%     \Ex_\mu[- \left(\nabla_\policyparams &\KL(\boltzmannQ_1(s, \cdot) \parallel \pi_{\policyparams_1}(\cdot \mid s))\right)]^\top \policyparams_2 \leq \Ex_\mu \left[ \sum_a A_1(s, a) \pi_{\policyparams_2}(a \mid s) \right] \nonumber.
+% \end{align}
+% Then
+% \begin{align*}
+%     \Ex[\KL( \pi_{\policyparams_2}(\cdot \mid s) &\parallel \boltzmannQ_1(s, \cdot))] \leq \Ex\left[\KL( \pi_{\policyparams_1}(\cdot \mid s) \parallel \boltzmannQ_1(s, \cdot))\right]
+% \end{align*}
+% \end{proposition}
+
+% \begin{proof}
+% See the supplementary material. 
+% \end{proof}
+% \Cref{prop:forward-kl-surrogate} says that under the setting of \Cref{eq:strong-assumption}, the forward KL can also give us policy improvement in the sense of \Cref{prop:avg-reverse-kl} if we set $\mu$ (from \Cref{prop:forward-kl-surrogate} to be $\rho^{\pi_2}$ from \Cref{prop:avg-reverse-kl}. 
+
+% A limitation of \Cref{prop:forward-kl-surrogate} is that \Cref{eq:strong-assumption} can be quite a strong assumption. In effect, \Cref{eq:strong-assumption} says that $\pi_{\policyparams_2}$ should already improve upon $\pi_{\policyparams_1}$ by a possibly substantial amount. 
+
+\section{Optimization Behavior in Microworlds}
+% \martha{This my proposed organization of the experiments}
+
+The goal in this section is to understand differences between FKL and RKL in terms of (1) the optimization surface and (2) the optimization paths of the iterates. We use two types of low-dimensional microworlds to allow us to visualize and thoroughly investigate behavior. Any omitted experimental details may be found in Appendix F. 
+
+
+\textbf{Bimodal Bandit:} We designed a continuous bandit with action space $[-1, 1]$ and reward function $Q(a) := \exp( -\tfrac{1}{2} (\tfrac{2 a + 1}{0.2})^2 ) + \tfrac{3}{2} \exp(-\tfrac{1}{2} (\tfrac{2 a - 1}{0.2})^2)$. The two unequal modes at -0.5 and 0.5 enable us to test the mean-seeking and mode-seeking behavior as well as simulate a realistic scenario where the agent's policy parameterization (here, unimodal) cannot represent the true distribution (bimodal). 
+%We also designed a discrete bandit with 1-Gaussian rewards with mean $(1.5, 2, 2)$.
+
+\textbf{Switch-Stay:} The two-state, two action, deterministic Switch-Stay MDP has the following dynamics. From $s_0$, action $0$ (stay) gives a reward of 1 and transitions to state $0$. From $s_1$, action 0 gives a reward of 2 and transitions to $s_1$. From $s_0$, action 1 (switch) gives a reward of -1 and transitions to $s_1$, while action 1 from $s_1$ gives a reward of 0 and transitions to $s_0$. 
+To adapt this environment to the continuous action setting, we treat actions $> 0$ as switch and actions $\leq 0$ as stay.  We set $\gamma = 0.9$ to ensure that the optimal action from $s_0$ is to switch. 
+
+\myparagraph{Algorithms} 
+All policies are tabular in the state. We use Clenshaw-Curtis quadrature \citep{clenshaw1960method} to calculate the losses; in Appendix H, we note additional results for Monte Carlo integration. We use the true action-values; in the bimodal bandit, the action-value is given by the reward function, while in Switch-Stay it is calculated (i.e., not learned). For policy parameterizations, in continuous action settings we use a Gaussian policy with mean and variance learned as $(\hat{\mu}, \log(1+\exp(\hat{\sigma}))$ and in discrete action settings we use a softmax policy. The action sampled from the learned Gaussian is passed through $\tanh$ to ensure that the action is in the feasible range $[-1, 1]$ and to avoid the bias induced in the policy gradient when action ranges are not enforced \citep{chou2017improving}. Finally, we use the Adam optimizer \citep{kingma2014adam}. Results for RMSprop were similar to those for Adam, while results for SGD indicated slower learning or convergence for both FKL and RKL. See Appendix H for these additional results. 
+% and to avoid the bias induced in the policy gradient when action ranges are not enforced \citep{chou2017improving}. 
+
+
+\myparagraph{Optimization Surface for the Bimodal Bandit}
+We visualize the KL loss surfaces in \Cref{fig:bandit-heatmap} with five different temperatures. The heatmaps depict the loss for each mean and standard deviation pair. The last row depicts the target distribution over which the KL loss is optimized. 
+
+The surfaces suggest the following. 
+\textbf{1)} FKL has a single optimum across temperature values while the RKL has two optima around the bimodal peaks.
+\textbf{2)} The FKL surface seems much smoother than the RKL surface, suggesting that iterates under the FKL will more likely reach the global optimum than iterates under the RKL. The smoothness of the RKL landscape increases with temperature.
+\textbf{3)} As the temperature decreases, the target distribution becomes unimodal; making the mean and the mode become identical; the global optimum for both the FKL and RKL is at the optimal peak.
+\textbf{4)} As the temperature increases the relative density at the peaks decreases in the target distribution; contrary to our beliefs, RKL starts to exhibit mean-seeking behaviors converging to the same mean between the peaks. 
+\textbf{5)} At $\tau=0$, although the target distribution is unimodal, we do not optimize over the dirac delta directly in hard RKL, and hence bimodality is observed.
+
+% AC: breaking it up into what seems to be logical parts to increase readability
+We also considered the effects of numerical integration and the $\tanh$ transformation.
+\textbf{6)} FKL seems to be more robust to numerical integration error. When reducing the number of integration points, there was no visible difference in the FKL loss surface but wavelet patterns are observed in the RKL loss surface (Appendix H).
+\textbf{7)} The optimization surface for the Gaussian policy without $\tanh$ transformation is shown in Appendix H. Without $\tanh$ transformation suboptima appears along the edges in all soft RKL surfaces, while FKL loss surface seems unaffected.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.99\columnwidth]{figs/bandit/trueQ/heatmaps/heatmap_combined.pdf}
+    \caption{KL loss over mean and standard deviation across temperature. Note that the actual action taken applies $\tanh$ to the samples of the resulting distribution (i.e., the optimal mean is at $\tanh^{-1}(0.5) \approx 0.55$). FKL loss has been upper-bounded for better visualization of minima. Arrows indicate the global minimum.}
+    \label{fig:bandit-heatmap}
+\end{figure}
+
+% \begin{figure}[ht]
+%   \centering
+%   \begin{subfigure}[b]{0.4\linewidth}
+%     \centering
+%     \includegraphics[width=\columnwidth]{figs/bandit/notlearnQ/modes=1/adam/mean_forward_optim=adam_modes=1_lr=0.01.png}
+%     \caption{Forward KL.}
+%     \label{fig:bandit-mean-forward-adam}
+%   \end{subfigure}\hspace{15pt}%
+%   \begin{subfigure}[b]{0.4\linewidth}
+%     \centering
+%     \includegraphics[width=\columnwidth]{figs/bandit/notlearnQ/modes=1/adam/mean_reverse_optim=adam_modes=1_lr=0.01.png}
+%     \caption{Reverse KL.}
+%     \label{fig:bandit-mean-reverse-adam}
+%   \end{subfigure}
+%   \caption{Each plot tracks the mean over 1000 gradient steps of each of 1000 iterates. Each iterate is represented as a translucent, coloured dot with alpha value $0.01$. Temperature is varied on the $x$-major-axis and initial standard deviation $\sigma_0$ is varied on the $y$-major axis. Colour-coded by $\sigma_0$.}
+% \end{figure}
+
+\myparagraph{Optimization Path in the Bimodal Bandit}
+To investigate optimization behaviour further, we visualize 1000 random (mean, standard deviation) iterates over 1000 gradient steps to minimize either the FKL or RKL. (Appendix H) The mean is initialized uniformly in $(-0.95, 0.95)$ and $\hat{\sigma}$ is initialized uniformly in $(\log(\exp(0.1) - 1), \log(\exp(1) - 1))$, so that the initial standard deviation $\sigma_0$ is in $(0.1, 1)$. We only show one learning rate, but results are similar for different learning rates.
+
+From looking at Figures 7A, 7B in Appendix H, we observe the following. 
+%From looking at \Cref{fig:bandit-mean-forward-adam,fig:bandit-mean-reverse-adam}, we observe the following.
+\textbf{1)} FKL seems to facilitate more stable convergence of the iterates to the optimal mode when $\sigma_0 > 0.3$. Indeed, outside of that setting, all iterates converge to a single optimum across all temperatures.
+\textbf{2)} Behaviour can vary across different standard deviation initializations. For $\tau < 0.4$, FKL iterates learn the optimal mode for all settings except when the $\sigma_0 < 0.3$. The achieved limit points of RKL iterates can differ depending on $\sigma_0$, such as with $\tau = 0.4$. 
+\textbf{3)} RKL iterates converge to different local optima. The only case in which RKL iterates only converged to the optimal mode was for $\tau = 0.01$. 
+% 
+
+These results are consistent with the FKL and RKL heatmaps, suggesting that the FKL has a much smoother optimization landscape that directs iterates to global minima. An earlier version of this experiment used integration points within the range $[-0.98, 0.98]$, rather than using all points but \{-1, 1\}. In this earlier setting, RKL iterates often diverged for $\sigma_0 > 0.3$ while FKL iterates maintained the same behaviour, suggesting that FKL is more robust to this type of truncation error than RKL. %Divergence of iterates in RKL occurs for larger $\sigma_0$, at $\tau = 0.01, 0.1$ where the iterates seem to fall into the suboptima at bottom corners of the heatmap. (Visualization of the gradients can be found in Appendix G)
+% we suspect that the Gaussian policy parameterisation may be a factor in the instability of some RKL iterates. It's also interesting to note that divergence of the RKL iterates only seems to occur for the temperatures $\tau = 0.01, 0.1$. 
+
+% For this experiment, we also considered the behavior when the policy parameterization is sufficient to represent the true bimodal distribution. These plots are in Appendix G. Overall, the behaviour is much messier, and we found it difficult to draw firm conclusions given the difficulty of optimizing a multimodal policy. 
+
+\paragraph{Optimization Path on Continuous Switch-Stay}
+Next, we investigate the optimization behavior when there is more than one state: the Switch-Stay environment. %Based on our results for the bandit setting, we run three sets of experiments with three different standard deviation initializations, such that $\sigma_0$ is in $(0.1, 0.3), (0.3, 1)$. 
+For all of these experiments, we initialized means in the range $(-0.95, 0.95)$. All experiments are run for 500 gradient steps and each experiment has 1000 iterates. The learning rate was set to $0.005$, but results were similar for other learning rates. We plot the value function of the final policy for each iterate and experiment in \Cref{fig:cont-switch-stay-forward,fig:cont-switch-stay-reverse}, by visualizing the value function polytope \citep{dadashi2019value}. 
+
+
+\begin{figure}[ht]
+  \centering
+  \begin{subfigure}[b]{0.45\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/cont_poly.png}
+    \caption{Forward KL.}
+    \label{fig:cont-switch-stay-forward}
+  \end{subfigure}\hspace{15pt}%
+  \begin{subfigure}[b]{0.45\linewidth}
+        \centering
+        \includegraphics[width=\columnwidth]{figs/continuous-switch-stay/notlearnQ/polytope_reverse_optim=adam_lr=0.005.png}
+        \caption{Reverse KL.}
+        \label{fig:cont-switch-stay-reverse}
+  \end{subfigure}
+  \caption{Each subplot plots the final value functions on the continuous version of switch-stay after 500 gradient steps, $\gamma = 0.9$, for 1000 iterates. Each iterate is represented by a translucent dot with alpha value $0.01$. Using Adam. Temperature is varied on the $x$-major-axis.}
+\end{figure}
+
+
+% \begin{figure}
+%   \hspace*{16em}\resizebox{0.2\columnwidth}{!}{%
+% \begin{tikzpicture}[auto,node distance=10mm,>=latex,font=\small]
+%     \tikzstyle{round}=[thick,draw=black,circle]
+
+%     \node[round] (s0) {$s_0$};
+%     \node[round,right=20mm of s0] (s1) {$s_1$};
+
+%     \draw[->] (s0) to [out=45, in=135] node {-1} (s1);
+%     \draw [->] (s0) to [out=135,in=225, loop] node {1} (s0);
+%     \draw [->] (s1) to [out=210,in=330] node{0} (s0);
+%     \draw [->] (s1) to [out=45,in=-45, loop] node {2} (s1);
+% \end{tikzpicture}}
+%     \caption{Switch-Stay.}
+%     \label{fig:switch-stay}
+% \end{figure}%
+
+
+We observe the following.
+\textbf{1)} The iterates of all methods moved reliably in the direction of the optimal value function. FKL with $\tau = 0$ seemed noticeably slower than the other temperatures, which seems to be an artifact of our encoding of continuous actions to the underlying discrete dynamics of switch-stay, and the fact that we used random tie-breaking when computing the $\argmax$ for hard FKL. 
+\textbf{2)} RKL iterates converge slightly faster than FKL iterates across all temperature settings. RKL iterates with $\tau = 0$ sometimes converged to non-optimal value functions on the corners. RKL seems to ``commit'' more than FKL, given that the RKL objective forces probability mass away from actions with low probability. 
+
+We also note here that when fewer integration points were used in an earlier version of this experiment, RKL exhibited substantial instability and a large number of iterates across temperatures and $\sigma_0$ values converged to suboptimal deterministic policies. 
+
+%These results suggest that optimization of the RKL may be more difficult than FKL optimization. In contrast to the continuous bandit setting, poor behaviour of the RKL iterates was prevalent across all temperatures and standard deviation initializations. 
+ 
+\myparagraph{What changes with discrete actions?}
+Overall, there is markedly less distinction between RKL and FKL in the discrete action setting with a softmax policy parameterization. We summarize the results here and place the plots in Appendices H.3 and H.4.
+\textbf{1)} In the discrete bandit setting, both RKL and FKL iterates learn the optimal arms. For higher temperatures, both RKL and FKL place some mass on the suboptimal arm. FKL generally maintains equal probability mass amongst the optimal arms, while RKL commits to one or the other optimal arm near the beginning. 
+\textbf{2)} On discrete Switch-Stay, both FKL and RKL iterates move in the direction of the optimal value function, but RKL iterates seem to converge faster. For higher temperatures, the limit point of the iterates is further away from the optimal value function than for lower temperatures. 
+
+\section{Practical Performance on Benchmark Problems}
+We compare the KL methods on benchmark continuous and discrete-action environments, using non-linear function approximation. Hyperparameter sweeps are performed separately for each domain. We do 30 runs and plot the mean return averaged over the past 20 episodes; shaded areas represent standard errors. Omitted experimental details may be found in Appendix F. 
+
+\myparagraph{Continuous Actions}
+We compare agents on Pendulum \citep{brockman2016openai}, Reacher, and Swimmer \citep{todorov2012mujoco}, with results shown in Figure \ref{fig_cont}. We exclude Hard FKL in our comparison since it requires access to $\max_a Q(s,a)$, which is difficult to obtain with continuous actions. Overall, FKL performs slightly better than RKL and is more stable.
+In Pendulum, FKL learns a good policy across various temperatures, whereas RKL is more sensitive and performs well only for $\tau = 1$. 
+In Reacher, FKL performed well and was stable for $\tau=0.01, 0.1$, whereas RKL struggle to converge to a good stable policy. 
+In Swimmer, FKL and RKL are almost identical for the best performing temperature, $\tau=1.0$. At lower temperatures, however, both seem to suffer.
+% MARTHAC: I think we decided this is not somthig we can say
+%The difference between soft value function and hard value function is more visible in continuous actions, with soft value functions learning better policies.
+
+\myparagraph{Discrete Actions}
+% AC: seems unnecessary to list all the environments if they are in the figure
+We report results in Figure \ref{fig_discrete} for environments from the OpenAI gym \citep{brockman2016openai} and MinAtar \citep{young2019minatar}. Overall, as in our microworlds, neither KL consistently dominates the other. The two notable exceptions are in Freeway and Seaquest. In Seaquest, FKL with a low temperature significantly outperformed other approaches, both in learning speed and final performance. In Freeway, on the other hand, RKL learns slightly faster than FKL for the two reasonable temperatures.  
+
+The results also show that the best choice of temperature is environment-dependent. For example, a temperature of 1 completely failed in Acrobot, whereas a temperature of 1 was best for both RKL and FKL in CartPole. This is likely because agents in CartPole start in a somewhat upright position, and also because CartPole is an easier environment than Acrobot. 
+
+% slightly irrelevant for the new paragraph
+%In Asterix for $\tau = 0.01$, FKL learns faster at the beginning, but is soon eclipsed by RKL. However, RKL learns faster than FKL with $\tau = 0$, suggesting that any differences between FKL and RKL are temperature-dependent. 
+
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}[b]{0.33\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/continuous/PD_entropy_comparison.pdf} 
+    \caption{Pendulum}\label{fig:pendulum}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.33\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/continuous/Reacher_entropy_comparison.pdf} 
+    \caption{Reacher}\label{fig:reacher}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.33\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/continuous/Swimmer_entropy_comparison.pdf} 
+    \caption{Swimmer}\label{fig:swimmer}
+  \end{subfigure}
+  \caption{Continuous-action environments. Shown are the best hyperparameters for each algorithm, which are selected by largest area under the last half of the learning curve. The colours go from hot (red, temperature = 1) to cool (yellow, temperature = 0). }\label{fig_cont}
+\end{figure}
+
+
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}[b]{0.25\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/labeled_acrobot.png} 
+    \caption{Acrobot
+    }\label{fig:acrobot}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.25\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/CartPole_all_kl.png} 
+    \caption{Cartpole
+    }\label{fig:cartpole}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.25\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_LunarLander_all_kl.png}
+    \caption{Lunar Lander}
+    \label{fig:lunar-lander}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.25\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/labeled_asterix.png} 
+    \caption{Asterix
+    }\label{fig:asterix}
+  \end{subfigure}%
+  
+  \begin{subfigure}[b]{0.25\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_breakout_all_kl.png} 
+    \caption{Breakout
+    }\label{fig:breakout}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.25\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_freeway_all_kl.png} 
+    \caption{Freeway
+    }\label{fig:freeway}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.25\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_seaquest_all_kl.png} 
+    \caption{Seaquest
+    }\label{fig:seaquest}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.25\linewidth}
+    \centering
+    \includegraphics[width=\columnwidth]{figs/deep/discrete/UNLABELED_space_invaders_all_kl.png} 
+    \caption{Space Invaders
+    }\label{fig:space-invaders}
+  \end{subfigure}
+  \caption{Discrete-action environments. Plot settings are identical to Figure \ref{fig_cont}. Note that all the algorithms performed poorly on Lunar Lander, on which a return of 200 is considered to be ``solved''. This task is more difficult with long episode limits (set here to 5000) since the agent must learn to turn the fuel off. }\label{fig_discrete}
+\end{figure}
+
+
+
+
+
+
+\section{Discussion and Conclusion} 
+% running summary of observations
+% temperature affects mean/mode-seeking: lower means behaviour is more expected
+% forward seems to have more tightly clustered local minima
+% standard deviation is more unstable for reverse kl
+
+% MARTHAC: I decided to make one unified conclusion, based on results
+% AC: we can't make claims about the minima in the practical benchmark setting
+%Across our continuous-action experiments, using the forward KL provided fewer local minima than the reverse KL, at the possible cost of slower convergence to optima. 
+%
+In our continuous-action microworld experiments, FKL provided fewer local minima than RKL, at the possible cost of slower convergence to optima. When comparing RKL and FKL in practical benchmarks, FKL seemed generally to provide more stable learning and better policies.
+
+In the discrete action setting, there was typically little consistent difference between RKL and FKL, although RKL sometimes learned a little faster and in one environment FKL was significantly better. Performance differences amongst agents were driven more by the choice of temperature. 
+
+The experiments also shed some light on hypothesized differences between RKL and FKL. The optimization differences manifested clearly, but the differences in mean-seeking and mode-seeking behavior were minor. In our experiment with a bimodal action-value, the Boltzmman distribution became effectively unimodal for small $\tau$; RKL and FKL had similar solutions here. For larger $\tau$, resulting in high entropy regularization, both became mean-seeking. Only for specific $\tau$ in-between was there a difference. The theoretical differences in policy improvement also did not seem to manifest in performance; if it played a large role, we might expect periodic policy degradation under FKL in contrast to more consistent improvement from RKL. This suggests that our counterexample is in fact pathological, and that potentially our limited policy improvement result for FKL could be strengthened with weaker conditions on the temperature.
+
+%In our microworld experiments, using the forward KL seemed superior across a range of temperatures and learning rates in a continuous action setting. FKL iterates converged more often to optimal points and exhibited greater stability. In the discrete action setting, there was typically little difference between RKL and FKL, although RKL sometimes learned a little faster.
+%
+%In our non-linear RL experiments, we compared FKL and RKL on popular benchmark environments. There were few consistent differences between FKL and RKL across temperatures and environments for discrete action spaces. For example, FKL seemed to learn faster at the beginning for $\tau = 0.01$ in Asterix, but learned slower than RKL in Freeway at the beginning for $\tau = 0, 0.01$. In continuous-action environments FKL generally learned faster and achieved a superior final return. These results are consistent with what we found in our microworlds, suggesting that FKL, when using a $\tanh$-transformed Gaussian policy, may have a better optimization surface than RKL in general. 
+
+A natural question from this study is why the differences were the largest for continuous actions. One potential reason is the policy parameterization: the Gaussian policy is likely more restrictive than the softmax. 
+A Gaussian policy cannot capture multimodal structure. Learning the standard deviation of a Gaussian policy may be another source of instability. In contrast, a softmax policy can represent multiple modes, and does not separate the parameterization of the measure of central tendency (e.g., mean) and the measure of variation (e.g., standard deviation). 
+With a Gaussian policy, FKL seems to have a better optimization surface (having smooth and single optima across different temperatures) despite the multimodality of the target distribution in our continuous bandit. However, none of these observations may hold for other policy parameterizations. A promising next step is to compare FKL and RKL with different policy parameterizations for continuous actions.  
+%The FKL and RKL differences, or lack thereof, that we observed may depend upon the policy parameterization. In addition to the fact that different policy parameterizations induce a different optimization surfaces, a Gaussian policy cannot capture multimodal structure, leading to the different probability mass trade-offs that FKL and RKL make. Learning the standard deviation of a Gaussian policy may be a further source of instability. In contrast, a softmax policy can represent multiple modes, and does not separate the parameterization of the measure of central tendency (e.g., mean) and the measure of variation (e.g., standard deviation). More work is required into developing and understanding alternative policy parameterizations. 
+
+An important take-away from this work is that the FKL is promising for greedification, even though it is rarely used. To start using it, however, we need simpler ways to optimize it. We used numerical integration here, but such a method does not scale well to high-dimensional action spaces and is susceptible to truncation error. Indeed, two applications of integration are required: (1) to calculate the partition function and (2) to calculate the loss. If $\tau = 0$, then one must instead find the maximum action of a continuous action value function, which seems equally difficult. Sampling-based approaches like importance sampling may be fruitful avenues to explore. 
+
+% MARTHAC: Maybe we have no space for this? And less about FKL and RKL anyway, though i do like it and we could find a way to keep something like it
+%That there was no consistent superiority of soft value functions over hard value functions, or vice versa, may seem disappointing. However, this result is to be expected; different environments have different reward structures and require different degrees of exploration. Some of the results from the practical benchmarks suggest a temperature annealing strategy, where a high initial temperature is set to facilitate exploration, but is gradually annealed to ensure that the policy is sufficiently optimal. We leave open the question of successor frameworks to maximum entropy RL. 
+
+
+% The lack of consistency across different domains is potentially to be expected. If one were able to optimize the reverse KL \textit{exactly} at all states, one could enjoy good policy improvement guarantees. Such a possibility remains but a dream, however, in the absence of better representation learning and global optimization approaches. It is therefore important to explore alternatives to the reverse KL. 
+
+% We summarize our results. Theoretically, we unify various policy gradient updates as updates on a KL divergence objective, extend policy improvement results for reverse KL, provide a counterexample on policy improvement for forward KL, and discuss a setting where the forward KL can act as a surrogate for the reverse KL. 
+
+% Experimentally, on our tabular domain, reverse KL methods generally performed better than forward KL methods. Soft KL methods performed worse. In our continuous bandit problem, we find that both forward and reverse KL methods can be mode-seeking or mean-seeking, depending on the softmax temperature. Given access to true action-values, we find that forward KL methods are more robust at converging to the optimal mode. On CartPole (discrete action) with linear function approximation, both forward KL and soft forward KL significantly outperformed reverse KL and soft reverse KL. On Pendulum, a continuous action domain, with non-linear function-approximation, reverse and forward KL performed similarly.
+
+% Many questions remain. What are the properties of KL divergence optimization with different policy classes (i.e., not Gaussian or softmax)? Are there better ways of optimizing the FKL and RKL in continuous action spaces (i.e., replacement for integration)?
+
+
+
+\section*{Broader Impact}
+Understanding the behaviour of our agents is essential before we operationalize them in high-stakes scenarios. This need is especially relevant for RL, as current algorithms can exhibit wildly varying behaviour, due to factors such as but not limited to code-bases, practical implementation tricks, and theoretical properties. Our characterization of the tradeoffs in the choice of KL divergence contributes to an understanding of our agents; for instance, having fewer spurious local minima is an advantage for algorthimic transparency and reproducibility. We hope that our work will help inform practitioners about the practical implications of existing algorithms and motivate further work into policy gradient design choices. 
+% MARTHAC: Somewhat redundant with above, and already this is beautiful
+% Authors are required to include a statement of the broader impact of their work, including its ethical aspects and future societal consequences. 
+% Authors should discuss both positive and negative outcomes, if any. For instance, authors should discuss a) 
+% who may benefit from this research, b) who may be put at disadvantage from this research, c) what are the consequences of failure of the system, and d) whether the task/method leverages
+% biases in the data. If authors believe this is not applicable to them, authors can simply state this.
+
+% Use unnumbered first level headings for this section, which should go at the end of the paper. {\bf Note that this section does not count towards the eight pages of content that are allowed.}
+
+\begin{ack}
+% The authors gratefully acknowledge support from the Reinforcement Learning and Artificial Intelligence Lab (RLAI) and the Alberta Machine Intelligence Institute (amii). The authors would also like to thank Dale Schuurmans for preliminary discussion on the choice of reverse or forward KL. 
+\end{ack}
+
+\bibliography{refs}
+\end{document}

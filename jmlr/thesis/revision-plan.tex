@@ -1,0 +1,145 @@
+\documentclass{article}
+
+\usepackage[english]{babel}
+\usepackage[square, numbers]{natbib}
+\usepackage{url}
+\bibliographystyle{abbrvnat}
+\setcitestyle{authoryear,open={(},close={)}}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{physics}
+\usepackage{gensymb}
+\usepackage{verbatim}
+\usepackage{amsfonts}
+\usepackage{mathrsfs}
+\usepackage{tikz-cd}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage{centernot}
+\usepackage{mathtools}
+\usepackage[margin=1.0in]{geometry}
+\usepackage{algorithm, algpseudocode}
+\usepackage{bm}
+\usepackage{caption}
+\usepackage{enumitem}
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\usepackage{tikz}
+\usetikzlibrary{shapes, positioning, quotes}
+
+
+\usepackage[title]{appendix}
+\usepackage{cleveref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+
+\onehalfspacing
+
+\pgfplotsset{height=8cm, width=15cm,compat=1.9}
+
+\DeclareMathOperator*{\esssup}{ess\,sup}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\newcommand{\Ex}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand*\diff{\mathop{}\!\mathrm{d}}
+\newcommand*\Diff[1]{\mathop{}\!\mathrm{d^#1}}
+\newcommand{\w}{{\bf w}}
+\newcommand{\bellman}{\mathcal{T}}
+\newcommand{\statespace}{\mathcal{S}}
+\newcommand{\actionspace}{\mathcal{A}}
+\newcommand{\rewardfunction}{r}
+\newcommand{\vpi}{V^\pi}
+\newcommand{\qpi}{Q^\pi}
+\newcommand{\qstar}{Q^*}
+\newcommand{\vstar}{V^*}
+\newcommand{\algname}{value inversion}
+\newcommand{\Algname}{Value inversion}
+\newcommand{\functionspace}{\mathcal{F}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\policyparams}{\theta}
+\newcommand{\boltzmannQ}{\mathcal{B}Q}
+\newcommand{\entropy}{\mathrm{H}}
+\newcommand{\piold}{{\pi_\mathrm{old}}}
+\newcommand{\pinew}{{\pi_\mathrm{new}}}
+
+\newtheorem{definition}{Definition}
+\newtheorem{exercise}{Exercise}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{example}{Example}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+
+
+% \pagestyle{fancy}
+% \fancyhf{}
+% \rhead{}
+% \chead{Actor-Expert Notes}
+% \lhead{}
+% \rfoot{Page \thepage}
+\title{KL Stuff}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Experiments}
+
+Questions to answer
+\begin{itemize}
+    % \item Which KL is easier to optimize using gradient descent?
+    % \begin{itemize}
+    %     \item Ideal case: two factors - 1) given true action-values versus an approximation, 2) discrete setting, where we don't have to approximate the update
+    %     \item Practical case: learning action-values, approximate integral (in continuous action space)
+    % \end{itemize}
+    
+    % \item Another cross-product: with/without complete policy class (multimodal policies) vs. with/without state aliasing (function approx.)
+    
+    % \item \textbf{How does the optimal solution change for the different KLs as we change} (compare global optima in continuous bandits, with the true action-values):
+    %     \begin{itemize}
+    %         \item entropy values \{1.0, 0.1, 0.01\}?
+    %         \item the modality of the Gaussians? (try 1 mode, 2 modes, 3 modes): Cannot practically sweep over parameters of multimodal distributions
+    %     \end{itemize}
+    
+    % \item \textbf{For different modes, how far away are the local solutions of forward/reverse KL from being globally optimal?}: use an ideal estimate of the gradient (integration), with the true action-values, with multi-modal policies (try 1 mode, 2 modes, 3 modes); we show performance of reverse KL with an increasing number of random restarts and gradient descent(?) (is it non-convex in the bandit setting? --- \textbf{yes}) reporting results for different optimizers. At least show, out of a set of random seeds, what proportion reaches globally low loss?
+    
+    % \item \textbf{Difference in mean-seeking and mode-seeking behaviour between forward and reverse}: Test in same ideal case, again with the different multi-modal policies, in the continuous bandit. Maybe need to test a variety of entropy values. Maybe would show up anyways in the first question
+    
+    % \item \textbf{With state aliasing and an incomplete function class, how do the optimal solutions compare between the KLs?}: (2-state MDP, maybe you are forced to use the suboptimal action in both states)
+    % \item Hard KL versus KL (When might we prefer one or the other)
+    % \item What is the difference in the practical setting? 
+    % \begin{itemize}
+    %     \item learning action-values (bandits, linear fa, deep)
+    %     \item action space (discrete, continuous)
+    %     \item actual algorithms (strategies/tricks that people care about like using the SAC update, soft action values, optimization method)
+    % \end{itemize}
+    
+    % NeurIPS stuff
+    \item more hidden layer sizes (big, medium, small)
+    \item more stochasticity experiments?
+    \item smoothing returns
+\end{itemize}
+
+% Experimental quality stuff
+% \begin{itemize}
+%     \item Sweep over sac update or not sac update
+%     \item Try reparameterization trick
+%     \item Sweep sampling vs. expected update in deep (non-trivial for forward KL)
+% \end{itemize}
+
+% \section{Theory}
+% \begin{itemize}
+%     \item Theory for continuous actions
+%     \item Bring in counterexample for constrained policy class
+% \end{itemize}
+\bibliography{refs}
+\end{document}
+
+
+% 

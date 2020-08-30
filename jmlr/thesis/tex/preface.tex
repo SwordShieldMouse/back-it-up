@@ -1,0 +1,26 @@
+% A workaround to allow relative paths in included subfiles
+% that are to be compiled separately
+% See https://tex.stackexchange.com/questions/153312/subfiles-inside-a-subfile-using-relative-paths
+\providecommand{\main}{..}
+\documentclass[\main/thesis.tex]{subfiles}
+
+\begin{document}
+
+% environment for preface
+% If you want the preface to not be double-spaced, uncomment the corresponding 
+% setting above.
+% A preface is required if you need to describe how parts of your thesis were
+% published or co-authored, and what your contributions to these sections were.
+% Also mention if you intend to publish parts of your thesis,
+% or have submitted them for publication. 
+% It is also required if ethics approval was needed for any part of the thesis.
+
+% Otherwise it is optional.
+
+% See the FGSR requirements for examples of how this can look.
+
+\begin{preface}
+This thesis was compiled and extended from a submission to NeurIPS 2020, in collaboration with Sungsu Lim and Martha White. Sungsu contributed description of soft value functions, analysis of the heatmaps, the heatmaps themselves, and the continuous-action control experiments. Martha contributed parts of the introduction, the discussion on the weighting of states, some general suggestions throughout, and a modification to one or the proofs. Hugo Luis Silva also helped in checking the proofs. All other contributions are my own. 
+\end{preface}
+
+\end{document}

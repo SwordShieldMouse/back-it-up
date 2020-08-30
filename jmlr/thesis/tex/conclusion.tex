@@ -1,0 +1,68 @@
+% A workaround to allow relative paths in included subfiles
+% that are to be compiled separately
+% See https://tex.stackexchange.com/questions/153312/subfiles-inside-a-subfile-using-relative-paths
+\providecommand{\main}{..}
+\documentclass[\main/thesis.tex]{subfiles}
+
+\onlyinsubfile{\zexternaldocument*{\main/tex/introduction}}
+
+\begin{document}
+
+\chapter{Conclusion}
+
+% Referring back to the introduction (Section \ref{sec:crossRef}), we see
+% that cross-references between files are correctly handled when the files
+% are compiled separately, and when the main document is compiled.
+% When the main document is compiled, cross-references are hyperlinked.
+% The values of the cross-references will change between the two compilation
+% scenarios, however. (Each chapter, compiled on its own, becomes ``Chapter 1''.)
+
+% \begin{note}[Caution:]
+% For cross-references to work, when files are compiled separately,
+% the referenced file must be compiled at least once before the
+% referring file is compiled.
+% \end{note}
+\section{Summary}
+Based on our theoretical and empirical analyses, we can summarize our findings as follows. 
+\begin{enumerate}
+    \item \textbf{Theoretically}, while the FKL may not be guaranteed to induce policy improvement as reliably as the RKL, policy improvement can still occur if a sufficiently high reduction in FKL occurs, with a sufficiently high temperature, and with a sufficiently high entropy in the new policy. These combined conditions seem quite strong, but weaker conditions may be able to be derived through more sophisticated techniques. We hypothesize that the superior policy improvement result of the RKL may be related to its committing to actions with high action-value that we observed in our experiments. As \citet{neumann2011variational} also observes, the RKL seems less averse to costs than the FKL. 
+    \item \textbf{On the microworld experiments}, there were more differences between FKL and RKL in the continuous-action setting than in the discrete-action setting. In the former, the FKL tended to have a smoother loss landscape that directed iterates to a global optimum, although this global optimum was sometimes less optimal, especially with higher temperature, than the optima of the RKL. In both continuous-action and discrete-action settings, iterates under the RKL tended to have limit points closer to the global optimum of the unregularized Switch-Stay problem. These results, too, are related to the cost-averse nature of the RKL. One additional, confounding factor seems to be the policy parameterization, as a $\tanh$-Gaussian policy cannot represent all possible probability distributions; given this limitation, the RKL and FKL enforce different trade-offs. 
+    \item \textbf{On our benchmark experiments}, while there was no consistent dominance of either KL over the other, some interesting trends emerged. Using the FKL may benefit exploration in possibly encouraging a state visitation distribution with wider support. This impact intersects with the impact of entropy regularization; we observed that using both the FKL and a high degree of entropy-regularization could prevent learning, although this effect was heavily environment-dependent. We also observed some evidence that the FKL was superior to RKL under small hidden layer sizes, but this observation did not hold across all environments. 
+\end{enumerate}
+
+
+An important conclusion from this work is that the FKL is promising for policy greedification, even though it is rarely used. To start using it, we need simpler ways to optimize it. We used numerical integration for most of our experiments, but such a method does not scale well to high-dimensional action spaces and is susceptible to truncation error. Indeed, two applications of integration are required: (1) to calculate the partition function and (2) to calculate the loss. If $\tau = 0$, then one must instead find the maximum action of a continuous action value function, which seems equally difficult. Sampling-based approaches like weighted importance sampling, which we used in one of our microworld experiments, would be fruitful to explore further in the context of large-scale environments. 
+
+\section{Limitations}
+There are some limitations of the current study that we should keep in mind, especially in informing future work.
+\begin{enumerate}
+    \item Theoretically, we assumed that true action-values are available. In practice, action-value estimates tend to be quite poor, and work remains to be done in characterizing the possibility of policy improvement with these estimates.
+    
+    \item Our policy improvement result for the FKL was weaker than the corresponding RKL result and required strong assumptions. In our experiments, the fact that the FKL was sometimes superior to the RKL suggests that weaker assumptions may suffice.
+    
+    \item In our microworld experiments, we also focused on the case of having access to the true action-values. Having to learn the action-values would have added an additional confounding factor to our experiments, but is essential for expanding the scope of applicability of this work. 
+    
+    \item On our continuous-action experiments, we did not test FKL with weighted importance sampling. Our microworld experiments suggested that FKL could perform well with this method, obviating the need for expensive quadrature procedures. 
+    
+    \item While our theoretical results did not assume any prior reward structure, we did not explore how different reward structures may impact the policy improvement differences between the KL divergences in our experiments. 
+    
+    \item We used RMSprop on our benchmark experiments. Although results for RMSprop and Adam were similar on our microworlds, the impact of momentum may be greater in more complex environments. 
+    
+    \item For all of our continuous-action experiments, our policy was the pushforward distribution induced by applying $\tanh$ to the output of a Gaussian distribution. We made this design choice to ensure that any output actions would remain in [-1, 1], avoiding the bias \citep{chou2017improving} in the policy gradient that results when action constraints are ignored. While we believe our choice to be reasonable, it would be interesting to understand if our results hold for the unmodified Gaussian policy, or for another pushforward distribution. 
+\end{enumerate}
+
+\section{Future Work}
+
+A natural question from this study is why the differences were the largest for continuous actions in our microworld experiments. One potential reason is the policy parameterization: the Gaussian policy is likely more restrictive than the softmax as it cannot capture multimodal structure. Learning the standard deviation of a Gaussian policy may be another source of instability. In contrast, a softmax policy can represent multiple modes, and does not separate the parameterization of the measure of central tendency (e.g., mean) and the measure of variation (e.g., standard deviation). 
+With a Gaussian policy, FKL seems to have a better optimization surface (having smooth and single optima across different temperatures) despite the multimodality of the target distribution in our continuous bandit. However, none of these observations may hold for other policy parameterizations. A promising next step is to compare FKL and RKL with different policy parameterizations for continuous actions.  
+
+Recent work into alternative policy paramaterizations has explored the Beta distribution \citep{chou2017improving}, quantile regression \citep{richter2019learning}, and normalizing flows \citep{ward2019improving}. While the latter two works in particular have focused on the motivation of multimodality for domains that have multiple goals, we believe that the relevance of multimodality for optimization is as important. 
+
+We should also recall the approach of soft Q-learning \citep{haarnoja2017reinforcement}, which approximates the target policy with a number of particles, updating each particle with Stein variational gradient descent \citep{liu2016stein,liu2017stein}. In this case, it is not necessary to have explicit policies. This approach, however, does make it difficult to deploy a learned policy to other environments. 
+
+Let us not forget that there are many other possible choices for a greedification objective! Besides the KL divergences, one may consider the Wasserstein distance, Cramer distance, the JS divergence, and many more. One reason we focused on the KL in this work was its ease of optimization, compared to the Wasserstein distance for example. There may however be other cogent reasons for selecting an objective; modeling the quantiles of the policy, for instance, suggests using the quantile loss. 
+
+The choice of target distribution in the greedification objective is another sticky issue. The Boltzmann distribution over action values is a natural choice for entropy-regularized RL, but one might not want to be tied this framework, especially given sensitivity to the temperature parameter and exploration that is undirected. Instead of maximizing the entropy of a distribution over actions, one could try to maximize the entropy of the discounted state visitation distribution \citep{islam2019entropy}. If the goal is exploration of the state space, perhaps one should let the agent decide how to do so, rather than imposing the proxy of high entropy in the action distribution. 
+
+Finally, let us return to a point we noted in the introduction. Most policy gradient methods today do not follow the gradient of \textit{any} objective function \citep{thomas2014bias,nota2019policy} because a $\gamma^t$ term is omitted from the update. \citet{thomas2014bias} showed that the resulting semi-gradient corresponds to one of two terms in the gradient of the average-reward objective; this ``semi-gradient'' neglects the effect of the policy parameters upon the state visitation distribution. Coupled with the fact that one tries to set $\gamma$ as close to 1 as possible in practice while avoiding instability issues, this line of work suggests that we should try instead to optimize the average-reward objective instead of the discounted objective. In many applications of RL, one would presumably desire those agents to optimize for a long-sighted criterion, rather than one susceptible to nearsightedness as a result of a discount factor too far from 1. In fact, the original policy gradient theorem includes a policy gradient for the average reward objective \citep{sutton2000policy}. In introducing natural gradient methods, \citet{kakade2002natural} focuses on the average reward setting. Although the average reward criterion is most suitable for the continuing--rather than episodic--setting, it might be possible to lift insights from the former to the latter. We hope that future research will address all of these shortfalls. 
+\end{document}

@@ -1,0 +1,245 @@
+
+\providecommand{\main}{..}
+\documentclass[\main/thesis.tex]{subfiles}
+
+\begin{document}
+
+\chapter{Background}
+In this section, we introduce the necessary background on reinforcement learning, KL divergences, and approximate greedification with KL divergences. Readers already familiar with the RL problem setting may skip to \Cref{sec:greedification}.
+
+\section{Reinforcement Learning}
+In designing a general artificial intelligence, a priority is the ability of any such agent to act to achieve goals in the world. Upon observing some state of the world, we would like the agent to be able to determine the best course of action according to its own knowledge; after all, we would like general artificial intelligences to help us solve our own intractable problems. 
+
+One way of formalizing these desiderata is through the reinforcement learning (RL) framework. RL is a collection of both problems and solution methods for addressing the challenge of general artificial intelligence. In RL, a ``state of the world'' is simply called a state, a ``course of action'' is called a policy, and ``goal'' is a numerical quantity called the return. Although the formalization of goal as return--the reward hypothesis \citep{sutton2018reinforcement}--might be questionable, and further research into alternatives is desirable, such a formulation will enable us to bring centuries of mathematics to bear upon RL. 
+
+We formalize RL as a {Markov Decision Process} (MDP), characterized by a tuple $(\statespace, \actionspace, \gamma, r, p)$. $\statespace$ is the state space; $\actionspace$ is the action space; $\gamma \in [0,1)$ is the discount factor; $r : \statespace \times \actionspace \to \R$ is the reward function; and for every $(s, a) \in \statespace \times \actionspace$, $p(\cdot \mid s, a)$, called the transition kernel, gives the conditional transition probabilities over $\statespace$. We also additionally specify a distribution $\rho_0$ over $\statespace$ of \textit{starting states}, from which an agent begins interaction with the environment. Where necessary for our proofs, we will state additional assumptions on $\statespace$ and $\actionspace$. 
+
+A \textit{policy} is a mapping $\pi : \statespace \to \Delta_\actionspace$, where $\Delta_\actionspace$ is the space of probability distributions over $\actionspace$. 
+%
+At the beginning of interaction, a state $s_0$ is drawn from $\rho_0$. At this point, and for each subsequent, discrete time step $t$, draws an action from its policy: $a_t \sim \pi(\cdot \mid s_t)$. The agent sends the action $a_t$ to the environment, from which it receives the reward signal $r(s_t, a_t)$\footnote{It is also possible to condition on the future state $s_{t + 1}$, but we do not do so to minimize notational clutter.} and observes the next state $s_{t + 1}$. 
+
+We will assume that our MDPs are episodic; that is, for every policy $\pi$, the Markov chain induced by $\pi, p$ will almost surely reach an absorbing state $s_T$ in finite time. Once $s_T$ is reached, one considers the episode to have ``ended'', and restarts the agent by drawing another $s_0$ from $\rho_0$.  In other words, our RL agents only have a limited amount of time to interact with the environment, after which they are replaced at a starting state.
+
+Informally, the goal of an RL agent is to maximize the \textit{expected return}, usually defined as the expectation of a discounted sum of rewards \footnote{In this work, we neglect the average reward formulation of RL. Further information on this alternative may be found in \citep{puterman2014markov}.}. To formalize this goal, given a policy $\pi$, one may define the \textit{value function} $\vpi$ associated to that policy.
+\begin{align*}
+    \vpi(s) := \Ex_{\pi, p}\left[\sum_{k = 0}^\infty \gamma^k r(S_k, A_k) \mid S_0 = s \right].
+\end{align*}
+$V^\pi(s)$ tells us, starting from state $s$ and following policy $\pi$, what is the average return the agent receives? The expectation above is over the trajectory $(s_0, a_0, s_1, a_1, \cdots)$ induced by $\pi$ and the transition kernel $p$. As the MDP is usually clear from the context, we will henceforth suppress $p$ in our notation. We may also define the \textit{action-value function}, which also conditions on a selected action $a$. 
+\begin{align}
+    \qpi(s, a) &:= \Ex_{\pi}\left[\sum_{k = 0}^\infty \gamma^k r(S_k, A_k) \mid S_0 = s, A_0 = a \right] \nonumber \\
+    &= r(s, a) + \gamma \Ex_{s' \sim p(\cdot \mid s, a)}[V^\pi(s')] \label{eq:short-q-def}
+\end{align}
+For $\gamma \in [0, 1)$, it is a consequence of the Banach Fixed-Point theorem that there is precisely one value function $V^*$, called the \textit{optimal value-function}, such that $V^*(s) \geq \vpi(s)$ for all $\pi$ and $s$. Given $V^*$, we can define $Q^*$ by \Cref{eq:short-q-def}. The policy induced by selecting $a = \argmax_b Q^*(s, b)$ at every state $s$ is known as the \textit{optimal (deterministic) policy} $\pi^*$. There can be more than one optimal policy, and an optimal policy may be stochastic. An optimal policy in general depends on $\gamma$,\footnote{See, however, Blackwell optimal policies \citep{mahadevan1996average}.} but we suppress dependence on $\gamma$ for simplicity. It is a standard result\footnote{For example, one can see this result by examining the Bellman optimality equation for $V^*$.} that $V^{\pi^*} = V^*$, although this equality does not uniquely define $\pi^*$ in general. We can thus formalize the RL goal as finding any $\pi^*$ that induces the optimal value function $V^*$. 
+
+For small, finite $\statespace$ and $\actionspace$, finding $\vstar$ and $\pi^*$ is tractable through value iteration (VI) or policy iteration (PI) \citep{sutton2018reinforcement}. In policy iteration for example, one begins with an initial policy $\pi_0$ and initial value function estimate $v_0$. The following procedure is then iterated until the maintained estimates converge, or some other error criterion is attained.
+\begin{align*}
+    \pi_{t + 1} := \greedy(Q_{t + 1}) & & Q_{t + 1} := Q^{\pi_t}
+\end{align*}
+$\greedy(Q_{t + 1})$ is the policy obtained by setting $\pi$ to be the Dirac delta distribution on $\argmax_b Q_{t + 1}(s, b)$ for every $s$. We refer to the act of applying $\greedy$ as \textit{greedifying} a policy. We refer to the right-hand operation of PI as \textit{policy evaluation}, which classically can be performed with dynamic programming. PI is thus the interleaving of policy greedification and policy evaluation. 
+
+Unfortunately, with a large or infinite number of states or actions, exact VI and PI become intractable. Exact VI in particular suffers from the following problems: \textbf{(1)} applying $\greedy$ across all states is not feasible if the number of states is large or infinite; \textbf{(2)} even applying $\greedy$ at a single state may be intractable if $|\actionspace|$ is large or infinite, as an inner maximization problem would have to be solved; \textbf{(3)} exact policy evaluation at all state-action pairs $(s, a)$ may not be possible. 
+
+We thus turn to approximation, and must address two issues: \textbf{(A)} how to represent a policy over many states and \textbf{(B)} how to relax the goal of finding $\pi^*$. 
+
+To address \textbf{(A)}, we introduce a set of parameters $\policyparams \in \R^k$, for some $k \in \mathbb{N}$, to represent our policy. Instead of specifying a mapping for every state $s \in \statespace$, $\policyparams$ induces a function $\pi_\policyparams : \statespace \to \Delta_\actionspace$. For example, $\pi_\policyparams$ could be a neural network that takes the state as input and returns a probability distribution over the actions. Note, however, that such a mapping $\pi_\policyparams$ is usually not surjective onto $\Delta_\actionspace$; in particular, there might not be a $\policyparams^*$ such that $\pi_{\policyparams^*} = \pi^*$. 
+
+Introducing parameters to represent our policy allows us to address \textbf{(B)}. We introduce a common objective in policy optimization: the value function $V^{\pi_\policyparams}$ averaged over a distribution $\rho_0$ over starting states.
+\begin{equation*}
+    \eta(\pi_\policyparams) \defeq \int_{\statespace} \rho_0(s) \int_{\actionspace} \pi_\policyparams(a | s) Q^{\pi_\policyparams}(s, a) \, da \, ds.
+\end{equation*}
+Our goal may be stated now as finding the $\policyparams$ that maximize $\eta(\pi_\policyparams)$. If $\pi_\policyparams$ is differentiable with respect to $\policyparams$, we may attempt to apply gradient-based optimization to this problem. 
+
+The {policy gradient theorem} gives us the gradient of $\eta(\pi_\policyparams)$ \citep{sutton2000policy},
+\begin{align}\label{eq:policy-gradient-thm}
+    \nabla_\policyparams \eta(\pi_\policyparams) &= \int_{\statespace} d^{\pi_\policyparams}(s) \int_{\actionspace} Q^{\pi_\policyparams}(s, a) \nabla_\policyparams \pi_\policyparams(a \mid s)\, da\, ds,
+\end{align}
+%
+where 
+\begin{align}
+    d^{\pi_\policyparams}(s) := \sum_{t = 0}^\infty \gamma^t \Pr(s_t = s \mid s_0 \sim \rho_0, \pi_\policy) 
+\end{align}
+is the \textit{unnormalized discounted state visitation distribution}. Intuitively, $\d^{\pi_\policyparams}$ provides the probability that $\pi$ visits a given state $s$ at any time $t$, discounted by $\gamma^t$. 
+
+To perform this optimization, a number of options are available. In REINFORCE \citep{williams1992simple}, a sampled return from $(s,a)$ is used as an unbiased estimate of $Q^{\pi_\policyparams}(s,a)$. While unbiased, REINFORCE is somewhat wasteful of data; it seems possible to use any collected trajectory data to improve an existing estimate of $Q^{\pi_\policyparams}(s,a)$, rather than start afresh with every trajectory. REINFORCE can also suffer from high variance given its complete reliance on Monte Carlo estimates of the action-value function. 
+
+To address these shortcomings, we can try to estimate $Q^{\pi_\policyparams}$. Commonly, a biased\footnote{We note here that relatively little attention has been paid to the assumption of \textit{compatible features} in \citet{sutton2000policy}. Given this assumption, which amounts to requiring the the action-value function estimate is linear in the normalized features of the policy, replacing $Q^{\pi_\policyparams}$ with $\Qhat$ in the policy gradient yields no bias. Further investigation into the importance of this choice is needed.}, but lower-variance, choice is to use a learned estimate $\Qhat$ of $Q^{\pi_\policyparams}$, obtained through policy evaluation algorithms like SARSA \citep{sutton2018reinforcement}. In these Actor-Critic algorithms, the actor---the policy---updates with a (biased) estimate of the above gradient, given by this $\Qhat$---the critic. 
+
+In practice, if one insists on performing an update at every timestep $t$ and does not multiply the update by $\gamma^t$, one in effect ignores $d^{\pi_\policyparams}(s)$ and instantiates a biased gradient update \citep{thomas2014bias}. Despite this concern, one tends to exclude the $\gamma^t$ in practice because of concerns about sample-efficiency; the longer the episode, the smaller the update at time $t$ will be. There has yet to be a systematic empirical study of the impacts of excluding $\gamma^t$. %One could sample from (a properly normalized version of) $d^{\pi_\policyparams}$ by starting from some $s_0 \sim \rho_0$, running $\pi$, and accepting each state $s$ as the sample with probability $1 - \gamma$. Unfortunately, this method would require more computation per update then if we were just to perform an update at every state $s$ we encounter. We discuss this issue more in Chapter 3. 
+
+Using the gradient in \Cref{eq:policy-gradient-thm} to update the policy while learning an action-value estimate can be interpreted as Approximate Policy Iteration (API). API methods alternate between \textbf{(1)} approximate policy evaluation to obtain a new $\Qhat$ and \textbf{(2)} approximate greedification to get a policy $\pi$ that is more greedy with respect to $\Qhat$. As we show in the next section, the gradient in Equation \eqref{eq:policy-gradient-thm} can be recast as the gradient of a KL divergence to a policy peaked at maximal actions under $\Qhat$; reducing this KL updates the policy to increase its own probabilities of these maximal actions, and so become more greedy with respect to $\Qhat$. Under this view, we obtain a clear separation between estimating $\Qhat$ and greedifying $\pi$. We can be agnostic to the strategy for updating $\Qhat$---we can even use soft action values \citep{ziebart2010modeling} or Q-learning \citep{watkins1992q}---and focus on answering: for a given $\Qhat$, how can we perform an approximate greedification step and which approaches are most effective? 
+   
+%\section{Approximate Greedification with KL Divergences}\label{sec:sac}
+
+%In this section, we discuss the use of KL Divergences to perform approximate greedification. We outline four possible options: (1) forward KL and reverse KL and (2) with or without entropy regularization. We show that many PG variants can be seen as API with the greedification step as an instance of one of these four choices. A categorization of PG variants is given in Appendix A. 
+%In this section, we explore the use of KL divergences for the policy improvement step in policy gradient methods. By examining the forward and reverse KL, and their limiting cases of 0 temperature, we rederive the policy gradient theorem and also derive an interesting, supervised-learning-like algorithm. We also discuss the potential for and ramifications of using the forward KL. 
+
+% \textbf{KL Divergences}
+\section{KL Divergences}\label{sec:kl}
+Before we continue our discussion about greedification, it will be necessary to introduce some concepts from statistics. Later, it will be useful for us to measure the distance between $\pi$ and some target policy $\pi_{better}$, which is presumably ``better'' than $\pi$. If we can close the distance between $\pi$ and $\pi_{better}$, then we will hopefully end up with a better policy. However, we must first make sense of how to define ``distance'' between probability distributions.
+
+One option is to appeal to information theory. Let $X$ be an event with probability $P$. We can derive\footnote{\url{https://en.wikipedia.org/wiki/Information_content}} a notion of the \textit{surprise} of $X$; how surprised were we that $X$ occurred? The surprise of $X$ is given by 
+\begin{align*}
+    -\log P.
+\end{align*}
+What if we were interested in how surprised we were on average, across all events? Asked another way, how much information do we get on average? Fixing some probability distribution $p$ of a random variable $X$, the surprise of the event $X = x$ is 
+\begin{align*}
+    -\log \Pr(X = x) = -\log p(x).
+\end{align*}
+This definition makes sense: if the event is impossible, I should be infinitely surprised; if the event was certain, I should not be surprised at all; if I observe two independent events, my joint surprise should just be the sum of the individual surprises. The negative logarithm satisfies all of these properties. 
+
+The average surprise, or \textit{information content}, is just the surprise averaged across $p$.
+\begin{align*}
+    \Ex_p[-\log p].
+\end{align*}
+The information content is also known as the \text{entropy}, and intuitively captures the spread of the probability mass of the policy amongst the actions.
+
+Now, given distributions $p, q$, we might wonder how much information might we gain from observing an event we think is drawn from $q$, but really is from $p$. This quantity is known as the \textit{cross-entropy} between $p$ and $q$.
+\begin{align*}
+    \Ex_p[-\log q].
+\end{align*}
+Suppose as well that we want to compare the difference in information between (1) knowing that the true distribution is $p$ and (2) believing that the true distribution is $q$. We can form the following quantity, which will turn out to be the KL divergence.
+\begin{align*}
+    \Ex_p[-\log q] - \Ex_p[-\log p].
+\end{align*}
+
+We can now define a pseudo-distance\footnote{Note that the KL divergence is not a metric in the mathematical sense, as it does not obey symmetry or the triangle inequality.} based on these informational considerations. Given two probability distributions $p, q$ on $\actionspace$, the KL divergence between $p$ and $q$ is defined as 
+\begin{equation*}
+  \KL(p \parallel q) \defeq \int_\actionspace p(a) \log\frac{p(a)}{q(a)}\, da  ,
+\end{equation*}
+%\begin{equation*}%\label{def:KL}
+%    \KL(p \parallel q) \defeq \int_\actionspace p(a) \log\frac{p(a)}{q(a)}\, da,
+%\end{equation*}
+%
+where $p$ is assumed to be {absolutely continuous} \citep{billingsley2008probability} with respect to $q$, to ensure that the KL divergence exists. The KL divergence is zero iff $p = q$ almost everywhere, and is always non-negative.
+%
+
+A post-hoc reason why the KL divergence is nice to consider is that sampling the KL divergence, instead of performing the integral, requires just the ability to sample from $p$ and to calculate $p$ and $q$. This feature is in contrast to the Wasserstein metric\footnote{Some interesting work has explored the benefits of the Wasserstein metric. \citep{arjovsky2017wasserstein} show that the Wasserstein metric induces a weaker notion of convergence than the KL divergence, allowing for better stability and convergence during GAN training. } for example, which generally requires solving an infimum. 
+
+The KL divergence is not symmetric; for example, $\KL(p \parallel q)$ may be defined while $\KL(q \parallel p)$ may not even exist if $q$ is not absolutely continuous with respect to $p$. This asymmetry leads to the two possible choices for measuring differences between distributions: the reverse KL and the forward KL. Assume that $p$ is a true distribution that we would like to match with our learned distribution $q_\theta$, where  $q_\policyparams$ is smooth with respect to $\theta \in \R^k$. The \textit{forward} KL divergence is $\KL(p \parallel q_\theta)$ and the \textit{reverse} KL divergence is $\KL(q_\theta \parallel p)$. 
+
+\section{Approximate Greedification}\label{sec:greedification}
+\subsection{Defining a Target Policy}
+We return to the subject of greedification. At the beginning of \Cref{sec:kl}, we discussed the use of probability distances to improve a policy $\pi$. If we had access to some better policy $\pi_{better}$, we could ``close the distance'', using something like the KL divergence, to improve $\pi$. But what $\pi_{better}$ should we use? A natural choice is the action-value function $Q(s, a)$ itself; indeed, one can view the greedification step of exact policy iteration as such a gap-closing. However, $Q(s, \cdot)$ is generally not a distribution over $a$ since it may be negative! One solution to this problem is to apply a transformation to $Q$ whose range is the non-negative real numbers.
+
+Let $\tau > 0$ and let $\Qhat$ be an action-value function estimate. We define the transformed action-value $\boltzmannQ_\tau$ by 
+\begin{equation}\label{eq:boltzmann-q}
+    \boltzmannQ_\tau(s, a) := \frac{\exp(\Qhat(s, a)\tau^{-1})}{\int_\actionspace \exp(\Qhat(s, b)\tau^{-1}) \, db}.
+\end{equation}
+%
+Firstly, note that the definition in \Cref{eq:boltzmann-q} does not depend upon a particular policy. In other words, we can input any function of the form $f(s, a)$. 
+
+The $\tau$ in \Cref{eq:boltzmann-q} corresponds to the division by $\tau$ in the argument of the exponential. If $Q$ is a soft action-value, to be defined subsequently, $\tau$ also refers to the temperature of the soft action-value. $\boltzmannQ_\tau$ provides the optimal soft greedification with respect to $\Qhat$. To understand why, we turn to soft value functions \citep{ziebart2010modeling}. First, we define the \textit{entropy} of a distribution, which captures how ``spread out'' the distribution is. The higher the entropy, the less the probability mass of $\pi(\cdot \mid s)$ is concentrated in any particular area. 
+\begin{align*}
+    \entropy(\pi(\cdot \mid s)) := - \int_\actionspace \pi(a \mid s) \log \pi(a \mid s)\, da.
+\end{align*}
+Now, we define the soft value functions; they are essentially just regular value functions where an entropy term is added to the reward. 
+\begin{equation*}
+    V^{\pi}_\tau(s) \defeq  \Ex_\pi\left[ \sum_{k = 0}^\infty \gamma^k \left[ r(S_k, A_k) + \tau \entropy(\pi(\cdot|S_k))\right] \mid S_0 = s \right] 
+\end{equation*}
+We can also define the soft action-value function. 
+\begin{align*}
+    Q^{\pi}_\tau(s,a) \defeq  r(s, a) + \gamma \Ex_{s' \sim p(\cdot \mid s, a)}[V^\pi_\tau(s')]
+\end{align*}
+We can also write the state-value function in terms of the action-value function.
+\begin{align*}
+    V^\pi_\tau(s) = \Ex_\pi[Q^\pi_\tau(s, a) - \tau \log \pi(a \mid s)].
+\end{align*}
+Intuitively, the soft value functions penalize determinism in our policies. Using soft value functions instead of (regular) value functions changes the RL problem slightly, as we are no longer interested in just the return, but rather the return plus the determinism penalty. 
+
+One might also wonder at why the entropy bonus for the state-action pair $(s, a)$ is not added to the reward $r(s, a)$. Intuitively, since the agent has already taken action $a$, it is meaningless to incentivize any randomness at $s$. One other consistency reason is that the definition of the soft action-value function is exactly the same as the definition of the non-soft action value function, except with $V^\pi(s')$ replaced with $V^\pi_\tau(s')$. 
+
+If we set $\pi'(\cdot | s) = \boltzmannQ_\tau(s, \cdot)$ for all $s \in \statespace$, then $Q^{\pi'}_\tau(s,a) \ge Q^{\pi}_\tau(s,a)$ for all $(s,a)$ \citep[Theorem 4]{haarnoja2017reinforcement}. As $\tau$ approaches zero, $Q^{\pi}_\tau(s,a)$ approaches $Q^{\pi}(s,a)$, which is a motivation using $\boltzmannQ_\tau$ as a target policy for greedification.
+
+Another way to understand this definition, and especially why we divide $Q(s, a)$ by $\tau$ in the exponential of $\boltzmannQ_\tau$, is through the theory of entropy-regularized MDPs \citep{geist2019theory}. One desire for a target policy might be that it is \textit{greedy} in some sense with respect to the action values. In the case of RL with no entropy regularisation, the greedy policy is conventionally the policy that returns the maximum action at each state. The reason is, if $Q^\pi$ is an action value corresponding to $\pi$, and if $\pi'$ is the greedy policy with respect to $Q^{\pi'}$, then $\pi'$ is a superior policy to $\pi$ according to the classical policy improvement result \citep{sutton2018reinforcement}. 
+
+When we introduce entropy regularisation, a different sense of \textit{greedy} is needed, as we are interested not just in the reward $r$ of the original MDP, but also the entropy of the policy. To understand how to do so, it is helpful to discuss another formulation of the greedy policy. Assume for the moment that the state and action spaces are finite. One definition of the Bellman operator is the following.
+\begin{align}\label{eq:bellman-op}
+    (\bellman^\pi v)[s] &:= \Ex_\pi[q(s, a)],
+\end{align}
+where $q(s, a) = r(s, a) + \gamma \Ex_{s' \sim p(\cdot \mid s, a)}[v(s')]$. In other words, we define the Bellman operator state-wise for a state $s$, and take the expectation with respect to the action $a$ over the policy $\pi$. We use lower-case letters here to connote the fact that $v$ and $q$ may not correspond to \textit{any} value functions. The greedy policy $\pi_{greedy}$ in the non-entropy-regularized RL setting can therefore be written as
+\begin{align*}
+    \pi_{greedy} &:= \argmax_\pi \bellman^\pi v,
+\end{align*}
+where the $\argmax$ is taken for each state separately. To define a sense of \textit{greedy} for entropy-regularized RL, we can define entropy-regularized Bellman operators and perform a similar $\argmax$. 
+
+First, for a policy $\pi$ and temperature $\tau$, we can define $\bellman^\pi_\entropy$, the entropy-regularized Bellman operator for $\pi$. 
+\begin{align*}
+    (\bellman^\pi_\entropy v)[s] &= \Ex_\pi[q(s, a)] + \tau \entropy(\pi(\cdot \mid s))
+\end{align*}
+where $\entropy$ is the entropy function. At a given state, the greedy policy is given by 
+\begin{align*}
+    \pi_{greedy}(\cdot \mid s) &:= \argmax_{\pi_s \in \Delta_\actionspace} \sum_a q(s, a) \pi_s(a) + \tau \entropy(\pi_s),
+\end{align*}
+where $\pi_s$ is a probability distribution over $\actionspace$, and $\pi_s(a)$ refers to the $a$-th element of $\pi_s$. Since $\entropy$ is concave, $-\entropy$ is convex, so the greedy policy turns out to be the maximizing argument in the definition of the convex conjugate of $-\tau \entropy$ evaluated at $q(s, \cdot)$! Let's explicitly solve for this maximizing argument. Since $\sum_a q(s, a) \pi_s(a) + \tau \entropy(\pi_s)$ is concave with respect to $\pi_s$, it suffices to find a stationary point, subject to the condition that $\sum_b \pi_s(b) = 1$. Setting $\lambda$ as the Lagrange multiplier,
+\begin{align*}
+    &\pdv{}{\pi_s(b)} \left(\sum_a q(s, a) \pi_s(a) + \tau \entropy(\pi_s)- \lambda \sum_a \pi_s(a)\right) = q(s, b) - \tau \log\pi_s(b) - \tau  + \lambda \\
+    &\quad\quad\implies \pi_s(b) = \exp(q(s, b)\tau^{-1} - 1 - \lambda \tau^{-1})\\
+    &\quad\quad\implies \pi_s(b) \propto \exp(q(s, b) \tau^{-1})\\
+    &\quad\quad\implies \pi_s(b) = \frac{\exp(q(s, b)\tau^{-1})}{\sum_a \exp(q(s, a) \tau^{-1})}.
+\end{align*}
+One interpretation of this result is that as the temperature decreases, the soft action-value becomes closer to the unregularized action-value. In this setting, we do want to act more greedily, and care relatively less about maximizing entropy. As the temperature decreases, the Boltzmann distribution becomes more sharply peaked at the maximum of the logits. 
+
+\subsection{Approximate Greedification with the KLs}
+
+Returning to the question of objectives, the idea is to set $q_\theta = \pi_\policyparams(\cdot | s)$, $p =  \boltzmannQ_\tau(s, \cdot)$, and use a KL divergence to bring $\pi_\policyparams$ closer to $\boltzmannQ_\tau$. One might wonder why we cannot set $\pi(\cdot | s) = \boltzmannQ_\tau(s, \cdot)$ in practice and be done with it. Indeed, for discrete action spaces, we can draw actions from $\boltzmannQ_\tau(s, \cdot)$ easily at each time step. However, for continuous actions, even calculating $\boltzmannQ_\tau(s, \cdot)$ requires approximating a (usually) intractable integral. Furthermore, even in the discrete-action regime, using $\boltzmannQ_\tau$ might not be desirable as $Q$ is usually just an action-value \textit{estimate}. 
+
+Define the \textbf{Reverse KL} (RKL) for greedification at a given state $s$ and action-value $\Qhat$ ($\Qhat$ may be soft or not):%, with corresponding gradient, as
+%
+\begin{align*}
+ \text{RKL}(\policyparams; s, \Qhat) &\defeq\KL\left( \pi_\policyparams(\cdot \mid s) \parallel \boltzmannQ_\tau(s, \cdot) \right)% \\
+    %\nabla_\policyparams \text{RKL}(\policyparams; s, \Qhat)
+    %&= -\tau\nabla_\policyparams \entropy(\pi_\policyparams(\cdot \mid s)) - \int_\actionspace \nabla_\policyparams \pi_\policyparams(a \mid s) {Q(s, a)}\, da \nonumber
+\end{align*}
+%
+%The scaling with $\tau$ is used to make the magnitude of the KL more consistent across different choices of $\tau$. For a fixed $\boltzmannQ_\tau$, the policy that minimizes the RKL is the same regardless of the scaling by a constant in front.
+
+Notice that $\tau$ plays the role of an entropy regularization parameter: a larger $\tau$ results in more entropy regularization on $\pi_\policyparams(\cdot \mid s)$.
+We can take a limiting case with no entropy regularization to get the \textbf{Hard Reverse KL}.
+%
+\begin{align}\label{eq:hard-reverse-KL}
+    \text{Hard RKL}(\policyparams; s, \Qhat) \defeq \lim_{\tau \to 0} \tau \text{RKL}(\policyparams; s, \Qhat) &= -\int_\actionspace \pi_\theta(a \mid s) Q(s, a)\, da
+\end{align}
+% AC: this result is somewhat mentioned on page 6 here: https://arxiv.org/pdf/1702.08892.pdf
+If we view the action-value $Q$ as fixed, the gradient of \Cref{eq:hard-reverse-KL} is exactly the inner term of the policy gradient in \Cref{eq:policy-gradient-thm}.\footnote{We are unaware of a previous statement of this result in the literature, but some references to a connection between value-based methods with entropy regularisation and policy gradient can be found in \citep{nachum2017bridging}.} 
+This means that the typical policy gradient update in actor-critic can be thought of as a greedification step with a hard reverse KL. %This correspondence is maintained even when averaging across all states for the full greedification objective, as discussed in Appendix B.
+
+
+Similarly, we can define the \textbf{Forward KL} (FKL) for greedification %at a given state $s$ and action-value $\Qhat$: %this time omitting the entropy term which does not involve $\policyparams$
+\begin{align}
+\text{FKL}(\policyparams; s, \Qhat) &\defeq 
+    \KL\left(\boltzmannQ_\tau(s, \cdot)  \parallel \pi_\policyparams(\cdot \mid s) \right)\nonumber
+\end{align}
+Finally, we can again consider a limiting case, where the temperature parameters goes to zero, to get a \textbf{Hard Forward KL} objective.
+%
+\begin{align*}
+  \text{Hard FKL}(\policyparams; s, \Qhat) &\defeq  \lim_{\tau \to 0} \text{FKL}(\policyparams; s, \Qhat) \\
+  &= -\lim_{\tau \to 0}\int_\actionspace \frac{\exp(Q(s, a)\tau^{-1})}{\int_\actionspace \exp(Q(s, b)\tau^{-1}) \, db} \log \pi_\policyparams(a \mid s) \, da\\
+    &= -\int_\actionspace \lim_{\tau \to 0} \frac{\exp(Q(s, a)\tau^{-1})}{\int_\actionspace \exp(Q(s, b)\tau^{-1}) \, db} \log \pi_\policyparams(a \mid s) \, da \\
+    &= -\int_\actionspace 1_{a = \argmax_b Q(s, b)} \log \pi_\policyparams(a \mid s) \, da \\
+    &= -\log \pi_\policyparams(\argmax_a Q(s, a) \mid s) 
+\end{align*}
+%
+This expression looks quite similar to the cross-entropy loss in supervised classification, if one views the maximum action of $Q(s, \cdot)$ as the correct class of state $s$. The FKL has been used for a CPI algorithm \citep{vieillard2019deep}, but we are unaware of any literature that analyzes the Hard FKL. %Derivations of these four KL divergences are included in Appendix C.
+
+Although switching $\pi_\policyparams$ and $\boltzmannQ_\tau$ might seem like a small change, there are several consequences. The forward KL is popularly known to be \textit{mean-seeking}: to minimize the forward KL, $\pi_\policyparams$ will likely place mass on the $a$ with the largest probability mass according to $\boltzmannQ_\tau$. Furthermore, the forward KL can be more difficult to optimize because it requires access to $\boltzmannQ_\tau$ to sample the gradient. But, favourably, if $\pi_\theta$ is parameterized with a Boltzmann distribution over $\theta$, then the forward KL is convex with respect to $\theta$. The reverse KL, on the other hand, is characterized as \textit{mode-seeking}: if $\boltzmannQ_\tau(s, a)$ is small for a given $a$, then $\pi_\theta(a \mid s)$ is also forced to be small. The RKL can also be easier to optimize as access to $p$ is not required to sample the gradient. Less favourably, however, it is generally not convex with respect to $\theta$, even if $\pi_\theta$ is parameterized with a Boltzmann distribution. 
+
+% AC: this last sentence is a bit unclear. I think a part of it is already captured by the discussion about probability mass forcing
+%Furthermore, the reverse KL tries to match the target distribution only within its current distribution and would be sensitive to initialization.
+
+% AC: moving to the appendix for space
+% \textbf{The Weighting over States} 
+\subsection{The Weighting over States}
+
+The above greedification objectives, and corresponding gradients, are defined per state. To specify the full greedification objective across states, we need a weighting $d: \statespace \rightarrow [0, \infty)$ on the relative importance of each state; under function approximation, the agent requires this distribution to trade-off accuracy of greedification across states. The full objective for the RKL is $\int_\statespace d(s) \text{RKL}(\policyparams; s, \Qhat)$; the other objectives are specified similarly.  
+
+This role of the weighting might seem quite different from the typical role in the policy gradient, but there are some clear connections. When averaging the gradient of the Hard RKL with weighting $d$, we have 
+\begin{align*}
+- \int_\statespace d(s)\int_\actionspace Q(s,a) \nabla \pi_\theta(a \mid s) \, da\, ds.
+\end{align*}
+For this to correspond to the true policy gradient when $\tau = 0$ and $Q = Q^{\pi_\policyparams}$, the weighting should be $d = d^{\pi_\policyparams}$; otherwise, this quantity may not correspond to the gradient of any function \citep{nota2019policy}. The weighting $d^{\pi_\policyparams}$ indicates that the weighting for greedification should be higher in states closer to the start state. This choice is sensible for allocating function approximation resources; it seems key to get action selection as accurate as possible in early states given the downstream effects. 
+
+Nevertheless, other choices are possible. An open, worthwhile question is to better understand which weightings can help avoid poor stationary points and improve convergence rates. Many algorithms in practice use something closer to a uniform weighting on observed data. It is as yet not well understood what weighting is ideal, nor the implications from deviating from the policy gradient weighting. There are, however, some insights from both CPI and from the literature on policy gradients. It is clear that there are some instances where using $d \neq d^\pi$ results in convergence to a poor stationary point: $\int_\statespace d(s)\int_\actionspace Q^{\pi_\theta}(s,a) \nabla \pi_\theta(a \mid s) \, da \ ds = 0$ for a certain $d$ that produces a highly suboptimal $\pi_\theta$, whereas weighting by $d = d^{\pi_\theta}$ (or with an emphatic weighting) does not \citep{imani2018off}. This counterexample assumes exact $Q = Q^{\pi_\theta}$, but still has implications for API, if an exact policy evaluation step is used. It seems likely that a similar counterexample could be found for nearly accurate $Q$. On the other hand, the work on CPI indicates that the weighting with $d^\pi$ can require a large number of samples to get accurate gradient estimates, and moving to a more uniform weighting over states is significantly better \citep{kakade2002approximately}. 
+
+%We summarize the connections to existing policy gradient methods in Appendix \ref{}, including the choices for the weighting, the forward or reverse KL with or without entropy regularization, and the choice of what $\Qhat$ is estimated. 
+
+\end{document}

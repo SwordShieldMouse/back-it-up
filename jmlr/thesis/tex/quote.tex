@@ -1,0 +1,52 @@
+% A workaround to allow relative paths in included subfiles
+% that are to be compiled separately
+% See https://tex.stackexchange.com/questions/153312/subfiles-inside-a-subfile-using-relative-paths
+\providecommand{\main}{..}
+\documentclass[\main/thesis.tex]{subfiles}
+
+\begin{document}
+
+% Quote page
+\begin{quotepage}
+%  \vspace*{1in}
+%  \begin{center}
+% 	\emph{I think there is a world market for maybe five computers.}
+% 	\begin{flushright}
+% 		-- Thomas J.\ Watson, IBM Chairman, 1943.
+% 	\end{flushright}
+%  \end{center}
+\vspace*{1in}
+% \begin{center}%
+\noindent
+\emph{How should we like it were stars to burn}\\
+\emph{With a passion for us we could not return?}\\
+\emph{If equal affection cannot be,}\\
+\emph{Let the more loving one be me.}\\
+\begin{flushright}
+-- ``The More Loving One'', W.H. Auden
+\end{flushright}
+
+% \noindent
+% \emph{A whole new world}\\
+% \emph{A hundred thousand things to see}\\
+% \emph{I'm like a shooting star}\\
+% \emph{I've come so far}\\
+% \emph{I can't go back to where I used to be}
+% \begin{flushright}
+% -- ``A Whole New World'', Aladdin
+% \end{flushright}
+
+% \end{center}
+\vspace*{1in}
+% \begin{center}%
+\noindent
+\emph{Why?}\\
+\begin{flushright}
+-- Michael Peters
+\end{flushright}
+% \end{center}
+
+
+\end{quotepage}
+
+\end{document}

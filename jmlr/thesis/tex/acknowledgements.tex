@@ -1,0 +1,27 @@
+% A workaround to allow relative paths in included subfiles
+% that are to be compiled separately
+% See https://tex.stackexchange.com/questions/153312/subfiles-inside-a-subfile-using-relative-paths
+\providecommand{\main}{..}
+\documentclass[\main/thesis.tex]{subfiles}
+
+\begin{document}
+
+% environment for acknowledgements.
+\begin{acknowledgements} 
+% Put any acknowledgements here, such as to your supervisor, and supervisory committee.
+% Remember to list funding bodies, and external scholarships.
+% The acknowledgements can't be more than 2 pages in length.
+
+% Acknowledgements are optional, but are recommended by the FGSR.
+
+From the web called ``I'', we often cannot trace the origins of all the strands that comprise our complexity. Many who have forged our identities are forgotten, their imprints the only evidence that we did not face all of our demons alone. 
+
+Here are lines that I can trace. In the 6th grade, Dave Fairfield taught me to pursue my curiosity, regardless of the disinterest of anyone around me. Throughout high school, Michael Peters taught me to ask why, even when doing so was embarrassing or, at first glance, nonsensical. For 7 years, competitive debate, although at times frustrating, taught me confidence and the negotiability of our perceptions of truth. At the University of Alberta, the Landing and the Sexual Assault Centre enhanced my sensitivities to both injustice and empathy. 
+
+In the past year, I have been borne on a whirlwind through research in reinforcement learning. I stand endlessly grateful for the welcoming reception I have received from this community, despite my relative newcomer status. Of this community, those who most stand out are Martha White, Daniel Graves, Rupam Mahmood, Kris de Asis, Taher Jafferjee, Nguyen Minh Nhat, Sungsu Lim, Vincent Liu, Muhammad Zaheer, and Wesley Chung. 
+
+Finally, the most radiant lines are those who still inhabit my slice of eternity, with whom I have had the fortune of stability in the ceaseless agitations of time: in no particular order, Tony Basu, Jerry Chen, Kevin Wong, Tara Jacklin, YiJi Zhao, Kevin Wang, Iara Santelices, Davis Lazowski, XingJian Li, Iryna Stryapunina, Melanie Liu, Shay Lewis, Frank Huang, Kayvon Miller, Srosh Hassan, Chris Chan, Thomas Tetz, Mario Mach, Cecilia Wu, Gloria Ng, and all those other, time-worn threads that I still hold in my memory. 
+
+\end{acknowledgements}
+
+\end{document}

@@ -1,0 +1,18 @@
+% A workaround to allow relative paths in included subfiles
+% that are to be compiled separately
+% See https://tex.stackexchange.com/questions/153312/subfiles-inside-a-subfile-using-relative-paths
+\providecommand{\main}{..}
+\documentclass[\main/thesis.tex]{subfiles}
+
+\begin{document}
+
+% environment for abstract.
+\begin{abstract}
+% Your abstract here. 
+% The abstract is not allowed to be more than 700 words and cannot include non-text content.
+% It must also be double-spaced. 
+% The rest of the document must be at least one-and-a-half spaced.
+Policy gradient methods typically estimate both explicit policy and value functions. The long-extant view of policy gradient methods as approximate policy iteration---alternating between policy evaluation and policy improvement by greedification---is a helpful framework to elucidate algorithmic choices. Effective policy evaluation under function approximation is being actively investigated; approximate greedification, however, has yet to be systematically explored. In this work, we highlight and investigate the difference between the forward and reverse KL divergences when used for policy improvement. We show that the reverse KL has stronger theoretical guarantees for policy improvement, but that the forward KL can also induce improvement under additional assumptions. Finally, on both small-scale and large-scale experiments, we empirically analyze the behaviour and practical performance of these variants. We observe few consistent differences between the reverse and forward KLs on discrete-action spaces, but relatively more substantial stability and convergence differences emerge on continuous-action spaces. 
+\end{abstract}
+
+\end{document}

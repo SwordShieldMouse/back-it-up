@@ -15,10 +15,10 @@ from collections import OrderedDict, defaultdict
 # STORE_DIR: stored_dir (should have mergedENVNAMEResults, which should also contain npy/
 # PARSE_TYPE: parse_type (should be the same when generating npys)
 
-show_labels = True
+show_labels = False
 show_plot = False
 
-agents = ['ForwardKL']
+agents = ['ForwardKL', 'ReverseKL']
 markers = ['o', 'x']
 marker_sizes = [8, 14]
 mews = [5, 3]
@@ -134,10 +134,10 @@ elif env_name == 'Reacher-v2':
 
     if not show_labels:
         plt.xticks(loc_arr, [])  # val_arr)
-        plt.yticks([-80, -40, 0], [])
+        plt.yticks([-110, -80, -40, 0], [])
     else:
         plt.xticks(loc_arr, val_arr)
-        plt.yticks([-80, -40, 0], [-80, -40, 0])
+        plt.yticks([-110, -80, -40, 0], [-110, -80, -40, 0])
 
 elif env_name == 'Swimmer-v2':
 
@@ -148,7 +148,7 @@ elif env_name == 'Swimmer-v2':
 
     if not show_labels:
         plt.xticks(loc_arr, [])
-        plt.yticks([0, 20, 40], [])
+        plt.yticks([0, 15, 30], [])
 
         legend_elements = [Line2D([0], [0], marker='o', color='black', label='Forward KL',
                                   markerfacecolor='black', markersize=14),
@@ -157,7 +157,7 @@ elif env_name == 'Swimmer-v2':
         plt.legend(handles=legend_elements, frameon=False, prop={'size': 22})
     else:
         plt.xticks(loc_arr, val_arr)
-        plt.yticks([0, 20, 40], [0, 20, 40])
+        plt.yticks([0, 15, 30], [0, 15, 30])
 
 else:
     plt.xticks(opt_range[::50], np.linspace(0.0, float(EVAL_INTERVAL_MIL_STEPS * 1e3 * (xmax - 1)),

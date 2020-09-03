@@ -72,7 +72,7 @@ class ForwardKLNetwork(BaseNetwork):
             self.intgrl_weights = torch.tensor(scheme.weights[1:-1], dtype=dtype)
 
             self.intgrl_actions_len = np.shape(self.intgrl_actions)[0]
-
+        # Numerical Integration for multiple-dimension
         else:
             self.l = config.l_param
 

@@ -1,0 +1,11 @@
+.idea
+**/**/.DS_Store
+**/**/__init__.py
+**/**/__pycache__
+*.pdf
+results
+deep_experiments/results
+latexsource.zip
+latexsource/
+lib/
+venv/

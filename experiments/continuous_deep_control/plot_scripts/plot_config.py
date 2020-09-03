@@ -12,12 +12,12 @@ def get_xyrange(envname):
         ymax = [-100, -100]
 
     elif envname == 'Reacher-v2':
-        ymin = [-80, -80]
+        ymin = [-110, -110]
         ymax = [0, 0]
 
     elif envname == "Swimmer-v2":
-        ymin = [0, 0]
-        ymax = [40, 40]
+        ymin = [-5, -5]
+        ymax = [35, 35]
 
     else:
         raise ValueError("Invalid environment name")

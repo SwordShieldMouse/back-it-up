@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --job-name=Reacher_rkl_ll
+#SBATCH --job-name=Reacher_rpm_mul
 #SBATCH --output=/home/hugoluis/scratch/back-it-up/logs/Reacher/rkl/%A%a.out
 #SBATCH --error=/home/hugoluis/scratch/back-it-up/logs/Reacher/rkl/%A%a.err
 
-#SBATCH --array=0-10:4
+#SBATCH --array=0-15:4
 
 #SBATCH --cpus-per-task=4
 #SBATCH --time=6:30:00
@@ -12,7 +12,7 @@
 #SBATCH --account=def-whitem
 
 ENV_NAME=Reacher-v2
-AGENT_NAME=reverse_kl
+AGENT_NAME=reverse_kl_reduced
 
 module load singularity/3.5
 echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID

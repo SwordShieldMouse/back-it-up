@@ -1,15 +1,15 @@
 #!/bin/bash
 #SBATCH --job-name=Reacher_rkl_ll
-#SBATCH --output=/home/sungsu/scratch/output_log/back-it-up/post_neurips/Reacher/rkl_ll_multiple/%A%a.out
-#SBATCH --error=/home/sungsu/scratch/output_log/back-it-up/post_neurips/Reacher/rkl_ll_multiple/%A%a.err
+#SBATCH --output=/home/hugoluis/scratch/back-it-up/logs/Reacher/rkl/%A%a.out
+#SBATCH --error=/home/hugoluis/scratch/back-it-up/logs/Reacher/rkl/%A%a.err
 
-#SBATCH --array=0-1079:4
+#SBATCH --array=0-10:4
 
 #SBATCH --cpus-per-task=4
 #SBATCH --time=6:30:00
 #SBATCH --mem-per-cpu=6000M
 
-#SBATCH --account=rrg-whitem
+#SBATCH --account=def-whitem
 
 ENV_NAME=Reacher-v2
 AGENT_NAME=reverse_kl
@@ -23,6 +23,6 @@ export MKL_NUM_THREADS=1
 increment=1
 let "end_idx=$SLURM_ARRAY_TASK_ID+3"
 
-parallel --jobs 4 "singularity exec -B /scratch /home/sungsu/torch_rlcontrol.simg bash run_script_template.sh $ENV_NAME $AGENT_NAME {}" ::: $(seq ${SLURM_ARRAY_TASK_ID} ${increment} ${end_idx})
+parallel --jobs 4 "singularity exec -B /scratch /home/hugoluis/singularity_environment/torch_rlcontrol.simg bash experiments/continuous_deep_control/slurm_scripts/run_script_template.sh $ENV_NAME $AGENT_NAME {}" ::: $(seq ${SLURM_ARRAY_TASK_ID} ${increment} ${end_idx})
 
 

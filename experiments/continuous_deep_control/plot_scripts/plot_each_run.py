@@ -4,7 +4,7 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 from plot_config import get_xyrange
-
+import os
 
 # Needed
 # BimodalEnv_NAF_setting_0_run_0_EpisodeRewardsLC
@@ -33,6 +33,8 @@ AGENT_NAME = str(sys.argv[4])
 SETTING_NUM = int(sys.argv[5])
 
 custom_save_name = str(sys.argv[6])
+
+output_plot_dir = str(sys.argv[8])
 
 
 #### Plot Settings #####
@@ -88,7 +90,7 @@ tick_interval = 50
 if show_plot:
     plt.show()
 else:
-    plt.savefig("{}_{}_{}_runs.png".format(ENV_NAME, AGENT_NAME, custom_save_name))
+    plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_runs.png").format(ENV_NAME, AGENT_NAME, custom_save_name))
 plt.close()
 
 

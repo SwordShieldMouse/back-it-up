@@ -18,7 +18,7 @@ class ValueNetwork(nn.Module):
         self.linear3.weight.data.uniform_(-init_w, init_w)
         self.linear3.bias.data.uniform_(-init_w, init_w)
 
-        self.device = torch.device("cpu")
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     def forward(self, state):
         x = F.relu(self.linear1(state))
@@ -40,7 +40,7 @@ class SoftQNetwork(nn.Module):
         self.linear3.weight.data.uniform_(-init_w, init_w)
         self.linear3.bias.data.uniform_(-init_w, init_w)
 
-        self.device = torch.device("cpu")
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     def forward(self, state, action):
         x = torch.cat([state, action], 1)
@@ -59,6 +59,8 @@ class PolicyNetwork(nn.Module):
     def __init__(self, state_dim, action_dim, layer_dim, action_scale, init_w=3e-3, log_std_min=-10, log_std_max=2):
         super(PolicyNetwork, self).__init__()
 
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
 
@@ -75,7 +77,6 @@ class PolicyNetwork(nn.Module):
 
         self.action_dim = action_dim
         self.action_scale = action_scale
-        self.device = torch.device("cpu")
 
     def forward(self, state):
         x = F.relu(self.linear1(state))
@@ -129,6 +130,8 @@ class PolicyNetwork(nn.Module):
         log_prob = log_prob.permute(1, 0, 2).squeeze(-1)  # (batch_size, num_actions)
         action = action.permute(1, 0, 2)  # (batch_size, num_actions, 1)
 
+        # scale to correct range
+        action = action * self.action_scale
         mean = torch.tanh(pre_mean) * self.action_scale
 
         # dimension of raw_action might be off

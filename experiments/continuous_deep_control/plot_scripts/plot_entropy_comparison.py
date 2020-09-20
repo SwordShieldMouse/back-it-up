@@ -8,12 +8,14 @@ import json
 from matplotlib.lines import Line2D
 from plot_config import get_xyrange
 from collections import OrderedDict, defaultdict
+import os
 
 # Usage
-# python3 plot_entropy_comparison.py $ROOT_LOC $ENV_NAME $STORE_DIR $PARSE_TYPE
+# python3 plot_entropy_comparison.py $ROOT_LOC $ENV_NAME $STORE_DIR $PARSE_TYPE $OUTPUT_PLOT_DIR
 # ROOT_LOC: root location
 # STORE_DIR: stored_dir (should have mergedENVNAMEResults, which should also contain npy/
 # PARSE_TYPE: parse_type (should be the same when generating npys)
+# OUTPUT_PLOT_DIR: directory to dump plots
 
 show_labels = False
 show_plot = False
@@ -41,6 +43,9 @@ with open('{}/jsonfiles/environment/{}.json'.format(root_dir, env_filename), 'r'
 # parse_type
 parse_type = str(sys.argv[4])
 
+# out plot dir
+output_plot_dir = str(sys.argv[5])
+
 env_name = env_json['environment']
 TOTAL_MIL_STEPS = env_json['TotalMilSteps']
 EVAL_INTERVAL_MIL_STEPS = env_json['EvalIntervalMilSteps']
@@ -49,7 +54,7 @@ EVAL_EPISODES = env_json['EvalEpisodes']
 result_type = ['TrainEpisode']
 
 # Stored Directory
-stored_dir = str(sys.argv[3])+'merged{}results/'.format(env_name)
+stored_dir = os.path.join(str(sys.argv[3]), 'merged{}results/'.format(env_name) )
 
 suffix = 'BestResult'
 data_type = ['avg', 'se']
@@ -59,7 +64,8 @@ agent_results = defaultdict(list)
 max_length = 1
 
 # Color scheme
-temps = [0, 0.01, 0.1, 1]
+# temps = [0, 0.01, 0.1, 1]
+temps = [0.1, 1]
 colours = [cm.jet(0.65 + (.99 - 0.65) * ix / 4) for ix in range(len(temps))]
 colours = list(reversed(colours))
 temps = list(reversed(temps))
@@ -68,7 +74,7 @@ for ag in agents:
 
     agent_jsonfilename = '{}_{}_agent_Params.json'.format(env_name, ag)
 
-    with open(stored_dir + agent_jsonfilename, 'r') as agent_dat:
+    with open( os.path.join(stored_dir, agent_jsonfilename) , 'r') as agent_dat:
         agent_json = json.load(agent_dat, object_pairs_hook=OrderedDict)
 
     # load npy
@@ -201,6 +207,6 @@ if show_plot:
     plt.show()
 else:
     if show_labels:
-        plt.savefig("{}_{}_{}_comparison.png".format(env_name, 'train', parse_type))
+        plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison.png".format(env_name, 'train', parse_type)))
     else:
-        plt.savefig("{}_{}_{}_comparison_unlabeled.png".format(env_name, 'train', parse_type))
+        plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison_unlabeled.png".format(env_name, 'train', parse_type)))

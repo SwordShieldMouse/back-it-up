@@ -9,3 +9,8 @@ latexsource.zip
 latexsource/
 lib/
 venv/
+logs/
+out_plots/
+results_old/
+clean_logs.sh
+.vscode/

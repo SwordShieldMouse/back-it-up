@@ -12,7 +12,7 @@ from plot_config import get_xyrange
 import os
 
 # Usage:
-# python3 find_agent_best_setting.py $RESULT_DIR $ROOT_LOC $ENV_NAME $AGENT_NAME $NUM_RUNS $CUSTOM_NAME $PARSE_TYPE
+# python3 find_agent_best_setting.py $RESULT_DIR $ROOT_LOC $ENV_NAME $AGENT_NAME $NUM_RUNS $CUSTOM_NAME $PARSE_TYPE $OUTPUT_PLOT_DIR
 #
 # generates plots and npy for the best settings according to $PARSE_TYPE
 #
@@ -20,6 +20,7 @@ import os
 # ROOT_LOC : root directory of code (where nonlinear_run.py and experiment.py is located)
 # CUSTOM_NAME : name of th experiment (to differentiate different sweeps)
 # PARSE_TYPE : type of params to parse. If 'entropy_scale', the script will compute best settings for each param value of entropy_scale
+# OUTPUT_PLOT_DIR: directory to dump plots
 
 ### CONFIG BEFORE RUNNING ###
 show_plot = False
@@ -30,20 +31,24 @@ last_N_ratio = 0.5
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 8:
-        raise ValueError('Invalid input. \nCorrect Usage: find_agent_best_setting.py merged_result_loc, root_dir, env_name, agent_name, num_runs custom_save_name parse_type')
+    if len(sys.argv) != 9:
+        raise ValueError('Invalid input. \nCorrect Usage: find_agent_best_setting.py merged_result_loc, root_dir, env_name, agent_name, num_runs custom_save_name parse_type output_plot_dir')
 
+    input_results_dir = str(sys.argv[1])
     root_dir = str(sys.argv[2])
     env_name = str(sys.argv[3])
     agent_name = str(sys.argv[4])
 
-    merged_result_dir = '{}/merged{}results/'.format(str(sys.argv[1]), env_name)
+    non_merged_result_dir = '{}/{}results/'.format(input_results_dir, env_name)
+    merged_result_dir = '{}/merged{}results/'.format(input_results_dir, env_name)
     env_json_dir = '{}/jsonfiles/environment/{}.json'.format(root_dir, env_name)
 
     num_runs = int(sys.argv[5])
 
     custom_save_name = str(sys.argv[6])
     parse_type = str(sys.argv[7])
+
+    output_plot_dir = str(sys.argv[8])
 
     with open(env_json_dir, 'r') as env_dat:
         env_json = json.load(env_dat, object_pairs_hook=OrderedDict)
@@ -207,7 +212,7 @@ if __name__ == "__main__":
         if show_plot:
             plt.show()
         else:
-            plt.savefig("{}_{}_{}.png".format(env_name, agent_name, result + '_' + custom_save_name))
+            plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}.png").format(env_name, agent_name, result + '_' + custom_save_name))
         plt.close()
 
         savelc = bestlc
@@ -224,7 +229,7 @@ if __name__ == "__main__":
 
             for i in range(num_type):
                 print("*** plotting each run for {}: {} --- {}".format(parse_type, type_arr[i], int(type_best_arr[i])))
-                os.system("python3 {}/plot_scripts/plot_each_run.py {}results {}/jsonfiles/environment/{}.json {} {} {} {}_{}_{} {}".format(
-                    root_dir, env_name, root_dir, env_name, num_runs, agent_name, int(type_best_arr[i]), custom_save_name, parse_type, type_arr[i], result))
+                os.system("python3 {}/plot_scripts/plot_each_run.py {} {}/jsonfiles/environment/{}.json {} {} {} {}_{}_{} {} {}".format(
+                    root_dir, non_merged_result_dir, root_dir, env_name, num_runs, agent_name, int(type_best_arr[i]), custom_save_name, parse_type, type_arr[i], result, output_plot_dir))
 
 

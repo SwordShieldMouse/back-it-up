@@ -36,9 +36,15 @@ class ForwardKLNetwork(BaseNetwork):
         self.use_hard_value = config.use_hard_value
 
         # create network
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
         self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim)
         self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
+
+        self.pi_net = self.pi_net.to(self.pi_net.device)
+        self.q_net = self.q_net.to(self.q_net.device)
+        self.v_net = self.v_net.to(self.v_net.device)
 
         if self.use_target:
             self.target_v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
@@ -47,7 +53,6 @@ class ForwardKLNetwork(BaseNetwork):
             for target_param, param in zip(self.target_v_net.parameters(), self.v_net.parameters()):
                 target_param.data.copy_(param.data)
 
-        self.device = torch.device("cpu")
 
         # optimizer
         self.pi_optimizer = optim.RMSprop(self.pi_net.parameters(), lr=self.learning_rate[0])
@@ -115,14 +120,14 @@ class ForwardKLNetwork(BaseNetwork):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         action, log_prob, z, pre_mean, mean, std = self.pi_net.evaluate(state_batch)
 
-        return action.detach().numpy()
+        return action.detach().cpu().numpy()
 
     def predict_action(self, state_batch):
 
         state_batch = torch.FloatTensor(state_batch).to(self.device)
         _, _, _, _, mean, std = self.pi_net.evaluate(state_batch)
 
-        return mean.detach().numpy()
+        return mean.detach().cpu().numpy()
 
     def update_network(self, state_batch, action_batch, next_state_batch, reward_batch, gamma_batch):
 
@@ -238,7 +243,7 @@ class ForwardKLNetwork(BaseNetwork):
 
     def getQFunction(self, state):
         return lambda action: (self.q_net(torch.FloatTensor(state).to(self.device).unsqueeze(-1),
-                                         torch.FloatTensor([action]).to(self.device).unsqueeze(-1))).detach().numpy()
+                                         torch.FloatTensor([action]).to(self.device).unsqueeze(-1))).detach().cpu().numpy()
 
     def getTrueQFunction(self, state):
         return lambda action: self.predict_true_q(np.expand_dims(state, 0), np.expand_dims([action], 0))
@@ -251,6 +256,6 @@ class ForwardKLNetwork(BaseNetwork):
     def getPolicyFunction(self, state):
 
         _, _, _, _, mean, std = self.pi_net.evaluate(torch.FloatTensor(state).to(self.device).unsqueeze(-1))
-        mean = mean.detach().numpy()
-        std = std.detach().numpy()
+        mean = mean.detach().cpu().numpy()
+        std = std.detach().cpu().numpy()
         return lambda action: 1/(std * np.sqrt(2 * np.pi)) * np.exp(- (action - mean)**2 / (2 * std**2))

@@ -2,76 +2,51 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import sys
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import json
 from matplotlib.lines import Line2D
 
+import ast
+
+def tryeval(val):
+    try:
+        val = ast.literal_eval(val)
+    except ValueError:
+        val = None
+    return val
+
 # Usage
-# python3 plot_sensitivity.py $STORE_DIR $ENV_NAME
+# python3 plot_sensitivity.py $STORE_DIR $ENV_NAME $OUTPUT_PLOT_DIR
 
 # list of agent.json names
 agents = ['ForwardKL', 'ReverseKL']
 sweep_params = ['pi_lr', 'qf_vf_lr']
 
 # Handcoded temperature sweeps
-temps = [1, 0.1, 0.01, 0]
+# temps = [1, 0.1, 0.01, 0]
+temps = [1, 0.1]
 store_dir = str(sys.argv[1])
 env_name = str(sys.argv[2])
+output_plot_dir = str(sys.argv[3])
 
 eval_last_N = True
 last_N_ratio = 0.5
-num_runs = 30
+num_runs = 2
 moving_avg_window = 20
 
 show_label = False
 
+
+
 if env_name == "Pendulum-v0":
-    idx_dict= {
-        "pi_lr": {
-            1e-2: [0, 4, 8],
-            1e-3: [1, 5, 9],
-            1e-4: [2, 6, 10],
-            1e-5: [3, 7, 11]
-        },
-        "qf_vf_lr": {
-            1e-1: [0, 1, 2, 3],
-            1e-2: [4, 5, 6, 7],
-            1e-3: [8, 9, 10, 11]
-        }
-    }
     y_ticks = [-1600, -800,-200]
     ymin, ymax = -1600, -100
 
 elif env_name == "Reacher-v2":
-    idx_dict = {
-            "pi_lr": {
-                1e-3: [0, 3, 6],
-                1e-4: [1, 4, 7],
-                1e-5: [2, 5, 8]
-            },
-            "qf_vf_lr": {
-                1e-2: [0, 1, 2],
-                1e-3: [3, 4, 5],
-                1e-4: [6, 7, 8]
-            }
-        }
-
     y_ticks = [-80, -40, 0]
     ymin, ymax = -120, 0
 
 elif env_name == "Swimmer-v2":
-    idx_dict = {
-        "pi_lr": {
-            1e-3: [0, 3, 6],
-            1e-4: [1, 4, 7],
-            1e-5: [2, 5, 8]
-        },
-        "qf_vf_lr": {
-            1e-2: [0, 1, 2],
-            1e-3: [3, 4, 5],
-            1e-4: [6, 7, 8]
-        }
-    }
     y_ticks = [0, 20, 40]
     ymin, ymax = -10, 40
 else:
@@ -99,6 +74,42 @@ for agent_name in agents:
 
         agent_name = json_data['agent']
         agent_json = json_data['sweeps']
+
+        idx_dict = {}
+        t_idx_dict = {}
+
+        parse_txt_fields = ['setting'] + list( json_data['sweeps'].keys() )
+
+        param_parse_txt_idx = []
+        for param in sweep_params:
+            try:
+                param_parse_txt_idx.append( parse_txt_fields.index(param) )
+            except ValueError:
+                print('Desired parameter not in json')
+                exit()
+
+            try:
+                temperature_parse_txt_idx =  parse_txt_fields.index("entropy_scale")
+            except ValueError:
+                print('Entropy scale not in json')
+                exit()
+
+        params_txt_dir = '{}/merged{}results/{}_{}_agent_Params.txt'.format(store_dir, env_name, env_name, agent_name)
+        settings_info = np.loadtxt(params_txt_dir, delimiter=',', dtype='str')
+
+        for settings_info_row in settings_info:
+            for param_tmp_idx, param in enumerate(sweep_params):
+                value = tryeval(settings_info_row[ param_parse_txt_idx[param_tmp_idx] ])
+                if param not in idx_dict:
+                    idx_dict[param] = {}
+                if value not in idx_dict[param]:
+                    idx_dict[param][value] = []
+                idx_dict[param][value].append(tryeval(settings_info_row[0]))
+
+            setting_temp = tryeval(settings_info_row[temperature_parse_txt_idx])
+            if setting_temp not in t_idx_dict:
+                t_idx_dict[setting_temp] = []
+            t_idx_dict[setting_temp].append(tryeval(settings_info_row[0]))
 
 
     train_mean_filename = '{}/merged{}results/{}_{}_TrainEpisodeMeanRewardsLC.txt'.format(store_dir, env_name, env_name, agent_name)
@@ -140,9 +151,8 @@ for agent_name in agents:
 
                     for i in idx_arr:
 
-                        if t != 0:  # apply only for non-hard.
-                            t_idx = json_temps.index(t)
-                            i = num_settings * t_idx + i
+                        if i not in t_idx_dict[t]:
+                            continue
 
                         each_run_avg_auc_arr = []
                         # load all train results for that setting
@@ -170,8 +180,8 @@ for agent_name in agents:
                         result_stderr_array.append(np.std(each_run_avg_auc_arr)/np.sqrt(len(each_run_avg_auc_arr)))
 
                     # best_idx = num_settings * t_idx + idx_arr[np.argmax(result_mean_array)]
-                    best_idx = np.argmax(result_mean_array)
-                    assert(np.max(result_mean_array) == result_mean_array[best_idx])
+                    best_idx = np.nanargmax(result_mean_array)
+                    assert(np.nanmax(result_mean_array) == result_mean_array[best_idx])
 
                     plt_point_y.append(result_mean_array[best_idx])
                     plt_stderr_y.append(result_stderr_array[best_idx])
@@ -231,7 +241,7 @@ for p in param_dicts:
         plt.title("{} sensitivity curve".format(p))
         plt.xlabel(p)
         plt.ylabel("0.5 AUC", rotation=90)
-        plt.savefig("{}/combined_{}_sensitivity_curve.png".format(store_dir, p))
+        plt.savefig("{}/combined_{}_sensitivity_curve.png".format(output_plot_dir, p))
     else:
 
         legend_elements = [Line2D([0], [0], marker='o', color='black', label='Forward KL',
@@ -242,7 +252,7 @@ for p in param_dicts:
 
         plt.xticks(plt_xticks, [])
         plt.yticks(y_ticks, [])
-        plt.savefig("{}/combined_{}_sensitivity_curve_unlabeled.png".format(store_dir, p))
+        plt.savefig("{}/combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, p))
 
     # plt.show()
     plt.clf()

@@ -1,0 +1,12 @@
+source /home/hugo/Desktop/Fall/Martha_paper/Code/virtual_envs/sungsu_env/bin/activate
+
+python3 experiments/continuous_deep_control/nonlinear_run.py --agent_json experiments/continuous_deep_control/jsonfiles/agent/forward_kl_reduced.json --env_json experiments/continuous_deep_control/jsonfiles/environment/Reacher-v2.json --index 0
+
+python3 experiments/continuous_deep_control/plot_scripts/merge_results.py b/results experiments/continuous_deep_control Reacher-v2 ForwardKL 2 True
+
+python3 experiments/continuous_deep_control/plot_scripts/find_agent_best_setting.py b/results experiments/continuous_deep_control Reacher-v2 ReverseKL 2 debug_sweep entropy_scale out_plots_b
+
+python3 experiments/continuous_deep_control/plot_scripts/plot_entropy_comparison.py experiments/continuous_deep_control Reacher-v2 b/results entropy_scale out_plots_b
+
+python3 experiments/continuous_deep_control/plot_scripts/plot_sensitivity.py b/results Reacher-v2 out_plots_b
+

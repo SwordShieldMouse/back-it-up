@@ -38,9 +38,9 @@ class ForwardKLNetwork(BaseNetwork):
         # create network
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0])
-        self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim)
-        self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
+        self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0], config.n_hidden)
+        self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, config.n_hidden)
+        self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim, config.n_hidden)
 
         self.pi_net = self.pi_net.to(self.pi_net.device)
         self.q_net = self.q_net.to(self.q_net.device)

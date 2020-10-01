@@ -3,7 +3,7 @@
 #SBATCH --output=/home/hugoluis/scratch/back-it-up/logs/Reacher/rkl/%A%a.out
 #SBATCH --error=/home/hugoluis/scratch/back-it-up/logs/Reacher/rkl/%A%a.err
 
-#SBATCH --array=1564,1565,1566,1567,2165,2171,2183,2189,2207,2225,2231,2261,2267,2309,2333,2345,2363,2411
+#SBATCH --array=1564,2165
 
 #SBATCH --cpus-per-task=1
 #SBATCH --time=16:30:00

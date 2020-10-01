@@ -3,6 +3,8 @@
     "sweeps": {
         "actor_critic_dim": [128],
 
+        "n_hidden": [1],
+
         "pi_lr": [1e-3, 1e-2],
         "qf_vf_lr": [1e-3, 1e-2],
 

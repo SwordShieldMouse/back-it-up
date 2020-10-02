@@ -3,14 +3,14 @@
 #SBATCH --output=/home/hugoluis/scratch/back-it-up/logs/Reacher/fkl/%A%a.out
 #SBATCH --error=/home/hugoluis/scratch/back-it-up/logs/Reacher/fkl/%A%a.err
 
-#SBATCH --array=0-2429:4
+#SBATCH --array=1620-3240:4
 
 #SBATCH --cpus-per-task=4
-#SBATCH --time=5:30:00
+#SBATCH --time=16:30:00
 #SBATCH --mem-per-cpu=6000M
 
 #SBATCH --account=rrg-whitem
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:v100l:4
 
 ENV_NAME=Reacher-v2
 AGENT_NAME=forward_kl_big

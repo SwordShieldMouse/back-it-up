@@ -117,7 +117,7 @@ for setting_num in range(num_settings):
             run_non_count += 1
 
             # add dummy
-            lc_0 = np.zeros(1) + np.nan  # will be padded
+            lc_0 = -1e10 * np.ones(1) # + np.nan  # will be padded
             train_lc_arr.append(lc_0)
 
             print(' setting ' + train_rewards_filename + ' does not exist')
@@ -183,8 +183,8 @@ for idx, item in enumerate(train_mean_rewards):
     if len(item) < max_median_length:
         # pad with nan
         pad_length = max_median_length - len(item)
-        train_mean_rewards[idx] = np.append(train_mean_rewards[idx], np.zeros(pad_length) + np.nan)
-        train_std_rewards[idx] = np.append(train_std_rewards[idx], np.zeros(pad_length) + np.nan)
+        train_mean_rewards[idx] = np.append(train_mean_rewards[idx], -1e10*np.ones(pad_length)) # + np.nan)
+        train_std_rewards[idx] = np.append(train_std_rewards[idx], np.zeros(pad_length) ) # + np.nan)
 
 print("max train median length: ", max_median_length)
 

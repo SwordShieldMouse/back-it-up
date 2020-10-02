@@ -19,22 +19,23 @@ def tryeval(val):
 # python3 plot_sensitivity.py $STORE_DIR $ENV_NAME $OUTPUT_PLOT_DIR
 
 # list of agent.json names
-agents = ['ForwardKL', 'ReverseKL']
-sweep_params = ['pi_lr', 'qf_vf_lr']
+# agents = ['ForwardKL', 'ReverseKL']
+agents = ['ReverseKL']
+sweep_params = ['pi_lr', 'qf_vf_lr','actor_critic_dim','n_hidden','batch_size', 'n_action_points']
 
 # Handcoded temperature sweeps
 # temps = [1, 0.1, 0.01, 0]
-temps = [1, 0.1]
+temps = [1, 0.5, 0.1, 0.05, 0.01]
 store_dir = str(sys.argv[1])
 env_name = str(sys.argv[2])
 output_plot_dir = str(sys.argv[3])
 
 eval_last_N = True
 last_N_ratio = 0.5
-num_runs = 2
+num_runs = 1
 moving_avg_window = 20
 
-show_label = False
+show_label = True
 
 
 

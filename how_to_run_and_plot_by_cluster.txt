@@ -1,0 +1,21 @@
+Graham
+
+python3 experiments/continuous_deep_control/plot_scripts/merge_results.py my_results/graham/results_ experiments/continuous_deep_control Reacher-v2 ForwardKL 1 True
+
+python3 experiments/continuous_deep_control/plot_scripts/find_agent_best_setting.py my_results/graham/results_ experiments/continuous_deep_control Reacher-v2 ForwardKL 1 graham_reacher_fkl_sweep entropy_scale my_results/graham/plots_
+
+Cedar
+
+python3 experiments/continuous_deep_control/plot_scripts/merge_results.py my_results/cedar/results_ experiments/continuous_deep_control Reacher-v2 ReverseKL 1 True
+
+python3 experiments/continuous_deep_control/plot_scripts/find_agent_best_setting.py my_results/cedar/results_ experiments/continuous_deep_control Reacher-v2 ReverseKL 1 cedar_reacher_rkl_rp_sweep entropy_scale my_results/cedar/plots_
+
+python3 experiments/continuous_deep_control/plot_scripts/plot_sensitivity.py my_results/cedar/results_ Reacher-v2 my_results/cedar/plots_
+
+Beluga
+
+python3 experiments/continuous_deep_control/plot_scripts/merge_results.py my_results/beluga/results_ experiments/continuous_deep_control Reacher-v2 ReverseKL 1 True
+
+python3 experiments/continuous_deep_control/plot_scripts/find_agent_best_setting.py my_results/beluga/results_ experiments/continuous_deep_control Reacher-v2 ReverseKL 1 beluga_reacher_rkl_ll_sweep entropy_scale my_results/beluga/plots_
+
+python3 experiments/continuous_deep_control/plot_scripts/plot_sensitivity.py my_results/beluga/results_ Reacher-v2 my_results/beluga/plots_

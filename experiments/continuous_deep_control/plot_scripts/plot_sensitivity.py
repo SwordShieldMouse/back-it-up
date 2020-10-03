@@ -22,6 +22,7 @@ def tryeval(val):
 # agents = ['ForwardKL', 'ReverseKL']
 agents = ['ReverseKL']
 sweep_params = ['pi_lr', 'qf_vf_lr','actor_critic_dim','n_hidden','batch_size', 'n_action_points']
+# sweep_params = ['pi_lr', 'qf_vf_lr']
 
 # Handcoded temperature sweeps
 # temps = [1, 0.1, 0.01, 0]
@@ -89,11 +90,11 @@ for agent_name in agents:
                 print('Desired parameter not in json')
                 exit()
 
-            try:
-                temperature_parse_txt_idx =  parse_txt_fields.index("entropy_scale")
-            except ValueError:
-                print('Entropy scale not in json')
-                exit()
+        try:
+            temperature_parse_txt_idx =  parse_txt_fields.index("entropy_scale")
+        except ValueError:
+            print('Entropy scale not in json')
+            exit()
 
         params_txt_dir = '{}/merged{}results/{}_{}_agent_Params.txt'.format(store_dir, env_name, env_name, agent_name)
         settings_info = np.loadtxt(params_txt_dir, delimiter=',', dtype='str')
@@ -134,7 +135,7 @@ for agent_name in agents:
             plt_x = agent_json[p]
             plt_xticks = range(len(plt_x))
             plt_point_y = []
-            plt_stderr_y = []
+            plt_std_y = []
 
             # iterate through each parameter value: 1e-3, 1e-4, 1e-5
             for val in agent_json[p]:
@@ -146,7 +147,7 @@ for agent_name in agents:
                 if t == 0 and agent_name == "ForwardKL":
                     # skip
                     plt_point_y.append(np.nan)
-                    plt_stderr_y.append(np.nan)
+                    plt_std_y.append(np.nan)
 
                 else:
 
@@ -177,22 +178,34 @@ for agent_name in agents:
                             except:
                                 print("missing {}.. skipping".format(train_rewards_filename))
 
-                        result_mean_array.append(np.mean(each_run_avg_auc_arr))
-                        result_stderr_array.append(np.std(each_run_avg_auc_arr)/np.sqrt(len(each_run_avg_auc_arr)))
+                        # result_mean_array.append(np.mean(each_run_avg_auc_arr)) #Between runs for same setting
+                        # result_stderr_array.append(np.std(each_run_avg_auc_arr)/np.sqrt(len(each_run_avg_auc_arr))) #Between runs for same setting
 
-                    # best_idx = num_settings * t_idx + idx_arr[np.argmax(result_mean_array)]
-                    best_idx = np.nanargmax(result_mean_array)
-                    assert(np.nanmax(result_mean_array) == result_mean_array[best_idx])
+                        result_mean_array.extend([er for er in each_run_avg_auc_arr]) #Add all runs for same setting
+                    
+                    # best_idx = np.nanargmax(result_mean_array)                    
+                    # assert(np.nanmax(result_mean_array) == result_mean_array[best_idx])
 
-                    plt_point_y.append(result_mean_array[best_idx])
-                    plt_stderr_y.append(result_stderr_array[best_idx])
+                    # plt_point_y.append(result_mean_array[best_idx])
+                    # plt_stderr_y.append(result_stderr_array[best_idx])
+
+                    top_results = np.sort(result_mean_array)
+                    results_pct = 0.2
+                    first_res_idx = int( len(result_mean_array) * (1 - results_pct) )
+                    top_results = top_results[ first_res_idx: ]
+                    top_results_mean = np.mean(top_results)
+                    top_results_std = np.std(top_results)
+
+                    plt_point_y.append(top_results_mean)
+                    plt_std_y.append(top_results_std)                    
+
 
             # plot result
             plt_x = plt_x[::-1]
             plt_point_y = plt_point_y[::-1]
-            plt_stderr_y = plt_stderr_y[::-1]
+            plt_std_y = plt_std_y[::-1]
 
-            param_dicts[p][agent_name][t] = (p, agent_name, t, plt_xticks, plt_x, plt_point_y.copy(), plt_stderr_y.copy())
+            param_dicts[p][agent_name][t] = (p, agent_name, t, plt_xticks, plt_x, plt_point_y.copy(), plt_std_y.copy())
 
 
 # Combined plots

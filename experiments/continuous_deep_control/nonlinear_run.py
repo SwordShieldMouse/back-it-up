@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--render', default=False, action='store_true')
     parser.add_argument('--write_plot', default=False, action='store_true')
     parser.add_argument('--write_log', default=False, action='store_true')
-
+    parser.add_argument('--out_dir', type=str, default="results")
 
     args = parser.parse_args()
 
@@ -72,13 +72,13 @@ def main():
     arg_params['random_seed'] = RANDOM_SEED
 
     # create save directory
-    save_dir = './results/' + env_json['environment'] + 'results/'
+    save_dir = './{}/'.format(args.out_dir) + env_json['environment'] + 'results/'
     if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+        os.makedirs(save_dir, exist_ok=True)
 
     # create log directory (for tensorboard, gym monitor/render)
     START_DATETIME = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    log_dir = './results/{}results/log_summary/{}/{}_{}_{}'.format(str(env_json['environment']), str(agent_json['agent']), str(SETTING_NUM), str(RUN_NUM), str(START_DATETIME))
+    log_dir = './{}/{}results/log_summary/{}/{}_{}_{}'.format(args.out_dir, str(env_json['environment']), str(agent_json['agent']), str(SETTING_NUM), str(RUN_NUM), str(START_DATETIME))
 
     writer = tf.summary.FileWriter(log_dir)
     #writer = tf.compat.v1.summary.FileWriter(log_dir)

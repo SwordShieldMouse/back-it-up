@@ -10,7 +10,7 @@
 #SBATCH --mem-per-cpu=6000M
 
 #SBATCH --account=def-whitem
-#SBATCH --gres=gpu:3
+#SBATCH --gres=gpu:v100:3
 
 ENV_NAME=Pendulum-v0
 AGENT_NAME=reverse_kl_rpm_big
@@ -21,8 +21,9 @@ export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
 increment=1
+n_gpus=3
 let "end_idx=$SLURM_ARRAY_TASK_ID+2"
 
-parallel --jobs 3 "source ~/sungsu_env/bin/activate; bash experiments/continuous_deep_control/slurm_scripts/run_script_gpu_template.sh $ENV_NAME $AGENT_NAME {}" ::: $(seq ${SLURM_ARRAY_TASK_ID} ${increment} ${end_idx})
+parallel --jobs 3 "source ~/sungsu_env/bin/activate; bash experiments/continuous_deep_control/slurm_scripts/run_script_gpu_template.sh $ENV_NAME $AGENT_NAME {}" ::: $(seq ${SLURM_ARRAY_TASK_ID} ${increment} ${end_idx} ${n_gpus})
 
 

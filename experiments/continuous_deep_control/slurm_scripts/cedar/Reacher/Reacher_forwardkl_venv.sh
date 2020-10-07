@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=Reacher_fkl
-#SBATCH --output=/home/hugoluis/scratch/back-it-up/logs/Reacher/fkl/%A%a.out
-#SBATCH --error=/home/hugoluis/scratch/back-it-up/logs/Reacher/fkl/%A%a.err
+#SBATCH --output=./logs/Reacher/fkl/%A%a.out
+#SBATCH --error=./logs/Reacher/fkl/%A%a.err
 
 #SBATCH --array=0-15:4
 
@@ -24,6 +24,6 @@ increment=1
 n_gpus=2
 let "end_idx=$SLURM_ARRAY_TASK_ID+3"
 
-parallel --jobs 4 "source ~/sungsu_env/bin/activate; bash experiments/continuous_deep_control/slurm_scripts/run_script_gpu_template.sh $ENV_NAME $AGENT_NAME {}" ::: $(seq ${SLURM_ARRAY_TASK_ID} ${increment} ${end_idx} ${n_gpus})
+parallel --jobs 4 "source ~/sungsu_env/bin/activate; bash experiments/continuous_deep_control/slurm_scripts/run_script_gpu_template.sh $ENV_NAME $AGENT_NAME {} ${n_gpus}" ::: $(seq ${SLURM_ARRAY_TASK_ID} ${increment} ${end_idx})
 
 

@@ -25,6 +25,6 @@ n_gpus=3
 increment=1
 let "end_idx=$SLURM_ARRAY_TASK_ID+2"
 
-parallel --jobs 3 "source ~/sungsu_env/bin/activate; bash experiments/continuous_deep_control/slurm_scripts/run_script_gpu_template.sh $ENV_NAME $AGENT_NAME {}" ::: $(seq ${SLURM_ARRAY_TASK_ID} ${increment} ${end_idx} ${n_gpus})
+parallel --jobs 3 "source ~/sungsu_env/bin/activate; bash experiments/continuous_deep_control/slurm_scripts/run_script_gpu_template.sh $ENV_NAME $AGENT_NAME {} ${n_gpus}" ::: $(seq ${SLURM_ARRAY_TASK_ID} ${increment} ${end_idx})
 
 

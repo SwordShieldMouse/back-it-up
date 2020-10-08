@@ -156,7 +156,7 @@ class PolicyNetwork(nn.Module):
         action = action.permute(1, 0, 2)  # (batch_size, num_actions, 1)
 
         # scale to correct range
-        action = action * self.action_scale
+        # action = action * self.action_scale
         mean = torch.tanh(pre_mean) * self.action_scale
 
         # dimension of raw_action might be off

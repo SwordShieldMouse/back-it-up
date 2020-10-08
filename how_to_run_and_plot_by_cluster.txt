@@ -1,3 +1,5 @@
+source /home/hugo/Desktop/Fall/Martha_paper/Code/virtual_envs/sungsu_env/bin/activate
+
 Graham
 
 python3 experiments/continuous_deep_control/plot_scripts/merge_results.py my_results/graham/results_ experiments/continuous_deep_control Reacher-v2 ForwardKL 1 True

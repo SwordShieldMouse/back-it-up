@@ -194,7 +194,7 @@ class ForwardKLNetwork(BaseNetwork):
 
             elif self.optim_type == 'wis':
 
-                actions, log_pdfs, _, _, _, _ = self.pi_net.evaluate_multiple(state_batch, self.n_action_points)
+                actions, log_pdfs, _, _, _, _ = self.pi_net.evaluate_multiple(state_batch, self.n_action_points, no_grad=True)
 
                 tiled_state_batch = state_batch.unsqueeze(1).repeat(1, self.n_action_points, 1)
                 stacked_state_batch = tiled_state_batch.reshape(-1, self.state_dim)

@@ -135,13 +135,16 @@ class PolicyNetwork(nn.Module):
         return action, log_prob, raw_action, pre_mean, mean, std,
 
     # TODO: merge with evaluate
-    def evaluate_multiple(self, state, num_actions, epsilon=1e-6):
+    def evaluate_multiple(self, state, num_actions, epsilon=1e-6, no_grad=False):
         # state: (batch_size, state_dim)
         pre_mean, std = self.forward(state)
 
         normal = self.get_distribution(pre_mean, std)
 
-        raw_action = normal.rsample(sample_shape=(num_actions,))  # (num_actions, batch_size, action_dim)
+        if no_grad:
+            raw_action = normal.sample(sample_shape=(num_actions,))
+        else:
+            raw_action = normal.rsample(sample_shape=(num_actions,))  # (num_actions, batch_size, action_dim)
         action = torch.tanh(raw_action)
         assert raw_action.shape == (num_actions, pre_mean.shape[0], pre_mean.shape[1])
 
@@ -156,7 +159,7 @@ class PolicyNetwork(nn.Module):
         action = action.permute(1, 0, 2)  # (batch_size, num_actions, 1)
 
         # scale to correct range
-        # action = action * self.action_scale
+        action = action * self.action_scale
         mean = torch.tanh(pre_mean) * self.action_scale
 
         # dimension of raw_action might be off

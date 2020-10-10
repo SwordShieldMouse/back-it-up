@@ -1,18 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=Reacher_rkl_rpm_mul
-#SBATCH --output=./logs/Reacher/rkl/%A%a.out
-#SBATCH --error=./logs/Reacher/rkl/%A%a.err
+#SBATCH --job-name=Swimmer_fkl
+#SBATCH --output=./logs/Swimmer/fkl/%A%a.out
+#SBATCH --error=./logs/Swimmer/fkl/%A%a.err
 
-#SBATCH --array=0-1599:4
+#SBATCH --array=0-1399:4
 
 #SBATCH --cpus-per-task=4
 #SBATCH --time=8:30:00
 #SBATCH --mem-per-cpu=6000M
 
-#SBATCH --account=rrg-whitem
+#SBATCH --account=def-whitem
 
-ENV_NAME=Reacher-v2
-AGENT_NAME=reverse_kl_rpm_big
+ENV_NAME=Swimmer-v2
+AGENT_NAME=forward_kl_big
 
 echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID
 

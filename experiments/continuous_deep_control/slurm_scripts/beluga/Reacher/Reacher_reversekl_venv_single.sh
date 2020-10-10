@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=Reacher_rkl_ll_mul
-#SBATCH --output=/home/hugoluis/scratch/back-it-up/logs/Reacher/rkl/%A%a.out
-#SBATCH --error=/home/hugoluis/scratch/back-it-up/logs/Reacher/rkl/%A%a.err
+#SBATCH --output=./logs/Reacher/rkl/%A%a.out
+#SBATCH --error=./logs/Reacher/rkl/%A%a.err
 
 #SBATCH --array=1564,2165
 

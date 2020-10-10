@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=Reacher_fkl
-#SBATCH --output=/home/hugoluis/scratch/back-it-up/logs/Reacher/fkl/%A%a.out
-#SBATCH --error=/home/hugoluis/scratch/back-it-up/logs/Reacher/fkl/%A%a.err
+#SBATCH --output=./logs/Reacher/fkl/%A%a.out
+#SBATCH --error=./logs/Reacher/fkl/%A%a.err
 
 #SBATCH --array=0-15:4
 

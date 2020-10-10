@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=Pendulum_rkl_rpm_mul
-#SBATCH --output=/home/hugoluis/scratch/back-it-up/logs/Pendulum/rkl/%A%a.out
-#SBATCH --error=/home/hugoluis/scratch/back-it-up/logs/Pendulum/rkl/%A%a.err
+#SBATCH --output=./logs/Pendulum/rkl/%A%a.out
+#SBATCH --error=./logs/Pendulum/rkl/%A%a.err
 
 #SBATCH --array=0-2429:3%200
 

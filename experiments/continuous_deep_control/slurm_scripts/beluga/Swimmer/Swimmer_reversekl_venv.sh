@@ -3,7 +3,7 @@
 #SBATCH --output=./logs/Swimmer/rkl/%A%a.out
 #SBATCH --error=./logs/Swimmer/rkl/%A%a.err
 
-#SBATCH --array=0-1599%200
+#SBATCH --array=0-1599:4
 
 #SBATCH --cpus-per-task=4
 #SBATCH --time=8:30:00

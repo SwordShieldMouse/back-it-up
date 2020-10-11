@@ -16,8 +16,8 @@ python3 experiments/continuous_deep_control/plot_scripts/plot_sensitivity.py my_
 
 Beluga
 
-python3 experiments/continuous_deep_control/plot_scripts/merge_results.py my_results/beluga/results_ experiments/continuous_deep_control Reacher-v2 ReverseKL 1 True
+python3 experiments/continuous_deep_control/plot_scripts/merge_results.py my_results/big_sweeps/beluga/rkl_ll_results_ experiments/continuous_deep_control Reacher-v2 ReverseKL 1 True
 
-python3 experiments/continuous_deep_control/plot_scripts/find_agent_best_setting.py my_results/beluga/results_ experiments/continuous_deep_control Reacher-v2 ReverseKL 1 beluga_reacher_rkl_ll_sweep entropy_scale my_results/beluga/plots_
+python3 experiments/continuous_deep_control/plot_scripts/find_agent_best_setting.py my_results/big_sweeps/beluga/rkl_ll_results_ experiments/continuous_deep_control Reacher-v2 ReverseKL 1 beluga_reacher_rkl_ll_sweep entropy_scale my_results/big_sweeps/beluga/plots_
 
-python3 experiments/continuous_deep_control/plot_scripts/plot_sensitivity.py my_results/beluga/results_ Reacher-v2 my_results/beluga/plots_
+python3 experiments/continuous_deep_control/plot_scripts/plot_sensitivity.py my_results/big_sweeps/beluga/rkl_ll_results_ Reacher-v2 my_results/big_sweeps/beluga/plots_

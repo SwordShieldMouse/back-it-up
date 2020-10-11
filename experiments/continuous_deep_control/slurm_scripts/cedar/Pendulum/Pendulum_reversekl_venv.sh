@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=Swimmer_rkl_rpm_mul
-#SBATCH --output=./logs/Swimmer/rkl/%A%a.out
-#SBATCH --error=./logs/Swimmer/rkl/%A%a.err
+#SBATCH --job-name=Pendulum_rkl_rpm_mul
+#SBATCH --output=./logs/Pendulum/rkl/%A%a.out
+#SBATCH --error=./logs/Pendulum/rkl/%A%a.err
 
 #SBATCH --array=0-1599:4
 
@@ -11,7 +11,7 @@
 
 #SBATCH --account=rrg-whitem
 
-ENV_NAME=Swimmer-v2
+ENV_NAME=Pendulum-v0
 AGENT_NAME=reverse_kl_rpm_big
 
 echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID

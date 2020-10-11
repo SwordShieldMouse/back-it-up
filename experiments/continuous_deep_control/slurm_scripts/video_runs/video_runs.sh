@@ -3,7 +3,7 @@
 #SBATCH --output=./logs/%A%a.out
 #SBATCH --error=./logs/%A%a.err
 
-#SBATCH --array=0-7
+#SBATCH --array=1-8
 
 #SBATCH --cpus-per-task=1
 #SBATCH --time=8:30:00

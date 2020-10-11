@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 
+import argparse
 import numpy as np
 import sys
 from collections import OrderedDict, defaultdict
@@ -16,29 +17,37 @@ def tryeval(val):
     return val
 
 # Usage
-# python3 plot_sensitivity.py $STORE_DIR $ENV_NAME $OUTPUT_PLOT_DIR
+# python3 plot_sensitivity.py $STORE_DIR $ENV_NAME $OUTPUT_PLOT_DIR --agents $AGENTS
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('store_dir', type=str)
+parser.add_argument('env_name', type=str)
+parser.add_argument('output_plot_dir')
+parser.add_argument('--agents',nargs='*',type=str,choices=('ForwardKL','ReverseKL'))
+parser.add_argument('--num_runs',type=int,default=10)
+
+args = parser.parse_args()
 
 # list of agent.json names
-# agents = ['ForwardKL', 'ReverseKL']
-agents = ['ReverseKL']
-sweep_params = ['pi_lr', 'qf_vf_lr','actor_critic_dim','n_hidden','batch_size', 'n_action_points']
-# sweep_params = ['pi_lr', 'qf_vf_lr']
+agents = args.agents
+# sweep_params = ['pi_lr', 'qf_vf_lr','actor_critic_dim','n_hidden','batch_size', 'n_action_points']
+sweep_params = ['pi_lr', 'qf_vf_lr']
+
 
 # Handcoded temperature sweeps
 # temps = [1, 0.1, 0.01, 0]
-temps = [1, 0.5, 0.1, 0.05, 0.01]
-store_dir = str(sys.argv[1])
-env_name = str(sys.argv[2])
-output_plot_dir = str(sys.argv[3])
+temps = [1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0]
+store_dir = args.store_dir
+env_name = args.env_name
+output_plot_dir = args.output_plot_dir
 
 eval_last_N = True
 last_N_ratio = 0.5
-num_runs = 1
+num_runs = args.num_runs
 moving_avg_window = 20
 
 show_label = True
-
-
 
 if env_name == "Pendulum-v0":
     y_ticks = [-1600, -800,-200]
@@ -51,6 +60,9 @@ elif env_name == "Reacher-v2":
 elif env_name == "Swimmer-v2":
     y_ticks = [0, 20, 40]
     ymin, ymax = -10, 40
+elif env_name == "HalfCheetah-v2":
+    y_ticks = [0, 2000, 4000]
+    ymin, ymax = -1000, 4000
 else:
     raise ValueError("Invalid env_name")
 
@@ -160,12 +172,8 @@ for agent_name in agents:
                         # load all train results for that setting
                         for n in range(num_runs):
 
-                            if t == 0: # for Hard RKL load from diff. directory (it was swept separately)
-                                train_rewards_filename = "{}/hardrkl/{}results/{}_{}_setting_{}_run_{}_EpisodeRewardsLC.txt".format(
-                                    store_dir, env_name, env_name, agent_name, i, n)
-                            else:
-                                train_rewards_filename = "{}/{}results/{}_{}_setting_{}_run_{}_EpisodeRewardsLC.txt".format(
-                                    store_dir, env_name, env_name, agent_name, i, n)
+                            train_rewards_filename = "{}/{}results/{}_{}_setting_{}_run_{}_EpisodeRewardsLC.txt".format(
+                                store_dir, env_name, env_name, agent_name, i, n)
 
                             try:
                                 lc_0 = np.loadtxt(train_rewards_filename, delimiter=',')
@@ -255,7 +263,7 @@ for p in param_dicts:
         plt.title("{} sensitivity curve".format(p))
         plt.xlabel(p)
         plt.ylabel("0.5 AUC", rotation=90)
-        plt.savefig("{}/combined_{}_sensitivity_curve.png".format(output_plot_dir, p))
+        plt.savefig("{}/{}_combined_{}_sensitivity_curve.png".format(output_plot_dir, env_name, p))
     else:
 
         legend_elements = [Line2D([0], [0], marker='o', color='black', label='Forward KL',
@@ -266,7 +274,7 @@ for p in param_dicts:
 
         plt.xticks(plt_xticks, [])
         plt.yticks(y_ticks, [])
-        plt.savefig("{}/combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, p))
+        plt.savefig("{}/{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, p))
 
     # plt.show()
     plt.clf()

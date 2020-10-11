@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=video_runs
-#SBATCH --output=./logs/
-#SBATCH --error=./logs/
+#SBATCH --output=./logs/%A%a.out
+#SBATCH --error=./logs/%A%a.err
 
 #SBATCH --array=0-7
 

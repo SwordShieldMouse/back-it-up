@@ -1,0 +1,124 @@
+Agent setting:  OrderedDict([('actor_critic_dim', 128), ('n_hidden', 1), ('pi_lr', 0.01), ('qf_vf_lr', 0.001), ('sample_for_eval', False), ('use_true_q', False), ('entropy_scale', 0.01), ('l_param', 6), ('N_param', 64), ('optim_type', 'll_multiple'), ('q_update_type', 'sac'), ('use_replay', True), ('use_target', False), ('batch_size', 32), ('use_baseline', True), ('use_hard_value', False), ('use_scaled_kl', False), ('n_action_points', 128)])
+Start run at: 2020-10-13 06:36:16.437390
+
+=== EVAL :: ep: 0, r: -1694.1709764527661, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 1, r: -971.7554268658072, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 2, r: -1561.7357589556684, n_steps: 200, elapsed: 00:00:00
+Train:: ep: 0, r: -1813.751791927469, n_steps: 200, elapsed: 00:00:07
+Train:: ep: 1, r: -1727.1444795366183, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 2, r: -1753.0637255606484, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 3, r: -1717.2415833930368, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 4, r: -1869.8306413879359, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 5, r: -1768.6573093917332, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 6, r: -1483.4127328888371, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 7, r: -1591.0447641451735, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 8, r: -1462.9767286773726, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 9, r: -1482.5064506735484, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 10, r: -1622.1400702314686, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 11, r: -1352.4136931664102, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 12, r: -1440.544175933141, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 13, r: -1637.1430766824385, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 14, r: -1440.6928828462344, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 15, r: -1490.924762980918, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 16, r: -1421.8192506538956, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 17, r: -1157.0782426330122, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 18, r: -1146.051205679265, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 19, r: -1383.9134404814283, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 20, r: -1282.7467873463643, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 21, r: -1234.0282098827963, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 22, r: -1383.4458438361119, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 23, r: -1299.8582761885175, n_steps: 200, elapsed: 00:00:06
+=== EVAL :: ep: 0, r: -1122.222084101707, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 1, r: -1446.6176776478296, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 2, r: -1441.655988709776, n_steps: 200, elapsed: 00:00:00
+Train:: ep: 24, r: -1003.259459526494, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 25, r: -1249.1068537168874, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 26, r: -1138.0360104342653, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 27, r: -782.3485932244711, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 28, r: -1035.363106069483, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 29, r: -1003.1093521480555, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 30, r: -993.4013708406028, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 31, r: -994.2845384625558, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 32, r: -848.6631471767445, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 33, r: -835.1620469426302, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 34, r: -951.3695402065778, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 35, r: -928.784454206645, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 36, r: -970.07808097104, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 37, r: -967.413715716233, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 38, r: -642.3735868627158, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 39, r: -750.4813511689185, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 40, r: -634.0116671161019, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 41, r: -711.3689917593354, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 42, r: -714.1146049560998, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 43, r: -721.6327680286339, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 44, r: -724.4535916648659, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 45, r: -721.4036361060041, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 46, r: -484.4955509176892, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 47, r: -122.71618421388537, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 48, r: -6.522181787052369, n_steps: 200, elapsed: 00:00:06
+=== EVAL :: ep: 0, r: -1.8762846466688448, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 1, r: -1320.2976411608615, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 2, r: -2.326567774395123, n_steps: 200, elapsed: 00:00:00
+Train:: ep: 49, r: -2.67824695113112, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 50, r: -485.87202424994047, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 51, r: -647.1820447196849, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 52, r: -261.4311983413923, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 53, r: -122.63262202433452, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 54, r: -962.1863023309742, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 55, r: -250.09772411306648, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 56, r: -130.77287791986183, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 57, r: -495.6823145212114, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 58, r: -262.21155656254035, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 59, r: -127.53342105568804, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 60, r: -133.51944991723752, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 61, r: -1177.6779033960354, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 62, r: -126.6532550948796, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 63, r: -512.6008153529604, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 64, r: -260.29112461226964, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 65, r: -503.60604612983036, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 66, r: -10.553407963510423, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 67, r: -260.23137745113996, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 68, r: -241.6678817303604, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 69, r: -257.6888895470176, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 70, r: -124.99809220381691, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 71, r: -129.532785574286, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 72, r: -472.44274609403004, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 73, r: -10.045234849878774, n_steps: 200, elapsed: 00:00:06
+=== EVAL :: ep: 0, r: -628.2932646233324, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 1, r: -1364.4049428004164, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 2, r: -8.50941576279265, n_steps: 200, elapsed: 00:00:00
+Train:: ep: 74, r: -121.93643344303504, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 75, r: -8.761455051856126, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 76, r: -251.5362494175281, n_steps: 200, elapsed: 00:00:07
+Train:: ep: 77, r: -135.0820974804259, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 78, r: -248.6128313300552, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 79, r: -128.78051750564342, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 80, r: -495.66408311640095, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 81, r: -4.499816474396495, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 82, r: -377.42872633121533, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 83, r: -1213.0587469572856, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 84, r: -123.88656540728327, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 85, r: -1512.1043182855424, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 86, r: -1328.0417465424066, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 87, r: -118.51890196738971, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 88, r: -1345.864034475607, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 89, r: -1348.0055320789209, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 90, r: -122.28600334404503, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 91, r: -511.29734263613267, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 92, r: -116.72829746991883, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 93, r: -124.50880502195527, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 94, r: -2.0842873196780056, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 95, r: -350.40728891207954, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 96, r: -125.37040929541945, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 97, r: -244.95369626774757, n_steps: 200, elapsed: 00:00:06
+Train:: ep: 98, r: -122.35359187524618, n_steps: 200, elapsed: 00:00:06
+=== EVAL :: ep: 0, r: -1168.1884683455683, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 1, r: -1322.0625846293283, n_steps: 200, elapsed: 00:00:00
+=== EVAL :: ep: 2, r: -1.3122227853083863, n_steps: 200, elapsed: 00:00:00
+Train:: ep: 99, r: -340.0777672161235, n_steps: 200, elapsed: 00:00:06
+End run at: 2020-10-13 06:47:55.485139
+
+Total Time taken: 0:11:39.047749
+
+Training Time: 00:11:34
+Evaluation Time: 00:00:04

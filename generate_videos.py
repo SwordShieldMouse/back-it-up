@@ -1,7 +1,11 @@
 from multiprocessing import Process, Semaphore
 import os
 
-with open("experiments/continuous_deep_control/slurm_scripts/video_runs/video_runs.txt", "r") as f:
+# fname = "experiments/continuous_deep_control/slurm_scripts/video_runs/video_runs.txt"
+
+fname = "video_runs.txt"
+
+with open(fname, "r") as f:
     ffile = f.read().splitlines() 
 
 def f(sem, command, device, idx):

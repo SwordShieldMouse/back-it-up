@@ -27,6 +27,8 @@ parser.add_argument('output_plot_dir')
 parser.add_argument('--agents',nargs='*',type=str,choices=('ForwardKL','ReverseKL'))
 parser.add_argument('--num_runs',type=int,default=10)
 
+parser.add_argument('--best_setting_type',type=str,choices=('best','top20'),default='best')
+
 args = parser.parse_args()
 
 # list of agent.json names
@@ -41,6 +43,8 @@ temps = [1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0]
 store_dir = args.store_dir
 env_name = args.env_name
 output_plot_dir = args.output_plot_dir
+
+best_setting_type = args.best_setting_type
 
 eval_last_N = True
 last_N_ratio = 0.5
@@ -147,7 +151,7 @@ for agent_name in agents:
             plt_x = agent_json[p]
             plt_xticks = range(len(plt_x))
             plt_point_y = []
-            plt_std_y = []
+            plt_stderr_y = []
 
             # iterate through each parameter value: 1e-3, 1e-4, 1e-5
             for val in agent_json[p]:
@@ -159,7 +163,7 @@ for agent_name in agents:
                 if t == 0 and agent_name == "ForwardKL":
                     # skip
                     plt_point_y.append(np.nan)
-                    plt_std_y.append(np.nan)
+                    plt_stderr_y.append(np.nan)
 
                 else:
 
@@ -186,39 +190,41 @@ for agent_name in agents:
                             except:
                                 print("missing {}.. skipping".format(train_rewards_filename))
 
-                        # result_mean_array.append(np.mean(each_run_avg_auc_arr)) #Between runs for same setting
-                        # result_stderr_array.append(np.std(each_run_avg_auc_arr)/np.sqrt(len(each_run_avg_auc_arr))) #Between runs for same setting
-
-                        result_mean_array.extend([er for er in each_run_avg_auc_arr]) #Add all runs for same setting
+                        result_mean_array.append(np.mean(each_run_avg_auc_arr)) #Between runs for same setting
+                        result_stderr_array.append(np.std(each_run_avg_auc_arr)/np.sqrt(len(each_run_avg_auc_arr))) #Between runs for same setting
                     
-                    # best_idx = np.nanargmax(result_mean_array)                    
-                    # assert(np.nanmax(result_mean_array) == result_mean_array[best_idx])
+                    if best_setting_type == 'best':
+                        best_idx = np.nanargmax(result_mean_array)                    
+                        assert(np.nanmax(result_mean_array) == result_mean_array[best_idx])
+                        plt_point_y.append(result_mean_array[best_idx])
+                        plt_stderr_y.append(result_stderr_array[best_idx])
 
-                    # plt_point_y.append(result_mean_array[best_idx])
-                    # plt_stderr_y.append(result_stderr_array[best_idx])
+                    else:
+                        result_mean_array = np.array(result_mean_array)
+                        result_stderr_array = np.array(result_stderr_array)
+                        sorted_idxs = np.argsort(result_mean_array)[::-1]
+                        n_top_args = max(int(0.2 * len(sorted_idxs)),2)
+                        best_idxs = sorted_idxs[:n_top_args]
+                        plt_point_y.append(np.mean(result_mean_array[best_idxs]))
 
-                    top_results = np.sort(result_mean_array)
-                    results_pct = 0.2
-                    first_res_idx = int( len(result_mean_array) * (1 - results_pct) )
-                    top_results = top_results[ first_res_idx: ]
-                    top_results_mean = np.mean(top_results)
-                    top_results_std = np.std(top_results)
+                        var_best = np.square(result_stderr_array[best_idxs])
+                        avg_var_best = np.sum(var_best, axis=0) / float(n_top_args**2)
+                        plt_stderr_y.append(np.sqrt(avg_var_best))
 
-                    plt_point_y.append(top_results_mean)
-                    plt_std_y.append(top_results_std)                    
 
 
             # plot result
             plt_x = plt_x[::-1]
             plt_point_y = plt_point_y[::-1]
-            plt_std_y = plt_std_y[::-1]
+            plt_stderr_y = plt_stderr_y[::-1]
 
-            param_dicts[p][agent_name][t] = (p, agent_name, t, plt_xticks, plt_x, plt_point_y.copy(), plt_std_y.copy())
+            param_dicts[p][agent_name][t] = (p, agent_name, t, plt_xticks, plt_x, plt_point_y.copy(), plt_stderr_y.copy())
 
 
 # Combined plots
 import matplotlib.cm as cm
-colours = [cm.jet(0.65 + (.99 - 0.65) * ix / 4) for ix in range(len(temps))]
+
+colours = [cm.jet(0.65 + (.99 - 0.65) * ix /float(len(temps)) ) for ix in range(len(temps))]
 colours = list(reversed(colours))
 
 for p in param_dicts:

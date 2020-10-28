@@ -66,7 +66,7 @@ max_length = 1
 # Color scheme
 # temps = [0, 0.01, 0.1, 1]
 temps = [0.1, 1]
-colours = [cm.jet(0.65 + (.99 - 0.65) * ix / 4) for ix in range(len(temps))]
+colours = [cm.jet(0.65 + (.99 - 0.65) * ix / len(temps)) for ix in range(len(temps))]
 colours = list(reversed(colours))
 temps = list(reversed(temps))
 

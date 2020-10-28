@@ -148,7 +148,9 @@ if __name__ == "__main__":
         h.set_rotation(90)
 
         opt_range = range(0, xmax)
-        plt.xticks(opt_range[::50], np.linspace(0.0, float(EVAL_INTERVAL_MIL_STEPS * 1e3 * (xmax - 1)), int(TOTAL_MIL_STEPS / EVAL_INTERVAL_MIL_STEPS) + 1)[::50])
+        # plt.xticks(opt_range[::50], np.linspace(0.0, float(EVAL_INTERVAL_MIL_STEPS * 1e3 * (xmax - 1)), int(TOTAL_MIL_STEPS / EVAL_INTERVAL_MIL_STEPS) + 1)[::50])
+
+        plt.xticks(opt_range[::50], np.linspace(0.0, float(EVAL_INTERVAL_MIL_STEPS * 1e3 * (xmax - 1)), int(TOTAL_MIL_STEPS / EVAL_INTERVAL_MIL_STEPS) + 1)[::50])        
 
         xlimt = (0, xmax - 1)
         ylimt = (ymin[result_idx], ymax[result_idx])
@@ -294,8 +296,8 @@ if __name__ == "__main__":
                 elif best_setting_type == 'top20':
                     t = type_best_arr[i][0]
 
-                    print("*** plotting each run for {}: {} --- {}".format(parse_type, type_arr[i], t))
-                    os.system("python3 {root}/plot_scripts/plot_each_run.py {non_mer} {root}/jsonfiles/environment/{env}.json {n_runs} {ag} {t} {save}_{parse}_{entr} {res_type} {out}".format(
-                        root=root_dir, non_mer=non_merged_result_dir, env=env_name, n_runs=num_runs, ag=agent_name, t=t, save=custom_save_name, parse=parse_type, entr=type_arr[i], res_type=result, out=output_plot_dir))
+                print("*** plotting each run for {}: {} --- {}".format(parse_type, type_arr[i], t))
+                os.system("python3 {root}/plot_scripts/plot_each_run.py {non_mer} {root}/jsonfiles/environment/{env}.json {n_runs} {ag} {t} {save}_{parse}_{entr} {res_type} {out}".format(
+                    root=root_dir, non_mer=non_merged_result_dir, env=env_name, n_runs=num_runs, ag=agent_name, t=t, save=custom_save_name, parse=parse_type, entr=type_arr[i], res_type=result, out=output_plot_dir))
 
 

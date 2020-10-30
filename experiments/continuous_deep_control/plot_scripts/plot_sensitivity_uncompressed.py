@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import argparse
@@ -5,7 +7,13 @@ import numpy as np
 import sys
 from collections import OrderedDict, defaultdict
 import json
+import os
+from plot_config import get_xyrange
+
 from matplotlib.lines import Line2D
+from matplotlib.ticker import FormatStrFormatter
+plt.gca().xaxis.set_major_formatter(FormatStrFormatter('%g'))
+matplotlib.rcParams.update({'font.size': 50})
 
 import ast
 
@@ -22,9 +30,9 @@ def tryeval(val):
 parser = argparse.ArgumentParser()
 
 parser.add_argument('env_name', type=str)
-parser.add_argument('--store_dir', type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_results")
+parser.add_argument('agent', type=str,choices=('ForwardKL','ReverseKL'))
+parser.add_argument('--store_dir', type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
 parser.add_argument('--output_plot_dir', type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_plots/sensitivity" )
-parser.add_argument('--agents',nargs='*',type=str,choices=('ForwardKL','ReverseKL'))
 parser.add_argument('--num_runs',type=int,default=10)
 
 parser.add_argument('--best_setting_type',type=str,choices=('best','top20'),default='top20')
@@ -32,34 +40,26 @@ parser.add_argument('--best_setting_type',type=str,choices=('best','top20'),defa
 args = parser.parse_args()
 
 # list of agent.json names
-agents = args.agents
+agents = [args.agent]
 # sweep_params = ['pi_lr', 'qf_vf_lr','actor_critic_dim','n_hidden','batch_size', 'n_action_points']
 sweep_params = ['pi_lr', 'qf_vf_lr']
 
+last_N_ratio = 0.5
+eval_last_N = True
 
 # Handcoded temperature sweeps
-# temps = [1, 0.1, 0.01, 0]
 temps = [1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0]
+temps = sorted(temps)
 store_dir = args.store_dir
 env_name = args.env_name
 output_plot_dir = os.path.join(args.output_plot_dir, args.best_setting_type)
 if not os.path.isdir(output_plot_dir):
-    os.makedirs(output_plot_dir)
+    os.makedirs(output_plot_dir,exist_ok=True)
 
 best_setting_type = args.best_setting_type
 
-eval_last_N = True
-last_N_ratio = 0.5
 num_runs = args.num_runs
-moving_avg_window = 20
 
-show_label = True
-
-_, ymin, ymax = get_xyrange(env_name)
-
-
-def movingaverage (values, window):
-    return [np.mean(values[max(0, i - (window-1)):i+1]) for i in range(len(values))]
 
 param_dicts = {}
 for p in sweep_params:
@@ -127,7 +127,6 @@ for agent_name in agents:
     print("agent: {}".format(agent_name))
     json_temps = agent_json['entropy_scale']
 
-    # 1, 0.1, 0.01
     for t in temps:
         print("== temp: {}".format(t))
 
@@ -139,7 +138,7 @@ for agent_name in agents:
             plt_point_y = []
             plt_stderr_y = []
 
-            # iterate through each parameter value: 1e-3, 1e-4, 1e-5
+            # iterate through each parameter value
             for val in agent_json[p]:
 
                 idx_arr = idx_dict[p][val]
@@ -153,9 +152,9 @@ for agent_name in agents:
 
                 else:
 
-                    for i in idx_arr:
+                    for i in idx_arr: #Indexes (a.k.a settings) that contain the parameter
 
-                        if i not in t_idx_dict[t]:
+                        if i not in t_idx_dict[t]: #verify if they also contain the temperature
                             continue
 
                         each_run_avg_auc_arr = []
@@ -170,7 +169,7 @@ for agent_name in agents:
 
                                 xmax = len(lc_0)
                                 last_N = int(xmax * last_N_ratio) if eval_last_N else 0
-                                lc_0 = movingaverage(lc_0, moving_avg_window)[xmax - last_N:]
+                                lc_0 = lc_0[xmax - last_N:]
                                 each_run_avg_auc_arr.append(np.mean(lc_0))
 
                             except:
@@ -210,8 +209,21 @@ for agent_name in agents:
 # Combined plots
 import matplotlib.cm as cm
 
-colours = [cm.jet(0.65 + (.99 - 0.65) * ix /float(len(temps)) ) for ix in range(len(temps))]
-colours = list(reversed(colours))
+rkl_colors = [cm.jet(0.65 + (.99 - 0.65) * ix /float(len(temps)) ) for ix in range(len(temps))]
+
+fkl_colors = [None for _ in range(len(temps))]
+initial_fkl_color = np.array((0, 26, 51))/255.
+final_fkl_color = np.array((204, 230, 255))/255.
+for s_t_idx, s_temp in enumerate(sorted(temps)):
+    t = float(s_t_idx)/(len(temps) - 1)
+    color = initial_fkl_color*(1-t) + t*final_fkl_color
+    fkl_colors[ temps.index(s_temp) ] = color 
+
+colours = {"ReverseKL": rkl_colors, "ForwardKL": fkl_colors}
+
+figsize = (18, 12)
+fig = plt.figure(figsize = figsize)
+plt.subplots_adjust(bottom=0.17, left=0.2)
 
 for p in param_dicts:
     for idx, a in enumerate(agents):
@@ -222,15 +234,15 @@ for p in param_dicts:
             dashes = (5, 0)
             name = "ForwardKL"
             mew = 3
-            marker_size = 7
+            marker_size = 20
 
         elif "Reverse" in a:
             linestyle = "-"
             marker = "x"
             dashes = (5, 0)
             name = "ReverseKL"
-            mew = 3
-            marker_size = 7
+            mew = 7
+            marker_size = 35
         else:
             raise ValueError("Invalid agent name")
 
@@ -244,29 +256,33 @@ for p in param_dicts:
             plt_x = param_dicts[p][a][t][4]
             plt_y = param_dicts[p][a][t][5]
             plt_y_stderr = param_dicts[p][a][t][6]
-            plt.plot(plt_xticks, plt_y, label="{}, tau={}".format(a, t), color=colours[t_idx], linestyle=linestyle, marker=marker, mew=mew, markersize=marker_size)
-            plt.errorbar(plt_xticks, plt_y, yerr=plt_y_stderr, color=colours[t_idx], linestyle=linestyle)
+            plt.plot(plt_xticks, plt_y, label="{}, tau={}".format(a, t), color=colours[a][t_idx], linestyle=linestyle, marker=marker, mew=mew, markersize=marker_size)
+            plt.errorbar(plt_xticks, plt_y, yerr=plt_y_stderr, color=colours[a][t_idx], linestyle=linestyle)
 
-    plt.ylim(ymin, ymax)
-    if show_label:
-        plt.xticks(plt_xticks, plt_x)
-        plt.yticks(y_ticks, y_ticks)
-        plt.legend()
-        plt.title("{} sensitivity curve".format(p))
-        plt.xlabel(p)
-        plt.ylabel("0.5 AUC", rotation=90)
-        plt.savefig("{}/{}_combined_{}_sensitivity_curve.png".format(output_plot_dir, env_name, p))
-    else:
+    plt.xlabel(p)
+    translate_param = { "pi_lr": "Actor lr", "qf_vf_lr": "Critic lr"}
+    if 'lr' in p:
+        plt_x = np.log10(plt_x)
+        plt.xlabel(r"$\log_{{10}}$" + "({})".format(translate_param[p]))
 
-        legend_elements = [Line2D([0], [0], marker='o', color='black', label='Forward KL',
-                                  markerfacecolor='black', markersize=10),
-                           Line2D([0], [0], marker='x', color='black', label='Reverse KL',
-                                  markerfacecolor='black', markersize=10, mew=4)]
-        plt.legend(handles=legend_elements, frameon=False, prop={'size': 14})
+    plt.ylabel("Average {}-AUC".format(last_N_ratio), rotation=90)        
 
-        plt.xticks(plt_xticks, [])
-        plt.yticks(y_ticks, [])
-        plt.savefig("{}/{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, p))
+    plt.xticks(plt_xticks, plt_x)
+    plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, a, p))
 
+
+    full_agents = ['ForwardKL', 'ReverseKL']
+    markers = dict(zip( full_agents, ['o', 'x'] ))
+    marker_sizes = dict(zip( full_agents, [20, 35] ))
+    mews = dict(zip( full_agents, [3, 7] ))    
+    legend_elements = [Line2D([0], [0], marker=markers["ForwardKL"], color='black', label='Forward KL',
+                            markerfacecolor='black', markersize=marker_sizes["ForwardKL"], mew = mews["ForwardKL"]), Line2D([0], [0], marker=markers["ReverseKL"], color='black', label='Reverse KL',
+                            markerfacecolor='black', markersize=marker_sizes["ReverseKL"], mew = mews["ReverseKL"])]
+
+
+    plt.xticks(plt_xticks, plt_x)
+    plt.title("{} sensitivity curve".format(translate_param[p]))
+    plt.legend(handles=legend_elements, frameon=False)
+    plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve.png".format(output_plot_dir, env_name, a, p))
     # plt.show()
     plt.clf()

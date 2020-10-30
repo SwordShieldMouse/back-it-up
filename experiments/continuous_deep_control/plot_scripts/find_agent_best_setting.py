@@ -38,18 +38,21 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('merged_result_loc',type=str)
-    parser.add_argument('root_dir',type=str)
     parser.add_argument('env_name',type=str)
     parser.add_argument('agent_name',type=str)
-    parser.add_argument('num_runs',type=int)
-    parser.add_argument('custom_save_name',type=str)
-    parser.add_argument('parse_type',type=str)
-    parser.add_argument('output_plot_dir',type=str)
+    parser.add_argument('--root_dir',type=str, default="experiments/continuous_deep_control/")
+    parser.add_argument('--merged_result_loc',type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
+    parser.add_argument('--custom_save_name',type=str,default=None)
+    parser.add_argument('--num_runs',type=int, default=10)
+    parser.add_argument('--parse_type',type=str,default="entropy_scale")
+    parser.add_argument('--output_plot_dir',type=str,default="my_results/normal_sweeps/joint_rkl_fkl/_plots/individual_performance")
 
     parser.add_argument('--best_setting_type',type=str,choices=('best','top20'),default='best')
 
     args = parser.parse_args()
+
+    if args.custom_save_name is None:
+        args.custom_save_name = args.env_name + '_' + args.agent_name
 
     input_results_dir = args.merged_result_loc
     root_dir = args.root_dir
@@ -65,7 +68,9 @@ if __name__ == "__main__":
     custom_save_name = args.custom_save_name
     parse_type = args.parse_type
 
-    output_plot_dir = args.output_plot_dir
+    output_plot_dir = os.path.join(args.output_plot_dir, args.best_setting_type, args.agent_name, args.env_name)
+    if not os.path.isdir(output_plot_dir):
+        os.makedirs(output_plot_dir, exist_ok=True)
     best_setting_type = args.best_setting_type
 
     with open(env_json_dir, 'r') as env_dat:
@@ -101,6 +106,7 @@ if __name__ == "__main__":
 
     # ENV specific setting
     TOTAL_MIL_STEPS = env_json['TotalMilSteps']
+    X_AXIS_STEPS = env_json['XAxisSteps']
     EVAL_INTERVAL_MIL_STEPS = env_json['EvalIntervalMilSteps']
     EVAL_EPISODES = env_json['EvalEpisodes']
 
@@ -131,7 +137,7 @@ if __name__ == "__main__":
 
         print("{} lc dim: {} x {}".format(result, len(lc), len(lc[0])))
         # default xmax
-        xmax = np.shape(lc)[-1]
+        xmax = np.shape(lc)[-1] - 1
 
         xmax_override, ymin, ymax = get_xyrange(env_name)
         if xmax_override is not None:
@@ -139,28 +145,30 @@ if __name__ == "__main__":
 
         last_N = int(last_N_ratio * xmax)
         if result == 'TrainEpisode':
-            plt.xlabel('Training Steps (per 1000 steps)')
+            plt.xlabel('Training Steps (per {} steps)'.format(X_AXIS_STEPS))
 
-        elif result == 'EvalEpisode':
-            plt.xlabel('Training Steps (per 1000 steps)')
+        else:
+            raise NotImplementedError
 
         h = plt.ylabel("Cum. Reward per episode")
         h.set_rotation(90)
 
-        opt_range = range(0, xmax)
+        opt_range = range(0, xmax+1)
         # plt.xticks(opt_range[::50], np.linspace(0.0, float(EVAL_INTERVAL_MIL_STEPS * 1e3 * (xmax - 1)), int(TOTAL_MIL_STEPS / EVAL_INTERVAL_MIL_STEPS) + 1)[::50])
 
-        plt.xticks(opt_range[::50], np.linspace(0.0, float(EVAL_INTERVAL_MIL_STEPS * 1e3 * (xmax - 1)), int(TOTAL_MIL_STEPS / EVAL_INTERVAL_MIL_STEPS) + 1)[::50])        
+        xtick_step = int( (TOTAL_MIL_STEPS*1e6/X_AXIS_STEPS)/10  )
+        tick = [o for o in opt_range[::xtick_step]]
+        plt.xticks(tick, tick)
 
-        xlimt = (0, xmax - 1)
+        xlimt = (0, xmax)
         ylimt = (ymin[result_idx], ymax[result_idx])
         plt.ylim(ylimt)
         plt.xlim(xlimt)
 
         # if only one line in _StepLC.txt)
         if not np.shape(lc[0]):
-            bestlc = lc[:xmax]
-            lcse = lcstd[:xmax] / np.sqrt(num_runs)
+            bestlc = lc[:(xmax+1)]
+            lcse = lcstd[:(xmax+1)] / np.sqrt(num_runs)
 
             print('The best param setting of ' + agent_name + ' is ')
             print(params[:])
@@ -170,9 +178,9 @@ if __name__ == "__main__":
             sort_performance_arr = []
             for i in range(len(lc)):
                 if eval_last_N:
-                    sort_performance_arr.append([i, np.nansum(lc[i, xmax - last_N:xmax])])
+                    sort_performance_arr.append([i, np.nansum(lc[i, (xmax+1) - last_N:(xmax+1)])])
                 else:
-                    sort_performance_arr.append([i, np.nansum(lc[i, :xmax])])
+                    sort_performance_arr.append([i, np.nansum(lc[i, :(xmax+1)])])
 
             # sorted array in descending order
             sorted_performance_arr = sorted(sort_performance_arr, key=lambda x: x[1], reverse=True)
@@ -194,13 +202,13 @@ if __name__ == "__main__":
                 print("\n total best setting {}".format(sorted_performance_arr[0][0]))
 
                 if eval_last_N:
-                    BestInd = np.argmax(np.nansum(lc[:, xmax - last_N:xmax], axis=1))
+                    BestInd = np.argmax(np.nansum(lc[:, (xmax+1) - last_N:(xmax+1)], axis=1))
                 else:
-                    BestInd = np.argmax(np.nansum(lc[:, :xmax], axis=1))
+                    BestInd = np.argmax(np.nansum(lc[:, :(xmax+1)], axis=1))
 
                 assert(BestInd == sorted_performance_arr[0][0])
-                bestlc = lc[BestInd, :xmax]
-                lcse = lcstd[BestInd, :xmax] / np.sqrt(num_runs)
+                bestlc = lc[BestInd, :(xmax+1)]
+                lcse = lcstd[BestInd, :(xmax+1)] / np.sqrt(num_runs)
 
                 try:
                     assert (BestInd == float(params[BestInd, 0]))
@@ -232,8 +240,8 @@ if __name__ == "__main__":
                     print("*** top 20%% settings for {}: {} --- {}".format(parse_type, type_arr[i], ', '.join( [str(a) for a in type_best_arr[i]] )))
 
                 BestInd = sorted_performance_arr[0][0]
-                bestlc = lc[BestInd, :xmax]
-                lcse = lcstd[BestInd, :xmax] / np.sqrt(num_runs)                    
+                bestlc = lc[BestInd, :(xmax+1)]
+                lcse = lcstd[BestInd, :(xmax+1)] / np.sqrt(num_runs)                    
 
 
         legends = [agent_name + ', ' + str(num_runs) + ' runs']
@@ -242,8 +250,8 @@ if __name__ == "__main__":
             if best_setting_type == 'best':
                 plot_idx = int(type_best_arr[i])
 
-                plot_lc = lc[plot_idx, :xmax]
-                plot_lcse = lcstd[plot_idx, :xmax] / np.sqrt(num_runs)
+                plot_lc = lc[plot_idx, :(xmax+1)]
+                plot_lcse = lcstd[plot_idx, :(xmax+1)] / np.sqrt(num_runs)
 
                 plt.fill_between(opt_range, plot_lc - plot_lcse, plot_lc + plot_lcse, alpha=0.2)
                 plt.plot(opt_range, plot_lc, linewidth=1.0, label='best {}: {}'.format(type_arr[i], plot_idx))
@@ -251,10 +259,10 @@ if __name__ == "__main__":
             else:
                 plot_idxs = type_best_arr[i]
 
-                lc_separate_means = lc[plot_idxs][:, :xmax]
+                lc_separate_means = lc[plot_idxs][:, :(xmax+1)]
                 plot_lc = np.mean(lc_separate_means, axis=0)
 
-                lcse = lcstd[plot_idxs][:, :xmax] / np.sqrt(num_runs)
+                lcse = lcstd[plot_idxs][:, :(xmax+1)] / np.sqrt(num_runs)
 
                 lc_separate_var = np.square( lcse )
                 lc_var = np.sum(lc_separate_var, axis=0) / float(len(type_best_arr[i])**2)

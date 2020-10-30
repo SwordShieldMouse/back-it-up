@@ -29,6 +29,7 @@ with open(os.path.join(args.env_json_dir, args.env + '.json'),"r") as ff:
     agent_json = json.load(ff, object_pairs_hook=OrderedDict)
 
 max_steps = int(agent_json["TotalMilSteps"] * 1e6)
+x_axis_steps = int(agent_json["XAxisSteps"])
 
 os.makedirs(output_dir_env, exist_ok=True)
 
@@ -41,16 +42,15 @@ def f(base):
     rewards = np.loadtxt(input_rewards, delimiter=',')
     steps = np.loadtxt(input_steps, delimiter=',')
 
-    reward_per_step = np.zeros(max_steps, dtype=np.float64)
+    reward_per_step = np.zeros( int(max_steps/x_axis_steps), dtype=np.float64)
 
     current_episode = 0
     running_frame = 0
-    for global_frame in range(max_steps):
-        if running_frame > steps[current_episode]:
+    for global_idx in range(int(max_steps/x_axis_steps)):
+        while(running_frame >= steps[current_episode]):
             current_episode += 1
-            running_frame = 0
-        reward_per_step[global_frame] = np.mean(rewards[current_episode:current_episode+args.window])
-        running_frame += 1
+        reward_per_step[global_idx] = np.mean(rewards[current_episode:current_episode+args.window])
+        running_frame += x_axis_steps
 
     out_rewards_filename = os.path.join(output_dir_env, base + '_EpisodeRewardsLC.txt')
     reward_per_step.tofile(out_rewards_filename, sep=',', format='%15.8f')

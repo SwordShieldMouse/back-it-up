@@ -11,6 +11,7 @@ import argparse
 from utils import get_agent_parse_info
 from collections import OrderedDict
 from shutil import copyfile
+from multiprocessing import Pool
 
 ## Usage:
 # python3 merge_results.py $RESULT_DIR $ROOT_LOC $ENV_NAME $AGENT_NAME $NUM_RUNS $USE_MOVING_AVG
@@ -20,14 +21,6 @@ from shutil import copyfile
 # RESULT_DIR : where {$ENV_NAME}results is located
 # ROOT_LOC : root directory of code (where nonlinear_run.py and experiment.py is located)
 
-###### SETTINGS ######
-moving_avg_window = 20
-######################
-
-
-def movingaverage (values, window):
-    return [np.mean(values[max(0, i - (window-1)):i+1]) for i in range(len(values))]
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("env_name", type=str)
@@ -35,7 +28,6 @@ parser.add_argument("agent_name", type=str, choices=["ForwardKL", "ReverseKL"])
 parser.add_argument("--results_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
 parser.add_argument("--num_runs", type=int, default=10)
 parser.add_argument("--root_dir", type=str, default="experiments/continuous_deep_control")
-parser.add_argument("--dont_use_moving_average", action="store_false", default=True)
 
 args = parser.parse_args()
 
@@ -44,15 +36,14 @@ root_dir = args.root_dir
 env_name = args.env_name
 agent_name = args.agent_name
 num_runs = args.num_runs
-use_moving_avg = not args.dont_use_moving_average
 
-if not isinstance(use_moving_avg, bool): raise TypeError('use_moving_avg should be a valid bool')
 
 # load env info
 with open('{}/jsonfiles/environment/{}.json'.format(root_dir, env_name), 'r') as env_dat:
     env_json = json.load(env_dat)
 
 TOTAL_MIL_STEPS = env_json['TotalMilSteps']
+X_AXIS_STEPS = env_json['XAxisSteps']
 EVAL_INTERVAL_MIL_STEPS = env_json['EvalIntervalMilSteps']
 EVAL_EPISODES = env_json['EvalEpisodes']
 
@@ -81,7 +72,6 @@ print("Environment: {}".format(env_name))
 print("Agent: {}".format(agent_name))
 print("Num settings: {}".format(num_settings))
 print("Num runs: {}".format(num_runs))
-print("Use moving avg: {}".format(use_moving_avg))
 
 # Disabled Evaluation
 # suffix = ['_EpisodeRewardsLC.txt','_EvalEpisodeMeanRewardsLC.txt','_EvalEpisodeStdRewardsLC.txt','_Params.txt']
@@ -100,8 +90,6 @@ eval_std_rewards = []
 params = []
 params_fn = None
 
-max_median_length = 1
-
 # for each setting
 for setting_num in range(num_settings):
     run_non_count = 0
@@ -110,51 +98,34 @@ for setting_num in range(num_settings):
     train_lc_length_arr = []
     eval_mean_lc_arr = []
     
-    # for each run
-    for run_num in range(num_runs):
+
+    def f(run_num):
         train_rewards_filename = store_dir + env_name + '_' + agent_name + '_setting_' + str(setting_num) + '_run_' + str(run_num) + suffix[0]
 
         # skip if file does not exist
         if not Path(train_rewards_filename).exists():
-            run_non_count += 1
-
+            run_non_count = 1
             # add dummy
-            lc_0 = -1e10 * np.ones(1) # + np.nan  # will be padded
-            train_lc_arr.append(lc_0)
+            lc_0 = -1e10 * np.ones( int(TOTAL_MIL_STEPS/X_AXIS_STEPS)) # + np.nan  # will be padded
+            train_lc = lc_0
 
             print(' setting ' + train_rewards_filename + ' does not exist')
-            missingindexes.append(num_settings * run_num + setting_num)
-            continue
+            missingindex = num_settings * run_num + setting_num
+            return (run_non_count, missingindex, train_lc)
 
         lc_0 = np.loadtxt(train_rewards_filename, delimiter=',')
 
-        # compute moving window
-        if use_moving_avg:
-            lc_0 = movingaverage(lc_0, moving_avg_window)
+        run_non_count = 0
+        missingindex = None
+        train_lc = lc_0        
 
-        train_lc_arr.append(lc_0)
-        train_lc_length_arr.append(len(lc_0))
+        return (run_non_count, missingindex, train_lc)
 
-    # find median train ep length (truncate or pad with nan)
-    try:
-        num_train_length = int(statistics.median(train_lc_length_arr))
-    except:
-        num_train_length = 0
-    
-
-    if num_train_length > max_median_length:
-        max_median_length = num_train_length
-
-    for i in range(len(train_lc_arr)):
-
-        # truncate
-        if len(train_lc_arr[i]) > num_train_length:
-            train_lc_arr[i] = train_lc_arr[i][:num_train_length]
-
-        # pad with nan
-        elif len(train_lc_arr[i]) < num_train_length:
-            pad_length = num_train_length - len(train_lc_arr[i])
-            train_lc_arr[i] = np.append(train_lc_arr[i], np.zeros(pad_length) + np.nan)
+    with Pool(10) as pool:
+        mixed_arr = pool.map(f, range(num_runs))
+        run_non_count += np.sum(list(map(lambda k: k[0], mixed_arr)))
+        missingindexes.extend( filter(lambda k: k is not None, list(map(lambda k: k[1], mixed_arr))) )
+        train_lc_arr = list(map(lambda k: k[2], mixed_arr))
 
     train_lc_arr = np.array(train_lc_arr)
 
@@ -181,14 +152,6 @@ for setting_num in range(num_settings):
     params.append(setting_params)
 params = np.array(params)
 
-for idx, item in enumerate(train_mean_rewards):
-    if len(item) < max_median_length:
-        # pad with nan
-        pad_length = max_median_length - len(item)
-        train_mean_rewards[idx] = np.append(train_mean_rewards[idx], -1e10*np.ones(pad_length)) # + np.nan)
-        train_std_rewards[idx] = np.append(train_std_rewards[idx], np.zeros(pad_length) ) # + np.nan)
-
-print("max train median length: ", max_median_length)
 
 allres = [train_mean_rewards, train_std_rewards, params]
 for i in range(len(save_suffix)):

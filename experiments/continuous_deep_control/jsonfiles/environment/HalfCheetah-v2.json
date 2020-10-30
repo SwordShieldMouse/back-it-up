@@ -3,6 +3,8 @@
 
     "TotalMilSteps": 0.5,
     "EpisodeSteps": -1,
+    "XAxisSteps": 100,
+    "XAxisFormatingSteps": 100000,
 
     "EvalIntervalMilSteps": 0.5,
     "EvalEpisodes": 1

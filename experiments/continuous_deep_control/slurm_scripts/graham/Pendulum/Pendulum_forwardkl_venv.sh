@@ -3,7 +3,7 @@
 #SBATCH --output=./logs/Pendulum/fkl/%A%a.out
 #SBATCH --error=./logs/Pendulum/fkl/%A%a.err
 
-#SBATCH --array=0-1399:4
+#SBATCH --array=1400-4199:4
 
 #SBATCH --cpus-per-task=4
 #SBATCH --time=8:30:00

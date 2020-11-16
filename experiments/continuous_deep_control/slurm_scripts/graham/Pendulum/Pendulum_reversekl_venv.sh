@@ -1,18 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=Swimmer_fkl
-#SBATCH --output=./logs/Swimmer/fkl/%A%a.out
-#SBATCH --error=./logs/Swimmer/fkl/%A%a.err
+#SBATCH --job-name=Pendulum_rkl_rpm_mul
+#SBATCH --output=./logs/Pendulum/rkl/%A%a.out
+#SBATCH --error=./logs/Pendulum/rkl/%A%a.err
 
-#SBATCH --array=1400-4199:4
+#SBATCH --array=1600-4799:4
 
 #SBATCH --cpus-per-task=4
-#SBATCH --time=10:00:00
+#SBATCH --time=8:30:00
 #SBATCH --mem-per-cpu=6000M
 
-#SBATCH --account=rrg-whitem
+#SBATCH --account=def-whitem
 
-ENV_NAME=Swimmer-v2
-AGENT_NAME=forward_kl_big
+ENV_NAME=Pendulum-v0
+AGENT_NAME=reverse_kl_rpm_big
 
 echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID
 

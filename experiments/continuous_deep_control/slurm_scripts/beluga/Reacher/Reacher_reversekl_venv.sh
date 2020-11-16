@@ -1,19 +1,19 @@
 #!/bin/bash
-#SBATCH --job-name=Reacher_rkl_ll_mul
+#SBATCH --job-name=Reacher_rkl_rpm_mul
 #SBATCH --output=./logs/Reacher/rkl/%A%a.out
 #SBATCH --error=./logs/Reacher/rkl/%A%a.err
 
-#SBATCH --array=0-1599:4
+#SBATCH --array=1600-4799:4
 
 #SBATCH --cpus-per-task=4
-#SBATCH --time=6:30:00
-#SBATCH --mem-per-cpu=6000M
+#SBATCH --time=9:30:00
+#SBATCH --mem-per-cpu=8000M
 
 #SBATCH --account=def-whitem
 
 
 ENV_NAME=Reacher-v2
-AGENT_NAME=reverse_kl_ll_big
+AGENT_NAME=reverse_kl_rpm_big
 
 echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID
 

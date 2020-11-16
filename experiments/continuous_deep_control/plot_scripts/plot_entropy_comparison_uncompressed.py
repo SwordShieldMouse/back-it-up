@@ -39,9 +39,9 @@ show_plot = False
 
 full_agents = ['ForwardKL', 'ReverseKL']
 agents = full_agents if args.agent == 'both' else [args.agent]
-markers = dict(zip( full_agents, ['o', 'x'] ))
-marker_sizes = dict(zip( full_agents, [20, 35] ))
-mews = dict(zip( full_agents, [3, 7] ))
+markers = dict(zip( full_agents, [None, None] ))
+marker_sizes = dict(zip( full_agents, [15, 15] ))
+mews = dict(zip( full_agents, [3, 3] ))
 
 # Root loc
 root_dir = args.root_dir
@@ -177,7 +177,7 @@ for jdx, ag in enumerate(agents):
 
         mark_freq = xmax//30
 
-        plt.plot(opt_range, lc, color=colours[ag][idx], linewidth=0.5, label=ag, marker=markers[ag], markevery=mark_freq, markersize=marker_sizes[ag], mew=mews[ag])
+        plt.plot(opt_range, lc, color=colours[ag][idx], linewidth=1.0, label=ag, marker=markers[ag], markevery=mark_freq, markersize=marker_sizes[ag], mew=mews[ag])
         plt.fill_between(opt_range,  lc - se, lc + se, alpha=0.3, facecolor=colours[ag][idx])
 
 
@@ -191,7 +191,7 @@ if show_plot:
     plt.show()
 else:
     map_xlabel = {100000: "Hundreds of Thousands", 1000: "Thousands"}
-    plt.xlabel('{} of Frames'.format(map_xlabel[X_FORMATING_STEPS]))
+    plt.xlabel('{} of Timesteps'.format(map_xlabel[X_FORMATING_STEPS]))
     plt.ylabel("Average return").set_rotation(90)    
     #Unlabeled
     plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison_unlabeled.png".format(args.agent, env_name, parse_type)))

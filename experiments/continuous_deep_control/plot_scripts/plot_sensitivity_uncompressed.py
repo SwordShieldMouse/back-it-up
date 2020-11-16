@@ -230,19 +230,19 @@ for p in param_dicts:
 
         if "Forward" in a:
             linestyle = "-"
-            marker = "o"
+            marker = "."
             dashes = (5, 0)
             name = "ForwardKL"
             mew = 3
-            marker_size = 20
+            marker_size = 15
 
         elif "Reverse" in a:
             linestyle = "-"
-            marker = "x"
+            marker = "."
             dashes = (5, 0)
             name = "ReverseKL"
-            mew = 7
-            marker_size = 35
+            mew = 3
+            marker_size = 15
         else:
             raise ValueError("Invalid agent name")
 
@@ -256,8 +256,8 @@ for p in param_dicts:
             plt_x = param_dicts[p][a][t][4]
             plt_y = param_dicts[p][a][t][5]
             plt_y_stderr = param_dicts[p][a][t][6]
-            plt.plot(plt_xticks, plt_y, label="{}, tau={}".format(a, t), color=colours[a][t_idx], linestyle=linestyle, marker=marker, mew=mew, markersize=marker_size)
-            plt.errorbar(plt_xticks, plt_y, yerr=plt_y_stderr, color=colours[a][t_idx], linestyle=linestyle)
+            plt.plot(plt_xticks, plt_y, label="{}, tau={}".format(a, t), color=colours[a][t_idx], linestyle=linestyle, marker=marker, mew=mew, markersize=marker_size, linewidth=5.0)
+            plt.errorbar(plt_xticks, plt_y, yerr=plt_y_stderr, color=colours[a][t_idx], linestyle=linestyle, linewidth=3.0)
 
     plt.xlabel(p)
     translate_param = { "pi_lr": "Actor lr", "qf_vf_lr": "Critic lr"}
@@ -271,18 +271,18 @@ for p in param_dicts:
     plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, a, p))
 
 
-    full_agents = ['ForwardKL', 'ReverseKL']
-    markers = dict(zip( full_agents, ['o', 'x'] ))
-    marker_sizes = dict(zip( full_agents, [20, 35] ))
-    mews = dict(zip( full_agents, [3, 7] ))    
-    legend_elements = [Line2D([0], [0], marker=markers["ForwardKL"], color='black', label='Forward KL',
-                            markerfacecolor='black', markersize=marker_sizes["ForwardKL"], mew = mews["ForwardKL"]), Line2D([0], [0], marker=markers["ReverseKL"], color='black', label='Reverse KL',
-                            markerfacecolor='black', markersize=marker_sizes["ReverseKL"], mew = mews["ReverseKL"])]
+    # full_agents = ['ForwardKL', 'ReverseKL']
+    # markers = dict(zip( full_agents, ['.', '.'] ))
+    # marker_sizes = dict(zip( full_agents, [20, 35] ))
+    # mews = dict(zip( full_agents, [3, 7] ))    
+    # legend_elements = [Line2D([0], [0], marker=markers["ForwardKL"], color='black', label='Forward KL',
+    #                         markerfacecolor='black', markersize=marker_sizes["ForwardKL"], mew = mews["ForwardKL"]), Line2D([0], [0], marker=markers["ReverseKL"], color='black', label='Reverse KL',
+    #                         markerfacecolor='black', markersize=marker_sizes["ReverseKL"], mew = mews["ReverseKL"])]
 
 
-    plt.xticks(plt_xticks, plt_x)
-    plt.title("{} sensitivity curve".format(translate_param[p]))
-    plt.legend(handles=legend_elements, frameon=False)
-    plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve.png".format(output_plot_dir, env_name, a, p))
-    # plt.show()
-    plt.clf()
+    # plt.xticks(plt_xticks, plt_x)
+    # plt.title("{} sensitivity curve".format(translate_param[p]))
+    # plt.legend(handles=legend_elements, frameon=False)
+    # plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve.png".format(output_plot_dir, env_name, a, p))
+    # # plt.show()
+    # plt.clf()

@@ -28,6 +28,9 @@ def main():
     parser.add_argument('--write_plot', default=False, action='store_true')
     parser.add_argument('--write_log', default=False, action='store_true')
     parser.add_argument('--out_dir', type=str, default="results")
+    parser.add_argument('--resume_training', action="store_true")
+    parser.add_argument('--save_data_bdir', type=str, default="saved_nets")
+    parser.add_argument('--save_data_interval', type=int, default=10)
 
     args = parser.parse_args()
 
@@ -35,6 +38,7 @@ def main():
         "write_plot": args.write_plot,
         "write_log": args.write_log
     }
+
 
     # read env/agent json
     with open(args.env_json, 'r') as env_dat:
@@ -76,6 +80,24 @@ def main():
     if not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
+    # save/resume params and dirs
+    save_data_fname = env_json['environment'] + '_'+agent_json['agent'] + '_setting_' + str(SETTING_NUM) + '_run_'+str(RUN_NUM) + '.tar'
+
+    save_data_endname = 'END_' + env_json['environment'] + '_'+agent_json['agent'] + '_setting_' + str(SETTING_NUM) + '_run_'+str(RUN_NUM) + '.txt'
+
+    save_data_full_endname = os.path.join(args.save_data_bdir, save_data_endname)
+
+    if args.resume_training:
+        if os.path.isfile(save_data_full_endname):
+            exit()
+        os.makedirs(args.save_data_bdir, exist_ok=True)    
+
+    resume_params = {"resume_training": args.resume_training,
+                     "save_data_bdir": args.save_data_bdir,
+                     "save_data_interval": args.save_data_interval,
+                     "save_data_fname": save_data_fname
+                     }
+
     # create log directory (for tensorboard, gym monitor/render)
     START_DATETIME = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     log_dir = './{}/{}results/log_summary/{}/{}_{}_{}'.format(args.out_dir, str(env_json['environment']), str(agent_json['agent']), str(SETTING_NUM), str(RUN_NUM), str(START_DATETIME))
@@ -105,7 +127,8 @@ def main():
 
     # initialize experiment
     experiment = Experiment(agent=agent, train_environment=train_env, test_environment=test_env, seed=RANDOM_SEED,
-                            writer=writer, write_log=args.write_log, write_plot=args.write_plot)
+                            writer=writer, write_log=args.write_log, write_plot=args.write_plot,
+                            resume_params = resume_params)
     
     # run experiment
     episode_rewards, eval_episode_mean_rewards, eval_episode_std_rewards, train_episode_steps = experiment.run()
@@ -151,6 +174,10 @@ def main():
         subprocess.run(["ffmpeg", "-framerate", "24", "-i", "{}/figures/steps_%01d.png".format(log_dir), "{}.mp4".format(log_dir)])
         # subprocess.run(["mv", "{}.mp4".format(log_dir), "{}/../".format(log_dir)])
         subprocess.run(["rm", "-rf", "{}/figures".format(log_dir)])
+
+    if args.resume_training:
+        os.system('touch {}'.format(save_data_full_endname))
+        os.system('rm {}'.format(os.path.join(args.save_data_bdir, save_data_fname)))
 
 
 if __name__ == '__main__':

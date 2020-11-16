@@ -1,10 +1,12 @@
 import numpy as np
 from datetime import datetime
 import time
-
+import os
+import pickle
+import torch
         
 class Experiment(object):
-    def __init__(self, agent, train_environment, test_environment, seed, writer, write_log, write_plot):
+    def __init__(self, agent, train_environment, test_environment, seed, writer, write_log, write_plot, resume_params):
         self.agent = agent
         self.train_environment = train_environment
         self.train_environment.set_random_seed(seed)
@@ -28,9 +30,15 @@ class Experiment(object):
         self.cum_train_time = 0.0
         self.cum_eval_time = 0.0
 
+        # save/resume params
+        self.resume_training = resume_params['resume_training']
+        self.save_data_bdir = resume_params['save_data_bdir']
+        self.save_data_interval = resume_params['save_data_interval']
+        self.save_data_fname = resume_params['save_data_fname']
+
     def run(self):
 
-        episode_count = 0
+        self.episode_count = 0
 
         # For total time
         start_run = datetime.now()
@@ -38,8 +46,14 @@ class Experiment(object):
 
         # evaluate once at beginning
         self.cum_eval_time += self.eval()
+
+        if self.resume_training:
+            self.link_variables_and_names()
+            self.load_data()
         
         while self.total_step_count < self.train_environment.TOTAL_STEPS_LIMIT:
+            if (self.episode_count + 1) % self.save_data_interval == 0 and self.resume_training:
+                self.save_data()
             # runs a single episode and returns the accumulated reward for that episode
             train_start_time = time.time()
             episode_reward, num_steps, force_terminated, eval_session_time = self.run_episode_train(is_train=True)
@@ -48,13 +62,13 @@ class Experiment(object):
             train_ep_time = train_end_time - train_start_time - eval_session_time
 
             self.cum_train_time += train_ep_time
-            print("Train:: ep: " + str(episode_count) + ", r: " + str(episode_reward) + ", n_steps: " + str(num_steps) + ", elapsed: " + time.strftime("%H:%M:%S", time.gmtime(train_ep_time)))
+            print("Train:: ep: " + str(self.episode_count) + ", r: " + str(episode_reward) + ", n_steps: " + str(num_steps) + ", elapsed: " + time.strftime("%H:%M:%S", time.gmtime(train_ep_time)))
 
             if not force_terminated: 
                 self.train_rewards_per_episode.append(episode_reward)
                 self.train_cum_steps.append(self.total_step_count)
         
-            episode_count += 1
+            self.episode_count += 1
 
         self.train_environment.close()  # clear environment memory
 
@@ -114,6 +128,57 @@ class Experiment(object):
         else:
             force_terminated = False
         return episode_reward, episode_step_count, force_terminated, eval_session_time
+
+    def link_variables_and_names(self):
+        #Diverse counters
+        self.sr_diverse_names = ['cum_eval_time', 'cum_train_time', 'total_step_count', 'episode_count','train_cum_steps', 'train_rewards_per_episode']
+        self.sr_diverse_vars = [None] * len(self.sr_diverse_names)
+
+        #Networks
+        self.sr_nets_names = ['pi_net', 'q_net', 'v_net']
+        self.sr_nets_vars = [self.agent.network_manager.network.pi_net, self.agent.network_manager.network.q_net, self.agent.network_manager.network.v_net]
+
+        if self.agent.network_manager.use_target:
+            self.sr_nets_names.append('target_v_net')
+            self.sr_nets_vars.append(self.agent.network_manager.network.target_v_net)
+
+        #Optimizers
+        self.sr_optimizers_names = ['pi_optimizer', 'q_optimizer', 'v_optimizer']
+        self.sr_optimizers_vars = [self.agent.network_manager.network.pi_optimizer, self.agent.network_manager.network.q_optimizer, self.agent.network_manager.network.v_optimizer]
+
+        #Replay buffer
+        self.sr_buffer_names = ['replay_buffer']
+        self.sr_buffer_vars = [self.agent.replay_buffer]
+
+        #Join all variables
+        self.sr_all_names = self.sr_diverse_names + self.sr_nets_names + self.sr_optimizers_names + self.sr_buffer_names
+        self.sr_all_vars = self.sr_diverse_vars + self.sr_nets_vars + self.sr_optimizers_vars + self.sr_buffer_vars
+
+    def save_data(self):
+
+        sr_all_vars_state_dicts = [getattr(self, n) for n in self.sr_diverse_names] + [a.state_dict() for a in self.sr_nets_vars] + [a.state_dict() for a in self.sr_optimizers_vars] + [pickle.dumps(a) for a in self.sr_buffer_vars]
+
+        out_dict = dict(zip(self.sr_all_names, sr_all_vars_state_dicts))
+
+        out_temp_fname = os.path.join(self.save_data_bdir, 'temp_' + self.save_data_fname)
+        out_fname = os.path.join(self.save_data_bdir, self.save_data_fname)
+
+        torch.save(out_dict, out_temp_fname)
+        os.rename(out_temp_fname, out_fname)
+
+    def load_data(self):
+        in_fname = os.path.join(self.save_data_bdir, self.save_data_fname)
+        if os.path.isfile(in_fname):
+            checkpoint = torch.load(in_fname)
+            for name, var in zip(self.sr_all_names, self.sr_all_vars):
+                if name in self.sr_optimizers_names or name in self.sr_nets_names:
+                    var.load_state_dict(checkpoint[name])
+                elif name in self.sr_buffer_names:
+                    var = pickle.loads(checkpoint[name])
+                elif name in self.sr_diverse_names:
+                    setattr(self, name, checkpoint[name])
+                else:
+                    raise NotImplementedError
 
     def eval(self):
         temp_rewards_per_episode = []

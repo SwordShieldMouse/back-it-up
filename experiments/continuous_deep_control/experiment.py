@@ -174,7 +174,12 @@ class Experiment(object):
                 if name in self.sr_optimizers_names or name in self.sr_nets_names:
                     var.load_state_dict(checkpoint[name])
                 elif name in self.sr_buffer_names:
-                    var = pickle.loads(checkpoint[name])
+                    tmp = pickle.loads(checkpoint[name])
+                    for ii in dir(var):
+                        if ii.startswith('__'):
+                            continue
+                        if hasattr(var, ii):
+                            setattr(var, ii, getattr(tmp, ii) )
                 elif name in self.sr_diverse_names:
                     setattr(self, name, checkpoint[name])
                 else:

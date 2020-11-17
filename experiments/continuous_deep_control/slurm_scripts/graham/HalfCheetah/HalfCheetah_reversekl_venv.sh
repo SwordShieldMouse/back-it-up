@@ -3,7 +3,7 @@
 #SBATCH --output=./logs/HalfCheetah/rkl/%A%a.out
 #SBATCH --error=./logs/HalfCheetah/rkl/%A%a.err
 
-#SBATCH --array=1600:4799:4
+#SBATCH --array=1600-4799:4
 
 #SBATCH --cpus-per-task=4
 #SBATCH --time=10:30:00

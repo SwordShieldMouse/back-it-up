@@ -3,15 +3,13 @@
 #SBATCH --output=./logs/Swimmer/rkl/%A%a.out
 #SBATCH --error=./logs/Swimmer/rkl/%A%a.err
 
-#SBATCH --array=0-3017
+#SBATCH --array=0-3017:4%200
 
 #SBATCH --cpus-per-task=1
-#SBATCH --time=8:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem-per-cpu=8000M
 
 #SBATCH --account=rrg-whitem
-
-#SBATCH --gres=gpu:v100l:1
 
 ENV_NAME=Swimmer-v2
 AGENT_NAME=reverse_kl_rpm_big
@@ -23,16 +21,13 @@ echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
-# THESE_ERROR_RUNS=()
+THESE_ERROR_RUNS=()
 
-# let "end_idx=$SLURM_ARRAY_TASK_ID+3"
-# for ((i=$SLURM_ARRAY_TASK_ID; i<= $end_idx; i++)); do
-#     THESE_ERROR_RUNS+=( ${ERROR_RUNS[$i]} )
-# done
+let "end_idx=$SLURM_ARRAY_TASK_ID+3"
+for ((i=$SLURM_ARRAY_TASK_ID; i<= $end_idx; i++)); do
+    THESE_ERROR_RUNS+=( ${ERROR_RUNS[$i]} )
+done
 
-# increment=1
+increment=1
 
-# parallel --jobs 4 "source ~/sungsu_env/bin/activate; bash experiments/continuous_deep_control/slurm_scripts/run_script_template.sh $ENV_NAME $AGENT_NAME {}" ::: ${THESE_ERROR_RUNS[@]}
-
-source ~/sungsu_env/bin/activate;
-bash experiments/continuous_deep_control/slurm_scripts/run_script_template.sh $ENV_NAME $AGENT_NAME ${ERROR_RUNS[$SLURM_ARRAY_TASK_ID]}
+parallel --jobs 4 "source ~/sungsu_env/bin/activate; bash experiments/continuous_deep_control/slurm_scripts/run_script_template.sh $ENV_NAME $AGENT_NAME {}" ::: ${THESE_ERROR_RUNS[@]}

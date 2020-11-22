@@ -9,7 +9,7 @@
 #SBATCH --time=8:30:00
 #SBATCH --mem-per-cpu=12G
 
-#SBATCH --account=rrg-whitem
+#SBATCH --account=def-whitem
 
 ENV_NAME=Swimmer-v2
 AGENT_NAME=reverse_kl_rpm_big

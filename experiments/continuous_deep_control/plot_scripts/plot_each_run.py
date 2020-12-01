@@ -63,10 +63,11 @@ for i in range(NUM_RUNS):
 
 opt_range = range(0, xmax)
 xlimt = (0, xmax-1)
-_, ymin, ymax = get_xyrange(ENV_NAME)
+_, ymin, ymax, yticks = get_xyrange(ENV_NAME)
 ylimt = (ymin[0], ymax[0])
 plt.xlim(xlimt)
 plt.ylim(ylimt)
+plt.yticks(yticks)
 
 train_rewards_mean = np.nanmean(train_rewards_total_arr, axis=0)  # [:xmax]
 plt.plot(opt_range, train_rewards_mean, color='b', linewidth=1.5)

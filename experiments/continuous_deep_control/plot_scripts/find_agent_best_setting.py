@@ -139,7 +139,7 @@ if __name__ == "__main__":
         # default xmax
         xmax = np.shape(lc)[-1] - 1
 
-        xmax_override, ymin, ymax = get_xyrange(env_name)
+        xmax_override, ymin, ymax, yticks = get_xyrange(env_name)
         if xmax_override is not None:
             xmax = xmax_override
 
@@ -164,6 +164,8 @@ if __name__ == "__main__":
         ylimt = (ymin[result_idx], ymax[result_idx])
         plt.ylim(ylimt)
         plt.xlim(xlimt)
+
+        plt.yticks(yticks)
 
         # if only one line in _StepLC.txt)
         if not np.shape(lc[0]):

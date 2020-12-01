@@ -96,7 +96,7 @@ for ag in agents:
 
 plt.figure(figsize=(10, 6))
 
-_, ymin, ymax = get_xyrange(env_name)
+_, ymin, ymax, yticks = get_xyrange(env_name)
 
 if env_name == 'Reacher-v2':
     xmax = int(6000)
@@ -116,6 +116,8 @@ if show_labels:
     plt.title(env_name)
     plt.xlabel('Training steps (per 1000 steps)')
     plt.ylabel("Cum. Reward per episode").set_rotation(90)
+
+plt.yticks(yticks)
 
 # Set axes labels
 if env_name == 'Pendulum-v0':

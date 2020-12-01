@@ -55,7 +55,7 @@ moving_avg_window = 20
 
 show_label = True
 
-_, ymin, ymax = get_xyrange(env_name)
+_, ymin, ymax, yticks = get_xyrange(env_name)
 
 
 def movingaverage (values, window):
@@ -250,7 +250,7 @@ for p in param_dicts:
     plt.ylim(ymin, ymax)
     if show_label:
         plt.xticks(plt_xticks, plt_x)
-        plt.yticks(y_ticks, y_ticks)
+        plt.yticks(yticks, yticks)
         plt.legend()
         plt.title("{} sensitivity curve".format(p))
         plt.xlabel(p)
@@ -265,7 +265,7 @@ for p in param_dicts:
         plt.legend(handles=legend_elements, frameon=False, prop={'size': 14})
 
         plt.xticks(plt_xticks, [])
-        plt.yticks(y_ticks, [])
+        plt.yticks(yticks, [])
         plt.savefig("{}/{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, p))
 
     # plt.show()

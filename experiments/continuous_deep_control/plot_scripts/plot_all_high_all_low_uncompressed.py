@@ -26,9 +26,8 @@ matplotlib.rcParams.update({'font.size': 50})
 
 parser = argparse.ArgumentParser()
 parser.add_argument("env_name", type=str)
-parser.add_argument("--agent", type=str, choices=["ForwardKL","ReverseKL","both"],default="both")
 parser.add_argument("--stored_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
-parser.add_argument("--output_plot_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_plots/entropy_comparison")
+parser.add_argument("--output_plot_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_plots/all_high_all_low")
 parser.add_argument("--parse_type", type=str, default="entropy_scale")
 parser.add_argument("--root_dir", type=str, default="experiments/continuous_deep_control")
 parser.add_argument("--best_setting_type", type=str, default="top20", choices=["best","top20"])
@@ -37,11 +36,10 @@ args = parser.parse_args()
 
 show_plot = False
 
-full_agents = ['ForwardKL', 'ReverseKL']
-agents = full_agents if args.agent == 'both' else [args.agent]
-markers = dict(zip( full_agents, [None, None] ))
-marker_sizes = dict(zip( full_agents, [15, 15] ))
-mews = dict(zip( full_agents, [3, 3] ))
+agents = ['ForwardKL', 'ReverseKL']
+markers = dict(zip( agents, [None, None] ))
+marker_sizes = dict(zip( agents, [15, 15] ))
+mews = dict(zip( agents, [3, 3] ))
 
 # Root loc
 root_dir = args.root_dir
@@ -72,10 +70,9 @@ result_type = ['TrainEpisode']
 # Stored Directory
 stored_dir = os.path.join(args.stored_dir, 'merged{}results/'.format(env_name) )
 
-suffix = 'Result_{}'.format(args.agent)
 data_type = ['avg', 'se']
 
-agent_results = defaultdict(list)
+agent_results = {}
 
 max_length = 1
 
@@ -84,19 +81,20 @@ temps = [1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0]
 temps = sorted(temps)
 auc_ratio = 0.5
 colours = {"ForwardKL": None, "ReverseKL": None}
-rkl_colors = [cm.jet(0.65 + (.99 - 0.65) * ix / len(temps)) for ix in range(len(temps))]
 
-fkl_colors = [None for _ in range(len(temps))]
+high_temps = [1, 0.5, 0.1]
+low_temps = [0.05, 0.01, 0.005, 0.001, 0.0]
+
+temp_types = ['high', 'low']
+
+initial_rkl_color = cm.jet(0.65)
+final_rkl_color = cm.jet(0.9)
+
 initial_fkl_color = np.array((0, 26, 51))/255.
-final_fkl_color = np.array((204, 230, 255))/255.
-for s_t_idx, s_temp in enumerate(sorted(temps)):
-    t = float(s_t_idx)/(len(temps) - 1)
-    color = initial_fkl_color*(1-t) + t*final_fkl_color
-    fkl_colors[ temps.index(s_temp) ] = color    
+final_fkl_color = np.array((102, 181, 255))/255.
 
-colours["ReverseKL"] = rkl_colors
-colours["ForwardKL"] = fkl_colors
-
+colours["ReverseKL"] = {'high': final_rkl_color, 'low': initial_rkl_color}
+colours["ForwardKL"] = {'high': final_fkl_color, 'low': initial_fkl_color}
 
 for ag in agents:
 
@@ -116,25 +114,26 @@ for ag in agents:
         avg = np.load(os.path.join(stored_npy_dir, '{}_{}_{}_{}_{}_{}_{}.npy'.format(args.best_setting_type, env_name, ag, result_type[0], parse_type, t, data_type[0])))
         se = np.load(os.path.join(stored_npy_dir, '{}_{}_{}_{}_{}_{}_{}.npy'.format(args.best_setting_type, env_name, ag, result_type[0], parse_type, t, data_type[1])))
 
-        agent_results[ag].append((avg, se, t))
+        high_low_t = 'high' if t in high_temps else 'low'
+
+        if ag not in agent_results:
+            agent_results[ag] = { 'high': [], 'low': []}
+        agent_results[ag][high_low_t].append((avg, se))
 
         if max_length < len(avg):
             max_length = len(avg)
             print('agent: {}, max_length: {}'.format(ag, max_length))        
 
-if len(agents) == 2: #Only top 3 temperatures
-    for ag in agents:
-        first_auc_idx = int(agent_results[ag][-1][0].shape[0] * (1.-auc_ratio))
-        aucs = list(map( lambda k: np.mean(k[0][first_auc_idx:]) , agent_results[ag]))
-        sorted_aucs = sorted(aucs,reverse=True)
-        best_aucs = sorted_aucs[:3]
-        deleted_idxs = []
-        for auc_idx, auc in enumerate(aucs):
-            if auc not in best_aucs:
-                deleted_idxs.append(auc_idx)
-        deleted_idxs = sorted(deleted_idxs, reverse=True)
-        for didx in deleted_idxs:
-            del agent_results[ag][didx]
+for ag in agents:
+    for high_low_t in temp_types:
+        mean = np.mean( list(map(lambda k: k[0],  agent_results[ag][high_low_t])), axis=0 )
+
+        all_sterr = np.stack(list(map(lambda k: k[1],  agent_results[ag][high_low_t])), axis=0)
+        all_var = np.square(all_sterr)
+        combined_var = np.sum(all_var, axis=0) / np.square(all_var.shape[0])
+        combined_sterr = np.sqrt(combined_var)
+
+        agent_results[ag][high_low_t] = (mean, combined_sterr)
 
 plt.figure(figsize=(18, 12))
 
@@ -163,29 +162,24 @@ plt.ylim(ylimt)
 handle_arr = []
 
 for jdx, ag in enumerate(agents):
-    a_temps = list(map(lambda k: k[2], agent_results[ag]))
-    for a_idx, t in enumerate(a_temps): #a_idx: temperature index in agent list
+    for high_low_t in temp_types:
 
-        idx = temps.index(t) #idx: temperature index in temperatures list (for colours)
-
-        # Skip HardForwardKL
-        if ag == 'ForwardKL' and t == 0:
-            continue
-
-        lc = agent_results[ag][a_idx][0][:xmax]
-        se = agent_results[ag][a_idx][1][:xmax]
+        lc = agent_results[ag][high_low_t][0][:xmax]
+        se = agent_results[ag][high_low_t][1][:xmax]
 
         mark_freq = xmax//30
 
-        plt.plot(opt_range, lc, color=colours[ag][idx], linewidth=1.0, label=ag, marker=markers[ag], markevery=mark_freq, markersize=marker_sizes[ag], mew=mews[ag])
-        plt.fill_between(opt_range,  lc - se, lc + se, alpha=0.3, facecolor=colours[ag][idx])
+        plt.plot(opt_range, lc, color=colours[ag][high_low_t], linewidth=1.0, label=ag, marker=markers[ag], markevery=mark_freq, markersize=marker_sizes[ag], mew=mews[ag])
+        plt.fill_between(opt_range,  lc - se, lc + se, alpha=0.3, facecolor=colours[ag][high_low_t])
 
 
 plt.subplots_adjust(bottom=0.17, left=0.2)
 
-legend_elements = [Line2D([0], [0], marker=markers["ForwardKL"], color='black', label='Forward KL',
-                        markerfacecolor='black', markersize=marker_sizes["ForwardKL"], mew = mews["ForwardKL"]), Line2D([0], [0], marker=markers["ReverseKL"], color='black', label='Reverse KL',
-                        markerfacecolor='black', markersize=marker_sizes["ReverseKL"], mew = mews["ReverseKL"])]
+legend_elements = [Line2D([0], [0], linewidth = 6.0, marker=None, color=colours['ForwardKL']['high'], label='HIGH FKL'),
+                   Line2D([0], [0], linewidth = 6.0, marker=None, color=colours['ForwardKL']['low'], label='LOW FKL'),
+                   Line2D([0], [0], linewidth = 6.0, marker=None, color=colours['ReverseKL']['high'], label='HIGH RKL'),
+                   Line2D([0], [0], linewidth = 6.0, marker=None, color=colours['ReverseKL']['low'], label='LOW RKL')
+                  ]
 
 if show_plot:
     plt.show()
@@ -194,8 +188,8 @@ else:
     plt.xlabel('{} of Timesteps'.format(map_xlabel[X_FORMATING_STEPS]))
     plt.ylabel("Average return").set_rotation(90)    
     #Unlabeled
-    plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison_unlabeled.png".format(args.agent, env_name, parse_type)))
+    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison_unlabeled.png".format(env_name, parse_type)))
     #Labeled
     # plt.title(env_name)
-    # plt.legend(handles=legend_elements, frameon=False)
-    # plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison.png".format(args.agent, env_name, parse_type)))
+    plt.legend(handles=legend_elements, fontsize=30)
+    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison.png".format(env_name, parse_type)))

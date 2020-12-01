@@ -8,7 +8,7 @@ import sys
 from collections import OrderedDict, defaultdict
 import json
 import os
-from plot_config import get_xyrange
+from plot_config import get_xyrange_with_p
 
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FormatStrFormatter
@@ -33,7 +33,7 @@ parser.add_argument('env_name', type=str)
 parser.add_argument('agent', type=str,choices=('ForwardKL','ReverseKL'))
 parser.add_argument('--store_dir', type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
 parser.add_argument('--output_plot_dir', type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_plots/sensitivity" )
-parser.add_argument('--num_runs',type=int,default=10)
+parser.add_argument('--num_runs',type=int,default=30)
 
 parser.add_argument('--best_setting_type',type=str,choices=('best','top20'),default='top20')
 
@@ -268,6 +268,9 @@ for p in param_dicts:
     plt.ylabel("Average {}-AUC".format(last_N_ratio), rotation=90)        
 
     plt.xticks(plt_xticks, plt_x)
+    _, ymin, ymax, yticks = get_xyrange_with_p(args.env_name, p)
+    plt.ylim(bottom=ymin[0], top=ymax[0])
+    plt.yticks(ticks=yticks)
     plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, a, p))
 
 

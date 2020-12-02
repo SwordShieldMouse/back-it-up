@@ -67,6 +67,7 @@ _, ymin, ymax, yticks = get_xyrange(ENV_NAME)
 ylimt = (ymin[0], ymax[0])
 plt.xlim(xlimt)
 plt.ylim(ylimt)
+plt.yticks(yticks)
 
 plt.yticks(yticks)
 

@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("env_name", type=str)
 parser.add_argument("agent_name", type=str, choices=["ForwardKL", "ReverseKL"])
 parser.add_argument("--results_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
-parser.add_argument("--num_runs", type=int, default=10)
+parser.add_argument("--num_runs", type=int, default=30)
 parser.add_argument("--root_dir", type=str, default="experiments/continuous_deep_control")
 
 args = parser.parse_args()
@@ -78,12 +78,13 @@ print("Num runs: {}".format(num_runs))
 # save_suffix = ['_TrainEpisodeMeanRewardsLC.txt','_TrainEpisodeStdRewardsLC.txt','_EvalEpisodeMeanRewardsLC.txt','_EvalEpisodeStdRewardsLC.txt','_Params.txt']
 
 suffix = ['_EpisodeRewardsLC.txt', '_Params.txt']
-save_suffix = ['_TrainEpisodeMeanRewardsLC.txt', '_TrainEpisodeStdRewardsLC.txt', '_Params.txt']
+save_suffix = ['_TrainEpisodeMeanRewardsLC.txt', '_TrainEpisodeStdRewardsLC.txt', '_Params.txt', '_all.npy']
 
 
 missingindexes = []
 train_mean_rewards = []
 train_std_rewards = []
+train_all_rewards = []
 eval_mean_rewards = []
 eval_std_rewards = []
 
@@ -136,6 +137,7 @@ for setting_num in range(num_settings):
     # Need to have same size
     train_mean_rewards.append(np.nanmean(train_lc_arr, axis=0))
     train_std_rewards.append(np.nanstd(train_lc_arr, axis=0))
+    train_all_rewards.append(train_lc_arr)
 
     '''read in params file'''
     paramfile = store_dir + env_name + '_' + agent_name + '_setting_' + str(setting_num) + '_run_*' + suffix[-1]
@@ -153,7 +155,7 @@ for setting_num in range(num_settings):
 params = np.array(params)
 
 
-allres = [train_mean_rewards, train_std_rewards, params]
+allres = [train_mean_rewards, train_std_rewards, params, train_all_rewards]
 for i in range(len(save_suffix)):
     name = merged_dir + env_name + '_' + agent_name + save_suffix[i]
 
@@ -161,7 +163,12 @@ for i in range(len(save_suffix)):
         name = params_fn
 
     print('Saving...' + name)
-    np.savetxt(name, allres[i], fmt='%s', delimiter=',')
+    if i == 3:
+        train_all_rewards = np.array(train_all_rewards)
+        np.save(name, allres[i])        
+    else:
+        np.savetxt(name, allres[i], fmt='%s', delimiter=',')
+        
 
 print('missing indexes are:  -- - - - - - - - - --')
 missed = ''

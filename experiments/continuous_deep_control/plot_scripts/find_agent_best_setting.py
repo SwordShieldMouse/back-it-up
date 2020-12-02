@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('--parse_type',type=str,default="entropy_scale")
     parser.add_argument('--output_plot_dir',type=str,default="my_results/normal_sweeps/joint_rkl_fkl/_plots/individual_performance")
 
-    parser.add_argument('--best_setting_type',type=str,choices=('best','top20'),default='best')
+    parser.add_argument('--best_setting_type',type=str,choices=('best','top20'),default='top20')
 
     args = parser.parse_args()
 
@@ -129,6 +129,9 @@ if __name__ == "__main__":
         print('Reading stdfilename.. ' + stdfilename)
         lcstd = np.loadtxt(stdfilename, delimiter=',')
 
+        allfilename = merged_result_dir + env_name + '_' + agent_name + '_'  + 'all.npy'
+        all_lc = np.load(allfilename)
+
         paramfile = merged_result_dir + env_name + '_' + agent_name + '_*' + '_Params.txt'
         print('Reading paramfile.. ' + paramfile)
 
@@ -164,6 +167,7 @@ if __name__ == "__main__":
         ylimt = (ymin[result_idx], ymax[result_idx])
         plt.ylim(ylimt)
         plt.xlim(xlimt)
+        plt.yticks(yticks)
 
         plt.yticks(yticks)
 
@@ -264,11 +268,10 @@ if __name__ == "__main__":
                 lc_separate_means = lc[plot_idxs][:, :(xmax+1)]
                 plot_lc = np.mean(lc_separate_means, axis=0)
 
-                lcse = lcstd[plot_idxs][:, :(xmax+1)] / np.sqrt(num_runs)
+                ifiltered_lc = all_lc[plot_idxs][:, :, :(xmax+1)]
+                filtered_lc = np.reshape(ifiltered_lc, [-1, (xmax+1)])
 
-                lc_separate_var = np.square( lcse )
-                lc_var = np.sum(lc_separate_var, axis=0) / float(len(type_best_arr[i])**2)
-                plot_lcse = np.sqrt(lc_var)
+                plot_lcse = np.std(filtered_lc, axis=0) / np.sqrt(filtered_lc.shape[0])
 
                 plt.fill_between(opt_range, plot_lc - plot_lcse, plot_lc + plot_lcse, alpha=0.2)
                 plt.plot(opt_range, plot_lc, linewidth=1.0, label='top 20 {}'.format(type_arr[i]))                
@@ -276,9 +279,11 @@ if __name__ == "__main__":
             # save each best settings
             lc_name = '{m}/npy/{best_type}_{env}_{ag}_{res}_{pt}_{entr}_avg.npy'.format(m=merged_result_dir, env=env_name, ag=agent_name, res=result, pt=parse_type, entr=type_arr[i],best_type=best_setting_type)
             lcse_name = '{m}/npy/{best_type}_{env}_{ag}_{res}_{pt}_{entr}_se.npy'.format(m=merged_result_dir, env=env_name, ag=agent_name, res=result, pt=parse_type, entr=type_arr[i],best_type=best_setting_type)
+            lcsall_name = '{m}/npy/{best_type}_{env}_{ag}_{res}_{pt}_{entr}_all.npy'.format(m=merged_result_dir, env=env_name, ag=agent_name, res=result, pt=parse_type, entr=type_arr[i],best_type=best_setting_type)            
 
             np.save(lc_name, plot_lc)
             np.save(lcse_name, plot_lcse)
+            np.save(lcsall_name, all_lc[plot_idxs][:, :, :(xmax+1)])
 
         plt.legend(loc="best")
 

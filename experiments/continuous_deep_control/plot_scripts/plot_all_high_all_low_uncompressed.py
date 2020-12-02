@@ -113,12 +113,13 @@ for ag in agents:
 
         avg = np.load(os.path.join(stored_npy_dir, '{}_{}_{}_{}_{}_{}_{}.npy'.format(args.best_setting_type, env_name, ag, result_type[0], parse_type, t, data_type[0])))
         se = np.load(os.path.join(stored_npy_dir, '{}_{}_{}_{}_{}_{}_{}.npy'.format(args.best_setting_type, env_name, ag, result_type[0], parse_type, t, data_type[1])))
+        all_ = np.load(os.path.join(stored_npy_dir, '{}_{}_{}_{}_{}_{}_all.npy'.format(args.best_setting_type, env_name, ag, result_type[0], parse_type, t)))
 
         high_low_t = 'high' if t in high_temps else 'low'
 
         if ag not in agent_results:
             agent_results[ag] = { 'high': [], 'low': []}
-        agent_results[ag][high_low_t].append((avg, se))
+        agent_results[ag][high_low_t].append((avg, all_))
 
         if max_length < len(avg):
             max_length = len(avg)
@@ -128,10 +129,11 @@ for ag in agents:
     for high_low_t in temp_types:
         mean = np.mean( list(map(lambda k: k[0],  agent_results[ag][high_low_t])), axis=0 )
 
-        all_sterr = np.stack(list(map(lambda k: k[1],  agent_results[ag][high_low_t])), axis=0)
-        all_var = np.square(all_sterr)
-        combined_var = np.sum(all_var, axis=0) / np.square(all_var.shape[0])
-        combined_sterr = np.sqrt(combined_var)
+        all_lc = np.stack(list(map(lambda k: k[1],  agent_results[ag][high_low_t])), axis=0)
+
+        unrolled_all_lc = np.reshape(all_lc, [-1, mean.shape[0]])
+
+        combined_sterr = np.std(unrolled_all_lc, axis=0) / np.sqrt(unrolled_all_lc.shape[0])
 
         agent_results[ag][high_low_t] = (mean, combined_sterr)
 

@@ -144,6 +144,7 @@ for agent_name in agents:
                 idx_arr = idx_dict[p][val]
                 result_mean_array = []
                 result_stderr_array = []
+                result_all_array = []
 
                 if t == 0 and agent_name == "ForwardKL":
                     # skip
@@ -176,7 +177,10 @@ for agent_name in agents:
                                 print("missing {}.. skipping".format(train_rewards_filename))
 
                         result_mean_array.append(np.mean(each_run_avg_auc_arr)) #Between runs for same setting
-                        result_stderr_array.append(np.std(each_run_avg_auc_arr)/np.sqrt(len(each_run_avg_auc_arr))) #Between runs for same setting
+                        if best_setting_type == 'best':
+                            result_stderr_array.append(np.std(each_run_avg_auc_arr)/np.sqrt(len(each_run_avg_auc_arr))) #Between runs for same setting
+                        else:
+                            result_all_array.append(np.array(each_run_avg_auc_arr)) #Between runs for same setting                            
                     
                     if best_setting_type == 'best':
                         best_idx = np.nanargmax(result_mean_array)                    
@@ -186,15 +190,18 @@ for agent_name in agents:
 
                     else:
                         result_mean_array = np.array(result_mean_array)
-                        result_stderr_array = np.array(result_stderr_array)
+                        result_all_array = np.array(result_all_array)
+                        
                         sorted_idxs = np.argsort(result_mean_array)[::-1]
                         n_top_args = max(int(0.2 * len(sorted_idxs)),2)
                         best_idxs = sorted_idxs[:n_top_args]
                         plt_point_y.append(np.mean(result_mean_array[best_idxs]))
 
-                        var_best = np.square(result_stderr_array[best_idxs])
-                        avg_var_best = np.sum(var_best, axis=0) / float(n_top_args**2)
-                        plt_stderr_y.append(np.sqrt(avg_var_best))
+                        best_all_array = result_all_array[best_idxs]
+                        unrolled_all_array = np.reshape(best_all_array, [-1])
+
+                        combined_stderr = np.std(unrolled_all_array) / np.sqrt(unrolled_all_array.shape[0])
+                        plt_stderr_y.append(combined_stderr)
 
 
 

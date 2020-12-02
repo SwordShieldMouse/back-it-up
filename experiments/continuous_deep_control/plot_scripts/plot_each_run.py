@@ -69,8 +69,6 @@ plt.xlim(xlimt)
 plt.ylim(ylimt)
 plt.yticks(yticks)
 
-plt.yticks(yticks)
-
 train_rewards_mean = np.nanmean(train_rewards_total_arr, axis=0)  # [:xmax]
 plt.plot(opt_range, train_rewards_mean, color='b', linewidth=1.5)
 

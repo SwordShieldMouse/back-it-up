@@ -169,8 +169,6 @@ if __name__ == "__main__":
         plt.xlim(xlimt)
         plt.yticks(yticks)
 
-        plt.yticks(yticks)
-
         # if only one line in _StepLC.txt)
         if not np.shape(lc[0]):
             bestlc = lc[:(xmax+1)]

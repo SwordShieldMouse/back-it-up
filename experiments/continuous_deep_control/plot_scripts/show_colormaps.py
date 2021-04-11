@@ -18,16 +18,27 @@ my_cmap = matplotlib.colors.LinearSegmentedColormap('fkl_colormap',cdict,256)
 
 cmap_dict['ForwardKL'] = my_cmap
 
-def truncate_colormap(cmap, minval=0.65, maxval=.99, n=1000):
-    new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-        'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
-        cmap(np.linspace(minval, maxval, n)))
-    return new_cmap
+# def truncate_colormap(cmap, minval=0.65, maxval=.99, n=1000):
+#     new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+#         'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
+#         cmap(np.linspace(minval, maxval, n)))
+#     return new_cmap
 
-jet_cmap = plt.get_cmap('jet')
-trunc_cmap = truncate_colormap(jet_cmap)
+# jet_cmap = plt.get_cmap('jet')
+# trunc_cmap = truncate_colormap(jet_cmap)
 
-cmap_dict['ReverseKL'] = trunc_cmap
+# cmap_dict['ReverseKL'] = trunc_cmap
+
+rcdict = {'red': ((0.0, 0.0, 0.0),
+                 (1.0, 204./255., 204./255.)),
+         'green': ((0.0, 51./255., 51./255.),
+                   (1.0, 255./255., 255./255.)),
+         'blue': ((0.0, 26./255., 26./255.),
+                  (1.0, 204./255., 204./255.))}
+
+my_rcmap = matplotlib.colors.LinearSegmentedColormap('rkl_colormap',rcdict,256)
+
+cmap_dict['ReverseKL'] = my_rcmap
 
 a=np.transpose(outer(arange(0,1,0.01),ones(5)), [1,0])
 

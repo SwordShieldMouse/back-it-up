@@ -27,7 +27,7 @@ matplotlib.rcParams.update({'font.size': 50})
 parser = argparse.ArgumentParser()
 parser.add_argument("env_name", type=str)
 parser.add_argument("--stored_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
-parser.add_argument("--output_plot_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_plots/all_high_all_low")
+parser.add_argument("--output_plot_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_plots/all_high_all_low_bar")
 parser.add_argument("--parse_type", type=str, default="entropy_scale")
 parser.add_argument("--root_dir", type=str, default="experiments/continuous_deep_control")
 parser.add_argument("--best_setting_type", type=str, default="top20", choices=["best","top20"])
@@ -36,7 +36,7 @@ args = parser.parse_args()
 
 show_plot = False
 
-agents = ['ForwardKL', 'ReverseKL']
+agents = ['ReverseKL','ForwardKL']
 markers = dict(zip( agents, [None, None] ))
 marker_sizes = dict(zip( agents, [15, 15] ))
 mews = dict(zip( agents, [3, 3] ))
@@ -125,55 +125,61 @@ for ag in agents:
             max_length = len(avg)
             print('agent: {}, max_length: {}'.format(ag, max_length))        
 
+_, ymin, ymax, yticks = get_xyrange(env_name)
+
 for ag in agents:
     for high_low_t in temp_types:
-        mean = np.mean( list(map(lambda k: k[0],  agent_results[ag][high_low_t])), axis=0 )
+        # mean = np.mean( list(map(lambda k: k[0],  agent_results[ag][high_low_t])), axis=0 )
 
         all_lc = np.stack(list(map(lambda k: k[1],  agent_results[ag][high_low_t])), axis=0)
 
-        unrolled_all_lc = np.reshape(all_lc, [-1, mean.shape[0]])
+        unrolled_all_lc = np.reshape(all_lc, [-1, all_lc.shape[-1]])
+        unrolled_all_lc = (unrolled_all_lc - ymin[0])/(ymax[0] - ymin[0])
 
-        combined_sterr = np.std(unrolled_all_lc, axis=0) / np.sqrt(unrolled_all_lc.shape[0])
+        len_ov_2 = int(unrolled_all_lc.shape[-1]/2)
+        all_auc = np.mean(unrolled_all_lc[:, len_ov_2:], axis=1)
+        mean = np.mean(all_auc)
+        combined_sterr = np.std(all_auc) / np.sqrt(all_auc.shape[0])
 
         agent_results[ag][high_low_t] = (mean, combined_sterr)
 
-plt.figure(figsize=(18, 12))
-
-_, ymin, ymax, yticks = get_xyrange(env_name)
-
-xmax = int(max_length)
-
-opt_range = range(0, xmax)
-xlimt = (0, xmax - 1)
-print('training xmax: {}'.format(xmax))
+plt.figure(figsize=(10, 12))
+width=0.05
+intra_offset = 0.03
+inter_offset = 0.06
 
 # Train Episode Rewards
-ylimt = (ymin[0], ymax[0])
 
+plt.ylim(bottom=0., top=1.)
 
-# Set axes labels
-xtick_step = int( (TOTAL_MIL_STEPS*1e6/X_AXIS_STEPS)/5  )
-tick = [o for o in opt_range[::xtick_step]]
-ticklabel = [ int((x * X_AXIS_STEPS)/X_FORMATING_STEPS)  for x in tick]
-plt.xticks(tick, ticklabel)
-
-plt.yticks(ticks=yticks)
-plt.xlim(xlimt)
-plt.ylim(ylimt)
+plt.gca().axes.get_xaxis().set_visible(False)
+plt.xlabel("")
+plt.ylabel("AUC @ 0.5")
+plt.locator_params(axis="y", nbins=4)
 
 handle_arr = []
 
-for jdx, ag in enumerate(agents):
-    for high_low_t in temp_types:
-
-        lc = agent_results[ag][high_low_t][0][:xmax]
-        se = agent_results[ag][high_low_t][1][:xmax]
-
-        mark_freq = xmax//30
-
-        plt.plot(opt_range, lc, color=colours[ag][high_low_t], linewidth=1.0, label=ag, marker=markers[ag], markevery=mark_freq, markersize=marker_sizes[ag], mew=mews[ag])
-        plt.fill_between(opt_range,  lc - se, lc + se, alpha=0.3, facecolor=colours[ag][high_low_t])
-
+for idx, ag in enumerate(agents):
+    avg_rewards = []
+    std_error = []
+    labels = np.array([-width/2. - intra_offset/2., width/2. + intra_offset/2.])
+    labels += float(idx)*(inter_offset + 2*width + intra_offset)
+    colors = []    
+    for all_high_all_low_t in temp_types:
+        el = agent_results[ag][all_high_all_low_t]
+        if "Forward" in ag:
+            basealg = "Forward"
+            name = "ForwardKL"
+        elif "Reverse" in ag:
+            basealg = "Reverse"
+            name = "ReverseKL"
+        avg_rewards.append(el[0])
+        std_error.append(el[1])
+        colors.append(colours[name][all_high_all_low_t])        
+    avg_rewards = np.array(avg_rewards)
+    std_error = np.array(std_error)
+    
+    plt.bar(labels, avg_rewards, yerr=std_error, color=colors, width=width)
 
 plt.subplots_adjust(bottom=0.17, left=0.2)
 
@@ -184,14 +190,11 @@ legend_elements = [Line2D([0], [0], linewidth = 6.0, marker=None, color=colours[
                   ]
 
 if show_plot:
-    plt.show()
-else:
-    map_xlabel = {100000: "Hundreds of Thousands", 1000: "Thousands"}
-    plt.xlabel('{} of Timesteps'.format(map_xlabel[X_FORMATING_STEPS]))
-    plt.ylabel("Average return").set_rotation(90)    
+    plt.show()  
+else:    
     #Unlabeled
-    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison_unlabeled.png".format(env_name, parse_type)))
+    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison_unlabeled.png".format(env_name, parse_type)),bbox_inches='tight')
     #Labeled
     # plt.title(env_name)
     plt.legend(handles=legend_elements, fontsize=30)
-    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison.png".format(env_name, parse_type)))
+    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison.png".format(env_name, parse_type)),bbox_inches='tight')

@@ -84,7 +84,14 @@ temps = [1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0]
 temps = sorted(temps)
 auc_ratio = 0.5
 colours = {"ForwardKL": None, "ReverseKL": None}
-rkl_colors = [cm.jet(0.65 + (.99 - 0.65) * ix / len(temps)) for ix in range(len(temps))]
+
+rkl_colors = [None for _ in range(len(temps))]
+initial_rkl_color = np.array((0, 51, 26))/255.
+final_rkl_color = np.array((204, 255, 204))/255.
+for s_t_idx, s_temp in enumerate(sorted(temps)):
+    t = float(s_t_idx)/(len(temps) - 1)
+    color = initial_rkl_color*(1-t) + t*final_rkl_color
+    rkl_colors[ temps.index(s_temp) ] = color  
 
 fkl_colors = [None for _ in range(len(temps))]
 initial_fkl_color = np.array((0, 26, 51))/255.

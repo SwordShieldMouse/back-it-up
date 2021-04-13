@@ -1,6 +1,7 @@
 import os
 import argparse
 
+# run and plot by cluster
 # parser = argparse.ArgumentParser()
 
 # parser.add_argument("cluster",type=str,choices=('graham','cedar','beluga'))

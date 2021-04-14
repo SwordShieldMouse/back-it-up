@@ -46,6 +46,8 @@ if __name__ == "__main__":
     parser.add_argument('--num_runs',type=int, default=30)
     parser.add_argument('--parse_type',type=str,default="entropy_scale")
     parser.add_argument('--output_plot_dir',type=str,default="my_results/normal_sweeps/joint_rkl_fkl/_plots/individual_performance")
+    parser.add_argument('--log_as_txt',action="store_true")
+    parser.add_argument('--log_as_txt_fname',type=str,default="./log_best_settings.txt")
 
     parser.add_argument('--best_setting_type',type=str,choices=('best','top20'),default='top20')
 
@@ -202,6 +204,9 @@ if __name__ == "__main__":
                 # print result
                 for i in range(num_type):
                     print("*** best setting for {}: {} --- {}".format(parse_type, type_arr[i], int(type_best_arr[i])))
+                    if args.log_as_txt:
+                        with open(args.log_as_txt_fname,"w") as f:
+                            f.write("*** best setting for {}: {} --- {}".format(parse_type, type_arr[i], int(type_best_arr[i])))
 
                 print("\n total best setting {}".format(sorted_performance_arr[0][0]))
 
@@ -242,6 +247,9 @@ if __name__ == "__main__":
                 # print result
                 for i in range(num_type):
                     print("*** top 20%% settings for {}: {} --- {}".format(parse_type, type_arr[i], ', '.join( [str(a) for a in type_best_arr[i]] )))
+                    if args.log_as_txt:
+                        with open(args.log_as_txt_fname,"w") as f:
+                            f.write("*** top 20%% settings for {}: {} --- {}".format(parse_type, type_arr[i], ', '.join( [str(a) for a in type_best_arr[i]] )))                 
 
                 BestInd = sorted_performance_arr[0][0]
                 bestlc = lc[BestInd, :(xmax+1)]

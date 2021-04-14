@@ -11,6 +11,8 @@
 
 #SBATCH --account=def-whitem
 
+module restore old_stdenv
+
 ENV_NAME=ContinuousMaze
 AGENT_NAME=reverse_kl_maze
 

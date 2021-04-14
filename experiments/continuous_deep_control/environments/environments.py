@@ -1,19 +1,22 @@
 import gym
 import numpy as np
+from GM import GridMap
 
 import os
 import matplotlib as mpl
 if os.environ.get('DISPLAY','') == '':
     print('no display found. Using non-interactive Agg backend')
     mpl.use('Agg')
-mpl.use('Agg')
+# mpl.use('Agg')
 
 
-def create_environment(env_params):
+def create_environment(env_params, working_dir=None):
     env_name = env_params['environment']
 
     if env_name == 'ContinuousBanditsNormalized':
         return ContinuousBanditsNormalized(env_params)
+    elif env_name == 'ContinuousMaze':
+        return ContinuousMazeEnvironment(env_params, working_dir)
     else:
         return ContinuousEnvironment(env_params)
 
@@ -193,3 +196,109 @@ class ContinuousEnvironment(object):
     # Close the environment and clear memory
     def close(self):
         self.instance.close()
+
+class ContinuousMazeEnvironment(object):
+    def __init__(self, env_params, working_dir):
+
+        self.name = env_params['environment']
+        self.eval_interval = env_params['EvalIntervalMilSteps'] * 1000000
+        self.eval_episodes = env_params['EvalEpisodes']
+
+        self.instance = GridMap.GridMapEnv( workingDir=working_dir)
+        self.instance.load(working_dir, "initial_maze_env.json")
+        self.instance.reset()
+
+        self.render = False
+        self.render_time = -1
+
+        self.inner_step_count = 0
+        self.timeout_steps = env_params['TimeoutSteps']
+
+        # total number of steps allowed in a run
+        self.TOTAL_STEPS_LIMIT = env_params['TotalMilSteps'] * 1000000
+        # self.TOTAL_EPISODES_LIMIT = env_params['TotalEpisodes']
+
+        # maximum number of steps allowed for each episode
+        # if -1 takes default setting from gym
+        self.EPISODE_STEPS_LIMIT = env_params['EpisodeSteps']
+        
+        # state info
+        self.state_dim = self.get_state_dim()
+        self.state_range = self.get_state_range()
+        self.state_min = self.get_state_min()
+        self.state_max = self.get_state_max()
+        self.state_bounded = True
+        
+        # action info
+        self.action_dim = self.get_action_dim()
+        self.action_range = self.get_action_range()
+        self.action_min = self.get_action_min()
+        self.action_max = self.get_action_max()
+
+    def set_random_seed(self, random_seed):
+        pass
+
+    # Reset the environment for a new episode. return the initial state
+    def reset(self):
+        state = self.instance.reset()
+        '''
+        if self.state_bounded:
+            # normalize to [-1,1]
+            scaled_state = 2.*(state - self.state_min)/self.state_range - 1.
+            return scaled_state
+        '''
+        return np.array([state.x, state.y])
+
+    def step(self, action):
+        if self.inner_step_count == self.timeout_steps:
+            self.inner_step_count = 0
+            state = self.reset()
+            return (state, 0, False, None)
+        if action[0] == 0 and action[1] == 0:
+            action[0] = 1e-10
+        act = GridMap.BlockCoorDelta( action[0], action[1] )
+        state, reward, done, _ = self.instance.step(act)
+        self.inner_step_count += 1
+        if self.render:
+            self.instance.render(self.render_time, flagSave=False) 
+        '''
+        if self.state_bounded:
+            scaled_state = 2.*(state - self.state_min)/self.state_range - 1.
+            return (scaled_state, reward, done, info)
+        '''
+        state = np.array([state.x, state.y])
+        return (state, reward, done, None)
+
+    def get_state_dim(self):
+        return 2
+  
+    # this will be the output units in NN
+    def get_action_dim(self):
+        return 2
+
+    # Return action ranges, NOT IN USE
+    def get_action_range(self):
+        return np.array([2.,2.])
+
+    # Return action ranges
+    def get_action_max(self):
+        return np.array([1.,1.])
+
+    # Return action min
+    def get_action_min(self):
+        return np.array([-1.,-1.])
+
+    # Return state range
+    def get_state_range(self):
+        return np.array([2.,2.])
+    
+    # Return state min
+    def get_state_min(self):
+        return np.array([-1.,-1.])
+
+    def get_state_max(self):
+        return np.array([1.,1.])
+
+    # Close the environment and clear memory
+    def close(self):
+        self.instance.finalize()        

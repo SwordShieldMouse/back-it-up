@@ -35,6 +35,10 @@ class Experiment(object):
         self.save_data_bdir = resume_params['save_data_bdir']
         self.save_data_interval = resume_params['save_data_interval']
         self.save_data_fname = resume_params['save_data_fname']
+        # save params ContinuousMaze
+        self.steps_per_netsave = resume_params['steps_per_netsave']
+        self.no_netsave = resume_params['no_netsave']
+        self.netsave_data_bdir = resume_params['netsave_data_bdir']
 
     def run(self):
 
@@ -51,9 +55,16 @@ class Experiment(object):
             self.link_variables_and_names()
             self.load_data()
         
+        self.last_time_saved = time.time()
         while self.total_step_count < self.train_environment.TOTAL_STEPS_LIMIT:
             if (self.episode_count + 1) % self.save_data_interval == 0 and self.resume_training:
                 self.save_data()
+                self.last_time_saved = time.time()
+            elif self.resume_training:
+                time_since_save = time.time() - self.last_time_saved
+                if time_since_save >= 600:
+                    self.save_data()
+                    self.last_time_saved = time.time()
             # runs a single episode and returns the accumulated reward for that episode
             train_start_time = time.time()
             episode_reward, num_steps, force_terminated, eval_session_time = self.run_episode_train(is_train=True)
@@ -95,7 +106,11 @@ class Experiment(object):
         episode_step_count = 0
 
         while not (done or episode_step_count == self.train_environment.EPISODE_STEPS_LIMIT or self.total_step_count == self.train_environment.TOTAL_STEPS_LIMIT):
-
+            if self.train_environment.name == "ContinuousMaze" and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:
+                netsave_dir = os.path.join(self.netsave_data_bdir,os.path.splitext(self.save_data_fname)[0], '{}'.format(self.total_step_count))
+                if not os.path.isdir(netsave_dir):
+                    os.makedirs(netsave_dir, exist_ok=True)
+                self.save_nets_custom_path(netsave_dir)
             episode_step_count += 1
             self.total_step_count += 1
 
@@ -166,6 +181,21 @@ class Experiment(object):
         torch.save(out_dict, out_temp_fname)
         os.rename(out_temp_fname, out_fname)
 
+    def save_nets_custom_path(self, cpath):
+
+        sr_nets_names = ['pi_net', 'q_net', 'v_net']
+        sr_nets_vars = [self.agent.network_manager.network.pi_net, self.agent.network_manager.network.q_net, self.agent.network_manager.network.v_net]
+
+        sr_all_vars_state_dicts = [a.state_dict() for a in sr_nets_vars]
+
+        out_dict = dict(zip(sr_nets_names, sr_all_vars_state_dicts))
+
+        out_temp_fname = os.path.join(cpath, 'temp_' + self.save_data_fname)
+        out_fname = os.path.join(cpath, self.save_data_fname)
+
+        torch.save(out_dict, out_temp_fname)
+        os.rename(out_temp_fname, out_fname)        
+
     def load_data(self):
         in_fname = os.path.join(self.save_data_bdir, self.save_data_fname)
         if os.path.isfile(in_fname):
@@ -221,6 +251,8 @@ class Experiment(object):
 
         episode_step_count = 0
         while not (done or episode_step_count == test_env.EPISODE_STEPS_LIMIT):
+            if self.train_environment.name == "ContinuousMaze" and episode_step_count == 5000:
+                break                
             
             obs_n, reward, done, info = test_env.step(Aold)
 

@@ -4,6 +4,9 @@ import tensorflow as tf
 import environments.environments as envs
 from utils.config import Config
 from experiment import Experiment
+import shutil
+from lockfile import LockFile
+import torch
 
 import numpy as np
 import json
@@ -19,6 +22,7 @@ from utils.main_utils import get_sweep_parameters, create_agent
 
 def main():
     # parse arguments
+    print(torch.__version__)
     parser = argparse.ArgumentParser()
     parser.add_argument('--env_json', type=str)
     parser.add_argument('--agent_json', type=str)
@@ -31,6 +35,9 @@ def main():
     parser.add_argument('--resume_training', action="store_true")
     parser.add_argument('--save_data_bdir', type=str, default="saved_nets")
     parser.add_argument('--save_data_interval', type=int, default=10)
+    # ContinuousMaze arguments
+    parser.add_argument('--steps_per_netsave', type=int, default=1000)
+    parser.add_argument('--no_netsave', action='store_true')
 
     args = parser.parse_args()
 
@@ -47,9 +54,31 @@ def main():
     with open(args.agent_json, 'r') as agent_dat:
         agent_json = json.load(agent_dat, object_pairs_hook=OrderedDict)
 
+    # create save directory
+    save_dir = './{}/'.format(args.out_dir) + env_json['environment'] + 'results/'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir, exist_ok=True)
+        
+    if 'ContinuousMaze' in args.env_json:
+        f_lock = LockFile(os.path.join(save_dir,'f_lock.lock'))
+        with f_lock:
+            working_dir = os.path.join(save_dir, 'WorkingDir')
+            if not os.path.exists(working_dir):
+                shutil.copytree("GM/WorkingDir" ,working_dir)
+            netsave_data_bdir = os.path.join(save_dir, 'saved_nets')
+            if not os.path.exists(netsave_data_bdir):
+                os.makedirs(netsave_data_bdir, exist_ok=True)                
+    else:
+        netsave_data_bdir = None
+        
+
     # initialize env
-    train_env = envs.create_environment(env_json)
-    test_env = envs.create_environment(env_json)
+    if 'ContinuousMaze' in args.env_json:
+        train_env = envs.create_environment(env_json, working_dir)
+        test_env = envs.create_environment(env_json, working_dir)
+    else:
+        train_env = envs.create_environment(env_json)
+        test_env = envs.create_environment(env_json)        
 
     # Create env_params for agent
     env_params = {
@@ -74,11 +103,8 @@ def main():
     # set Random Seed (for training)
     RANDOM_SEED = RUN_NUM
     arg_params['random_seed'] = RANDOM_SEED
-
-    # create save directory
-    save_dir = './{}/'.format(args.out_dir) + env_json['environment'] + 'results/'
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir, exist_ok=True)
+    if 'ContinuousMaze' in args.env_json:
+        torch.manual_seed(RANDOM_SEED)    
 
     # save/resume params and dirs
     save_data_fname = env_json['environment'] + '_'+agent_json['agent'] + '_setting_' + str(SETTING_NUM) + '_run_'+str(RUN_NUM) + '.tar'
@@ -92,10 +118,14 @@ def main():
             exit()
         os.makedirs(args.save_data_bdir, exist_ok=True)    
 
+
     resume_params = {"resume_training": args.resume_training,
                      "save_data_bdir": args.save_data_bdir,
                      "save_data_interval": args.save_data_interval,
-                     "save_data_fname": save_data_fname
+                     "save_data_fname": save_data_fname,
+                     "steps_per_netsave": args.steps_per_netsave,
+                     "no_netsave": args.no_netsave,
+                     "netsave_data_bdir": netsave_data_bdir
                      }
 
     # create log directory (for tensorboard, gym monitor/render)
@@ -118,12 +148,19 @@ def main():
 
     # monitor/render
     if args.monitor or args.render:
-        monitor_dir = log_dir+'/monitor'
-
-        if args.render:
-            train_env.instance = gym.wrappers.Monitor(train_env.instance, monitor_dir, video_callable=(lambda x: True), force=True)
+        if 'ContinuousMaze' in args.env_json:
+            if args.monitor:
+                raise NotImplementedError('Recording not implemented')
+            else:
+                train_env.render = True
+                train_env.render_time = 0.001
         else:
-            train_env.instance = gym.wrappers.Monitor(train_env.instance, monitor_dir, video_callable=False, force=True)
+            monitor_dir = log_dir+'/monitor'
+
+            if args.render:
+                train_env.instance = gym.wrappers.Monitor(train_env.instance, monitor_dir, video_callable=(lambda x: True), force=True)
+            else:
+                train_env.instance = gym.wrappers.Monitor(train_env.instance, monitor_dir, video_callable=False, force=True)
 
     # initialize experiment
     experiment = Experiment(agent=agent, train_environment=train_env, test_environment=test_env, seed=RANDOM_SEED,

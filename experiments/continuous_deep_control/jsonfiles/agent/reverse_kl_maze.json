@@ -1,0 +1,30 @@
+{
+    "agent": "ReverseKL",
+    "sweeps": {
+        "actor_critic_dim": [32,128],
+        "n_hidden": [1,2],
+
+        "pi_lr": [1e-3,1e-4,1e-5],
+        "qf_vf_lr": [1e-3,1e-4,1e-5],
+
+        "sample_for_eval": [false],
+        "use_true_q": [false],
+
+        "entropy_scale": [1, 0.1, 0.01],
+
+        "l_param": [6],
+        "N_param": [64],
+        "optim_type": ["reparam_multiple"],
+        "q_update_type": ["sac"],
+        "use_replay": [true],
+        "use_target": [false],
+        "batch_size": [32],
+
+        "use_baseline": [true],
+        "use_hard_value": [false],
+        "use_scaled_kl": [false],
+
+        "n_action_points": [128]
+
+    }
+}

@@ -5,9 +5,8 @@ import tensorflow as tf
 # [env] is an instance of an environment
 # [p] is a dictionary of agent parameters
 def create_agent(agent_string, config):
-
     if agent_string == 'ReverseKL':
-        from agents.ReverseKL import ReverseKL
+        from agents.ReverseKL import ReverseKL   
         return ReverseKL(config)
 
     elif agent_string == 'ForwardKL':

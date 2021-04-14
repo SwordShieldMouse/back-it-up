@@ -11,6 +11,8 @@
 
 #SBATCH --account=rrg-whitem
 
+module restore old_stdenv
+
 ENV_NAME=ContinuousMaze
 AGENT_NAME=forward_kl_maze
 
@@ -18,6 +20,7 @@ echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
+
 
 increment=1
 let "end_idx=$SLURM_ARRAY_TASK_ID+3"

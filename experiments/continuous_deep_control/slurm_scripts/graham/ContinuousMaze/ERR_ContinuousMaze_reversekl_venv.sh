@@ -1,0 +1,37 @@
+#!/bin/bash
+#SBATCH --job-name=ContinuousMaze_rkl
+#SBATCH --output=./logs/ContinuousMaze/rkl/%A%a.out
+#SBATCH --error=./logs/ContinuousMaze/rkl/%A%a.err
+
+#SBATCH --array=0-192:4
+
+#SBATCH --cpus-per-task=4
+#SBATCH --time=6:00:00
+#SBATCH --mem-per-cpu=4000M
+
+#SBATCH --account=def-whitem
+
+module restore old_stdenv
+
+ENV_NAME=ContinuousMaze
+AGENT_NAME=reverse_kl_maze
+
+ERROR_RUNS=(1 145 3 147 5 149 7 151 8 152 9 153 155 13 15 159 160 17 161 163 164 21 165 167 24 25 169 27 171 172 29 173 31 175 32 33 177 35 179 36 180 37 181 182 183 41 185 43 187 44 45 189 47 191 49 193 195 53 197 199 56 200 57 201 203 204 61 205 63 207 65 209 67 211 69 213 71 215 73 217 75 219 76 77 221 79 223 81 225 83 227 228 85 229 87 231 88 232 89 233 90 91 235 93 237 95 239 240 97 241 99 243 101 245 103 248 105 249 250 107 251 108 252 109 253 110 254 111 255 112 256 113 257 114 258 115 259 116 260 117 261 118 262 119 263 120 264 121 265 122 266 123 267 124 268 125 269 126 270 127 271 128 272 129 273 130 274 131 275 132 276 133 277 134 278 135 279 136 280 137 281 138 282 139 283 140 284 141 285 142 286 143 287)
+
+echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID
+
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+
+THESE_ERROR_RUNS=()
+
+let "end_idx=$SLURM_ARRAY_TASK_ID+3"
+for ((i=$SLURM_ARRAY_TASK_ID; i<= $end_idx; i++)); do
+    THESE_ERROR_RUNS+=( ${ERROR_RUNS[$i]} )
+done
+
+increment=1
+
+parallel --jobs 4 "source ~/sungsu_env/bin/activate; bash experiments/continuous_deep_control/slurm_scripts/run_script_maze.sh $ENV_NAME $AGENT_NAME {}" ::: ${THESE_ERROR_RUNS[@]}
+
+

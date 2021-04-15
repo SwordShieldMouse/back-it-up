@@ -6,8 +6,8 @@
 #SBATCH --array=0-287:4
 
 #SBATCH --cpus-per-task=4
-#SBATCH --time=6:00:00
-#SBATCH --mem-per-cpu=1000M
+#SBATCH --time=4:00:00
+#SBATCH --mem-per-cpu=3000M
 
 #SBATCH --account=rrg-whitem
 

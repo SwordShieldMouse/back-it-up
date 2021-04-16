@@ -43,6 +43,7 @@ class Experiment(object):
         self.no_netsave = resume_params['no_netsave']
         self.netsave_data_bdir = resume_params['netsave_data_bdir']
 
+    @profile
     def run(self):
 
         self.episode_count = 0

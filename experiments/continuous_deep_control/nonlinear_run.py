@@ -169,7 +169,10 @@ def main():
                             resume_params = resume_params)
     
     # run experiment
-    episode_rewards, eval_episode_mean_rewards, eval_episode_std_rewards, train_episode_steps = experiment.run()
+    try:
+        episode_rewards, eval_episode_mean_rewards, eval_episode_std_rewards, train_episode_steps = experiment.run()
+    except KeyboardInterrupt:
+        exit()
 
     # save to file
     prefix = save_dir + env_json['environment'] + '_'+agent_json['agent'] + '_setting_' + str(SETTING_NUM) + '_run_'+str(RUN_NUM)

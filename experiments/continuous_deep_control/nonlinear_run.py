@@ -64,7 +64,7 @@ def main():
         with f_lock:
             working_dir = os.path.join(save_dir, 'WorkingDir')
             if not os.path.exists(working_dir):
-                shutil.copytree("experiments/continuous_deep_control/GM/WorkingDir" ,working_dir)
+                shutil.copytree("GM/WorkingDir" ,working_dir)
             netsave_data_bdir = os.path.join(save_dir, 'saved_nets')
             if not os.path.exists(netsave_data_bdir):
                 os.makedirs(netsave_data_bdir, exist_ok=True)                

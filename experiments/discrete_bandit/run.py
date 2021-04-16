@@ -77,8 +77,8 @@ if tau != 0:
     BQ = torch.exp(normed_arg) / torch.sum(torch.exp(normed_arg))
 else:
     BQ = torch.tensor([0, 1/2, 1/2])
-BQ.unsqueeze(-1)
-Q.unsqueeze(-1)
+BQ.unsqueeze_(-1)
+Q.unsqueeze_(-1)
 QA = Q
 # max_action = 3
 max_action = torch.tensor([n_actions - 1] * n_inits)

@@ -27,7 +27,7 @@ class Fourier():
     def __call__(self, s):
         if self.dtype == "torch":
             if len(s.shape) == 1:
-                s.unsqueeze(-1)
+                s.unsqueeze_(-1)
             cos_term = torch.cos(torch.matmul(self.W, s) + self.b.unsqueeze(-1))
             return self.K * cos_term.squeeze()
         else:

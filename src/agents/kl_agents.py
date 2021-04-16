@@ -81,7 +81,7 @@ class BaseAgent():
     
     def batch_soft_update_qv(self, QS, VS, piS, A, R, VSp, D, sac_update):
         # print(A.shape)
-        A.unsqueeze(-1)
+        A.unsqueeze_(-1)
         gather_t = 0
         t0 = time.time()
         QSA = torch.gather(QS, -1, A).squeeze()

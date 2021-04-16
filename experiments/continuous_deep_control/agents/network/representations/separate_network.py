@@ -125,7 +125,7 @@ class PolicyNetwork(nn.Module):
         log_prob = normal.log_prob(raw_action)
 
         if len(log_prob.shape) == 1:
-            log_prob.unsqueeze(-1)
+            log_prob.unsqueeze_(-1)
         log_prob -= torch.log(self.action_scale * (1 - action.pow(2)) + epsilon).sum(dim=-1, keepdim=True)
 
         # scale to correct range
@@ -151,7 +151,7 @@ class PolicyNetwork(nn.Module):
         log_prob = normal.log_prob(raw_action)
 
         if len(log_prob.shape) == 2:
-            log_prob.unsqueeze(-1)
+            log_prob.unsqueeze_(-1)
 
         log_prob -= torch.log(self.action_scale * (1 - action.pow(2)) + epsilon).sum(dim=-1, keepdim=True)
 
@@ -177,7 +177,7 @@ class PolicyNetwork(nn.Module):
         log_prob = normal.log_prob(atanh_actions)
 
         if len(log_prob.shape) == 2:
-            log_prob.unsqueeze(-1)
+            log_prob.unsqueeze_(-1)
 
         log_prob -= torch.log(self.action_scale * (1 - normalized_actions.pow(2)) + epsilon).sum(dim=-1, keepdim=True)
         stacked_log_prob = log_prob.permute(1, 0, 2)

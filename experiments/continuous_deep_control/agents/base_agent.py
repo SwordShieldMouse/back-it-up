@@ -1,6 +1,5 @@
 from utils.replaybuffer import ReplayBuffer
 
-
 # Agent interface
 # Takes an environment (just so we can get some details from the environment like the number of observables and actions)
 class BaseAgent(object):

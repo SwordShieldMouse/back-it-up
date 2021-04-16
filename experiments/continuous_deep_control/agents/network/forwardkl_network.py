@@ -8,6 +8,9 @@ from scipy.special import binom
 from .representations.separate_network import *
 from utils.main_utils import write_summary
 
+from guppy import hpy
+
+h = hpy()
 
 class ForwardKLNetwork(BaseNetwork):
     def __init__(self, config):
@@ -129,7 +132,7 @@ class ForwardKLNetwork(BaseNetwork):
 
         return mean.detach().cpu().numpy()
 
-    @profile
+    #@profile
     def update_network(self, state_batch, action_batch, next_state_batch, reward_batch, gamma_batch):
 
         state_batch = torch.FloatTensor(state_batch).to(self.device)

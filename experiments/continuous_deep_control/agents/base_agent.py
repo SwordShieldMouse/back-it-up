@@ -50,7 +50,7 @@ class BaseAgent(object):
     def get_value(self, s, a):
         raise NotImplementedError
     
-    @profile
+    #@profile
     def update(self, state, next_state, reward, action, is_terminal, is_truncated):
 
         if not is_truncated:

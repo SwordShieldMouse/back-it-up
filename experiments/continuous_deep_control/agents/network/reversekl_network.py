@@ -314,16 +314,21 @@ class ReverseKLNetwork(BaseNetwork):
 
         if not self.use_true_q:
             self.q_optimizer.zero_grad()
-            q_value_loss.backward()
+            self.v_optimizer.zero_grad()
+            self.pi_optimizer.zero_grad()
+            q_value_loss.backward(retain_graph=True)
+            value_loss.backward(retain_graph=True)
+            policy_loss.backward()
             self.q_optimizer.step()
 
-            self.v_optimizer.zero_grad()
-            value_loss.backward()
             self.v_optimizer.step()
 
-        self.pi_optimizer.zero_grad()
-        policy_loss.backward()
-        self.pi_optimizer.step()
+            self.pi_optimizer.step()
+
+        else:
+            self.pi_optimizer.zero_grad()
+            policy_loss.backward()
+            self.pi_optimizer.step()
 
     def update_target_network(self):
         for target_param, param in zip(self.target_v_net.parameters(), self.v_net.parameters()):

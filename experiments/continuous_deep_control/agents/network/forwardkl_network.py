@@ -129,6 +129,7 @@ class ForwardKLNetwork(BaseNetwork):
 
         return mean.detach().cpu().numpy()
 
+    @profile
     def update_network(self, state_batch, action_batch, next_state_batch, reward_batch, gamma_batch):
 
         state_batch = torch.FloatTensor(state_batch).to(self.device)

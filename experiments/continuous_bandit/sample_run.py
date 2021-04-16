@@ -96,7 +96,7 @@ if tau != 0:
     assert BQ[BQ > 0].numel() == BQ.numel(), BQ
 else:
     BQ = torch.zeros_like(points)
-    BQ.unsqueeze_(-1)
+    BQ.unsqueeze(-1)
 # print(BQ.shape)
 # assert BQ.numel() == points.numel()
 BQ = BQ.expand((-1, n_inits))

@@ -137,8 +137,8 @@ class ReverseKLNetwork(BaseNetwork):
         reward_batch = torch.FloatTensor(reward_batch).to(self.device)
         gamma_batch = torch.FloatTensor(gamma_batch).to(self.device)
 
-        reward_batch.unsqueeze_(-1)
-        gamma_batch.unsqueeze_(-1)
+        reward_batch.unsqueeze(-1)
+        gamma_batch.unsqueeze(-1)
 
         if not self.use_true_q:
             q_val = self.q_net(state_batch, action_batch)
@@ -161,7 +161,7 @@ class ReverseKLNetwork(BaseNetwork):
 
             elif self.config.q_update_type == 'non_sac':
                 with torch.no_grad():
-                    log_prob_batch = torch.clamp(self.pi_net.get_logprob(state_batch, action_batch.unsqueeze_(1)).squeeze(-1), -10)
+                    log_prob_batch = torch.clamp(self.pi_net.get_logprob(state_batch, action_batch.unsqueeze(1)).squeeze(-1), -10)
                 target_v_val = ((reward_batch - self.entropy_scale * log_prob_batch) + gamma_batch * target_next_v_val) if not self.use_hard_value else (reward_batch + gamma_batch * target_next_v_val)
             else:
                 raise ValueError("invalid config.q_update_type")

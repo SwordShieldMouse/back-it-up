@@ -1,7 +1,7 @@
 {
     "agent": "ReverseKL",
     "sweeps": {
-        "actor_critic_dim": [32],
+        "actor_critic_dim": [128],
         "n_hidden": [1],
 
         "pi_lr": [1e-4],
@@ -10,7 +10,7 @@
         "sample_for_eval": [false],
         "use_true_q": [false],
 
-        "entropy_scale": [ 0.5],
+        "entropy_scale": [ 10],
 
         "l_param": [6],
         "N_param": [64],

@@ -28,6 +28,11 @@ def get_xyrange(envname):
         ymax = [3000, 3000]
         yticks = [a for a in range(-1000,3001,1000)]
 
+    elif envname == "ContinuousMaze":
+        ymin = [-10000, -100000]
+        ymax = [10000, 100000]
+        yticks = [a for a in range(-10000,100001,10000)]        
+
     else:
         raise ValueError("Invalid environment name")
 
@@ -81,6 +86,11 @@ def get_xyrange_with_p(envname, p):
             ymin = [-1100, -1100]
             ymax = [1500, 1500]
             yticks = [a for a in range(-1000,1501,500)]
+
+    elif envname == "ContinuousMaze":
+        ymin = [-10000, -10000]
+        ymax = [1000000, 1000000]
+        yticks = [a for a in range(-10000,100001,100000)]              
 
     else:
         raise ValueError("Invalid environment name")

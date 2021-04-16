@@ -4,6 +4,9 @@ import time
 import os
 import pickle
 import torch
+from guppy import hpy
+
+h = hpy()
         
 class Experiment(object):
     def __init__(self, agent, train_environment, test_environment, seed, writer, write_log, write_plot, resume_params):

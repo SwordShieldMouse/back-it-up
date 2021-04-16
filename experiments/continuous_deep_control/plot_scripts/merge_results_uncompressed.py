@@ -107,7 +107,7 @@ for setting_num in range(num_settings):
         if not Path(train_rewards_filename).exists():
             run_non_count = 1
             # add dummy
-            lc_0 = -1e10 * np.ones( int(TOTAL_MIL_STEPS/X_AXIS_STEPS)) # + np.nan  # will be padded
+            lc_0 = -1e10 * np.ones( int( (TOTAL_MIL_STEPS*1e6)/X_AXIS_STEPS)) # + np.nan  # will be padded
             train_lc = lc_0
 
             print(' setting ' + train_rewards_filename + ' does not exist')
@@ -127,6 +127,13 @@ for setting_num in range(num_settings):
         run_non_count += np.sum(list(map(lambda k: k[0], mixed_arr)))
         missingindexes.extend( filter(lambda k: k is not None, list(map(lambda k: k[1], mixed_arr))) )
         train_lc_arr = list(map(lambda k: k[2], mixed_arr))
+
+    # mixed_arr = []
+    # for a in range(num_runs):
+    #     mixed_arr.append( f(a) )
+    # run_non_count += np.sum(list(map(lambda k: k[0], mixed_arr)))
+    # missingindexes.extend( filter(lambda k: k is not None, list(map(lambda k: k[1], mixed_arr))) )
+    # train_lc_arr = list(map(lambda k: k[2], mixed_arr))    
 
     train_lc_arr = np.array(train_lc_arr)
 

@@ -8,9 +8,9 @@ from scipy.special import binom
 from .representations.separate_network import *
 from utils.main_utils import write_summary
 
-from guppy import hpy
+# from guppy import hpy
 
-h = hpy()
+# h = hpy()
 
 class ForwardKLNetwork(BaseNetwork):
     def __init__(self, config):

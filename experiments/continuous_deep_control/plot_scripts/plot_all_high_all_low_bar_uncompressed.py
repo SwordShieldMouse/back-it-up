@@ -15,7 +15,7 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import FormatStrFormatter
 
 plt.gca().xaxis.set_major_formatter(FormatStrFormatter('%g'))
-matplotlib.rcParams.update({'font.size': 50})
+matplotlib.rcParams.update({'font.size': 70})
 
 # Usage
 # python3 plot_entropy_comparison.py $ROOT_LOC $ENV_NAME $STORE_DIR $PARSE_TYPE $OUTPUT_PLOT_DIR
@@ -87,11 +87,13 @@ low_temps = [0.05, 0.01, 0.005, 0.001, 0.0]
 
 temp_types = ['high', 'low']
 
-initial_rkl_color = np.array((0, 77, 0))/255.
-final_rkl_color = np.array((0, 204, 0))/255.
+# DIFFERENT FROM OTHER INITIAL AND FINAL COLORS!
+initial_rkl_color = np.array((0, 128, 66))/255.
+final_rkl_color = np.array((0, 204, 105))/255.
 
-initial_fkl_color = np.array((0, 26, 51))/255.
-final_fkl_color = np.array((102, 181, 255))/255.
+# DIFFERENT FROM OTHER INITIAL AND FINAL COLORS!
+initial_fkl_color = np.array((0, 66, 128))/255.
+final_fkl_color = np.array((0, 119, 230))/255.
 
 colours["ReverseKL"] = {'high': final_rkl_color, 'low': initial_rkl_color}
 colours["ForwardKL"] = {'high': final_fkl_color, 'low': initial_fkl_color}
@@ -145,14 +147,16 @@ for ag in agents:
 
 plt.figure(figsize=(10, 12))
 width=0.05
-intra_offset = 0.03
-inter_offset = 0.06
+intra_offset = 0.01
+inter_offset = 0.1
 
 # Train Episode Rewards
 
 plt.ylim(bottom=0., top=1.)
 
-plt.gca().axes.get_xaxis().set_visible(False)
+x_axis = plt.gca().axes.get_xaxis()
+plt.xticks([0.0 , intra_offset + 2* width + inter_offset])
+x_axis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, pos: "RKL" if x == 0 else "FKL"))
 plt.xlabel("")
 plt.ylabel("AUC @ 0.5")
 plt.locator_params(axis="y", nbins=4)

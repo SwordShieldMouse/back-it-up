@@ -59,7 +59,7 @@ class SoftQNetwork(nn.Module):
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    #@profile
+    @profile
     def forward(self, state, action):
         x = torch.cat([state, action], 1)
         x = F.relu(self.linear1(x))

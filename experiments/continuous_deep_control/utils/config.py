@@ -4,7 +4,7 @@ class Config:
     def __init__(self):
 
         self.warmup_steps = 0
-        self.buffer_size = 1e6
+        self.buffer_size = 1e3
 
         self.tau = 0.01
         self.gamma = 0.99

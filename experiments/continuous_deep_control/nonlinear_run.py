@@ -34,10 +34,10 @@ def main():
     parser.add_argument('--out_dir', type=str, default="results")
     parser.add_argument('--resume_training', action="store_true")
     parser.add_argument('--save_data_bdir', type=str, default="saved_nets")
-    parser.add_argument('--save_data_interval', type=int, default=10)
+    parser.add_argument('--save_data_minutes', type=float, default=10.)
     # ContinuousMaze arguments
     parser.add_argument('--steps_per_netsave', type=int, default=1000)
-    parser.add_argument('--no_netsave', action='store_true')
+    parser.add_argument('--cm_netsave', action='store_true')
 
     args = parser.parse_args()
 
@@ -121,10 +121,10 @@ def main():
 
     resume_params = {"resume_training": args.resume_training,
                      "save_data_bdir": args.save_data_bdir,
-                     "save_data_interval": args.save_data_interval,
+                     "save_data_minutes": args.save_data_minutes,
                      "save_data_fname": save_data_fname,
                      "steps_per_netsave": args.steps_per_netsave,
-                     "no_netsave": args.no_netsave,
+                     "no_netsave": not args.cm_netsave,
                      "netsave_data_bdir": netsave_data_bdir
                      }
 

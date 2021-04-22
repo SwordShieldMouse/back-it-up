@@ -36,10 +36,10 @@ def main():
 
     full_aname = "ForwardKL" if args.agent == "FKL" else "ReverseKL"
 
-    netsave_data_file =  "results/ContinuousMazeresults/saved_nets/ContinuousMaze_{agent}_setting_{setting}_run_{run}/{timestep}/ContinuousMaze_{agent}_setting_{setting}_run_{run}.tar".format(setting=args.setting, run=args.run, timestep=args.timestep, agent=full_aname)
+    netsave_data_file =  "results/EasyContinuousMazeresults/saved_nets/EasyContinuousMaze_{agent}_setting_{setting}_run_{run}/{timestep}/EasyContinuousMaze_{agent}_setting_{setting}_run_{run}.tar".format(setting=args.setting, run=args.run, timestep=args.timestep, agent=full_aname)
 
     # read env/agent json
-    with open('experiments/continuous_deep_control/jsonfiles/environment/ContinuousMaze.json', 'r') as env_dat:
+    with open('experiments/continuous_deep_control/jsonfiles/environment/EasyContinuousMaze.json', 'r') as env_dat:
         env_json = json.load(env_dat, object_pairs_hook=OrderedDict)
         env_json["TimeoutSteps"] = 500000
 
@@ -49,8 +49,8 @@ def main():
     
 
     # initialize env
-    train_env = envs.create_environment(env_json, 'results/ContinuousMazeresults/WorkingDir')
-    test_env = envs.create_environment(env_json, 'results/ContinuousMazeresults/WorkingDir')      
+    train_env = envs.create_environment(env_json, 'results/EasyContinuousMazeresults/WorkingDir')
+    test_env = envs.create_environment(env_json, 'results/EasyContinuousMazeresults/WorkingDir')      
 
     # Create env_params for agent
     env_params = {

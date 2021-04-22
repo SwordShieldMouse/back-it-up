@@ -111,7 +111,7 @@ class Experiment(object):
                     self.last_time_saved = time.time()
                     print("#########SAVED#########")
 
-            if self.train_environment.name == "ContinuousMaze" and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:
+            if "ContinuousMaze" in self.train_environment.name and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:
                 netsave_dir = os.path.join(self.netsave_data_bdir,os.path.splitext(self.save_data_fname)[0], '{}'.format(self.total_step_count))
                 if not os.path.isdir(netsave_dir):
                     os.makedirs(netsave_dir, exist_ok=True)
@@ -277,7 +277,7 @@ class Experiment(object):
 
         episode_step_count = 0
         while not (done or episode_step_count == test_env.EPISODE_STEPS_LIMIT):
-            if self.train_environment.name == "ContinuousMaze" and episode_step_count == 5000:
+            if "ContinuousMaze" in self.train_environment.name and episode_step_count == 5000:
                 break                
             
             obs_n, reward, done, info = test_env.step(Aold)

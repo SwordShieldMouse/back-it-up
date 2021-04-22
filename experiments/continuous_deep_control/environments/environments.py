@@ -15,7 +15,7 @@ def create_environment(env_params, working_dir=None):
 
     if env_name == 'ContinuousBanditsNormalized':
         return ContinuousBanditsNormalized(env_params)
-    elif env_name == 'ContinuousMaze':
+    elif 'ContinuousMaze' in env_name:
         return ContinuousMazeEnvironment(env_params, working_dir)
     else:
         return ContinuousEnvironment(env_params)

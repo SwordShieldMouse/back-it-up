@@ -9,7 +9,7 @@ from collections import OrderedDict
 from multiprocessing import Pool
 
 parser = argparse.ArgumentParser()
-parser.add_argument("env", type=str, choices=["HalfCheetah-v2", "Pendulum-v0", "Swimmer-v2", "Reacher-v2","ContinuousMaze"])
+parser.add_argument("env", type=str, choices=["HalfCheetah-v2", "Pendulum-v0", "Swimmer-v2", "Reacher-v2","EasyContinuousMaze","MediumContinuousMaze","HardContinuousMaze"])
 parser.add_argument("--input_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_results")
 parser.add_argument("--env_json_dir", type=str, default="experiments/continuous_deep_control/jsonfiles/environment")
 parser.add_argument("--window",type=int,default=20)
@@ -43,7 +43,7 @@ def f(base):
     steps = np.loadtxt(input_steps, delimiter=',')
 
     reward_per_step = np.zeros( int(max_steps/x_axis_steps), dtype=np.float64)
-    if args.env == "ContinuousMaze":
+    if "ContinuousMaze" in args.env:
         if steps.shape == ():
             steps = np.array([max_steps])
             rewards = np.array([rewards])            

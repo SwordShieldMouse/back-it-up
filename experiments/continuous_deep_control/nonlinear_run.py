@@ -62,9 +62,17 @@ def main():
     if 'ContinuousMaze' in args.env_json:
         f_lock = LockFile(os.path.join(save_dir,'f_lock.lock'))
         with f_lock:
-            working_dir = os.path.join(save_dir, 'WorkingDir')
+            if 'EasyContinuousMaze' in args.env_json:
+                wd_name = 'EasyWorkingDir'
+            elif 'MediumContinuousMaze' in args.env_json:
+                wd_name = 'MediumWorkingDir'
+            elif 'HardContinuousMaze' in args.env_json:
+                wd_name = 'HardWorkingDir'
+            else:
+                raise NotImplementedError
+            working_dir = os.path.join(save_dir, wd_name)
             if not os.path.exists(working_dir):
-                shutil.copytree("experiments/continuous_deep_control/GM/WorkingDir" ,working_dir)
+                shutil.copytree(os.path.join("experiments/continuous_deep_control/GM",wd_name) ,working_dir)
             netsave_data_bdir = os.path.join(save_dir, 'saved_nets')
             if not os.path.exists(netsave_data_bdir):
                 os.makedirs(netsave_data_bdir, exist_ok=True)                

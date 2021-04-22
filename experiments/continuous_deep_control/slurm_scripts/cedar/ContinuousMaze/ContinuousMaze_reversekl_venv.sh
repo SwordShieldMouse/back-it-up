@@ -1,17 +1,17 @@
 #!/bin/bash
-#SBATCH --job-name=ContinuousMaze_rkl
-#SBATCH --output=./logs/ContinuousMaze_rkl_%A%a.out
-#SBATCH --error=./logs/ContinuousMaze_rkl_%A%a.err
+#SBATCH --job-name=MediumContinuousMaze_rkl
+#SBATCH --output=./logs/MediumContinuousMaze_rkl_%A%a.out
+#SBATCH --error=./logs/MediumContinuousMaze_rkl_%A%a.err
 
 #SBATCH --array=0-59:4
-
+#SBATCH --dependency=singleton
 #SBATCH --cpus-per-task=4
-#SBATCH --time=8:00:00
+#SBATCH --time=4:00:00
 #SBATCH --mem-per-cpu=5G
 
 #SBATCH --account=rrg-whitem
 
-ENV_NAME=ContinuousMaze
+ENV_NAME=MediumContinuousMaze
 AGENT_NAME=reverse_kl_medium_maze
 
 echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID

@@ -197,6 +197,13 @@ def main():
     train_episode_steps_filename = prefix + '_EpisodeStepsLC.txt'
     np.array(train_episode_steps).tofile(train_episode_steps_filename, sep=',', format='%15.8f')
 
+    if 'ContinuousMaze' in args.env_json:
+        right_exit_count_filename = prefix + '_RightExit.txt'
+        np.array(experiment.right_exit_global_count).tofile(right_exit_count_filename, sep=',')
+
+        bad_exit_count_filename = prefix + '_BadExit.txt'
+        np.array(experiment.bad_exit_global_count).tofile(bad_exit_count_filename, sep=',')
+
     params = []
     # params_names = '_'
     for key in agent_params:

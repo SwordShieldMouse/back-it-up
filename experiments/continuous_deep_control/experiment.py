@@ -4,6 +4,7 @@ import time
 import os
 import pickle
 import torch
+from utils.config import Config
         
 class Experiment(object):
     def __init__(self, agent, train_environment, test_environment, seed, writer, write_log, write_plot, resume_params):
@@ -29,6 +30,11 @@ class Experiment(object):
 
         self.cum_train_time = 0.0
         self.cum_eval_time = 0.0
+
+        self.right_exit_count = 0
+        self.bad_exit_count = 0
+        self.right_exit_global_count = []
+        self.bad_exit_global_count = []
 
         self.first_load = False
 
@@ -68,7 +74,7 @@ class Experiment(object):
             train_ep_time = train_end_time - self.train_start_time - self.eval_session_time
 
             self.cum_train_time += train_ep_time
-            print("Train:: ep: " + str(self.episode_count) + ", r: " + str(self.episode_reward) + ", n_steps: " + str(self.episode_step_count) + ", elapsed: " + time.strftime("%H:%M:%S", time.gmtime(train_ep_time)))
+            print("Train:: ep: " + str(self.episode_count) + ", r: " + str(self.episode_reward) + ", n_steps: " + str(self.episode_step_count) + ", elapsed: " + time.strftime("%H:%M:%S", time.gmtime(train_ep_time)))            
 
             if not force_terminated: 
                 self.train_rewards_per_episode.append(self.episode_reward)
@@ -88,7 +94,6 @@ class Experiment(object):
 
     # Runs a single episode (TRAIN)
     def run_episode_train(self, is_train):
-        ## AOLD and OBS!!!!
 
         if self.first_load is False:
             self.eval_session_time = 0.0
@@ -122,6 +127,17 @@ class Experiment(object):
             obs_n, reward, done, info = self.train_environment.step(self.Aold)
             self.episode_reward += reward
 
+            if reward == Config.cm_high_reward:
+                assert done
+                self.right_exit_count += 1
+            elif reward == Config.cm_low_reward:
+                assert done
+                self.bad_exit_count += 1
+
+            if self.total_step_count % Config.cm_exit_count_interval == 0:
+                self.right_exit_global_count.append(self.right_exit_count)
+                self.bad_exit_global_count.append(self.bad_exit_count)
+
             # if the episode was externally terminated by episode step limit, don't do update
             # (except ContinuousBandits, where the episode is only 1 step)
             if self.train_environment.name.startswith('ContinuousBandits'):
@@ -151,7 +167,7 @@ class Experiment(object):
 
     def link_variables_and_names(self):
         #Diverse counters
-        self.sr_diverse_names = ['cum_eval_time', 'cum_train_time', 'total_step_count', 'episode_count','train_cum_steps', 'train_rewards_per_episode', 'train_start_time', 'eval_session_time', 'episode_reward', 'episode_step_count','obs','Aold']
+        self.sr_diverse_names = ['cum_eval_time', 'cum_train_time', 'total_step_count', 'episode_count','train_cum_steps', 'train_rewards_per_episode', 'train_start_time', 'eval_session_time', 'episode_reward', 'episode_step_count','obs','Aold','right_exit_count','bad_exit_count','right_exit_global_count','bad_exit_global_count']
         self.sr_diverse_vars = [None] * len(self.sr_diverse_names)
 
         #Networks

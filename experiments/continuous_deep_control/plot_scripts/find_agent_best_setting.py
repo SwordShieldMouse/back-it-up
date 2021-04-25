@@ -268,6 +268,7 @@ if __name__ == "__main__":
                 plt.fill_between(opt_range, plot_lc - plot_lcse, plot_lc + plot_lcse, alpha=0.2)
                 plt.plot(opt_range, plot_lc, linewidth=1.0, label='best {}: {}'.format(type_arr[i], plot_idx))
 
+
             else:
                 plot_idxs = type_best_arr[i]
 
@@ -289,7 +290,8 @@ if __name__ == "__main__":
 
             np.save(lc_name, plot_lc)
             np.save(lcse_name, plot_lcse)
-            np.save(lcsall_name, all_lc[plot_idxs][:, :, :(xmax+1)])
+            if best_setting_type == 'top20':
+                np.save(lcsall_name, all_lc[plot_idxs][:, :, :(xmax+1)])
 
         plt.legend(loc="best")
 

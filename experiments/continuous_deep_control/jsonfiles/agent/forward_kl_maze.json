@@ -10,7 +10,7 @@
         "sample_for_eval": [false],
         "use_true_q": [false],
 
-        "entropy_scale": [1000, 100, 10],
+        "entropy_scale": [1000, 100, 10, 1, 0.1],
 
         "l_param": [6],
         "N_param": [64],

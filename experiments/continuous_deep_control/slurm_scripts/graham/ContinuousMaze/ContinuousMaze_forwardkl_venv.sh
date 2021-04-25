@@ -3,7 +3,7 @@
 #SBATCH --output=./logs/EasyContinuousMaze_fkl_%A%a.out
 #SBATCH --error=./logs/EasyContinuousMaze_fkl_%A%a.err
 
-#SBATCH --array=0-89
+#SBATCH --array=0-149
 
 #SBATCH --cpus-per-task=4
 #SBATCH --time=4:00:00

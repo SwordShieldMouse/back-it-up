@@ -48,7 +48,12 @@ def f(base):
             steps = np.array([max_steps])
             rewards = np.array([rewards])            
         elif steps[-1] < max_steps:
-            steps[-1] = max_steps
+            if len(steps) < 200:
+            #Temporary fix, discard the bad examples
+                steps = np.array([max_steps])
+                rewards = np.array([-5e5]) 
+            else:
+                steps[-1] = max_steps
 
         assert np.max(rewards) < 100000
 

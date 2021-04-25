@@ -14,6 +14,8 @@
 ENV_NAME=EasyContinuousMaze
 AGENT_NAME=reverse_kl_maze
 
+module load singularity
+
 echo Running..$ENV_NAME $AGENT_NAME $SLURM_ARRAY_TASK_ID
 
 singularity exec --cleanenv --no-home --writable --bind .:/scratch --pwd /scratch ~/singularity_environment/sungsu_test_sandbox bash experiments/continuous_deep_control/slurm_scripts/run_script_maze_singularity.sh $ENV_NAME $AGENT_NAME ${SLURM_ARRAY_TASK_ID}

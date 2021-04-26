@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--env_json', type=str)
     parser.add_argument('--agent_json', type=str)
     parser.add_argument('--index', type=int)
+    parser.add_argument('--save_last_net', default=False, action='store_true')
     parser.add_argument('--monitor', default=False, action='store_true')
     parser.add_argument('--render', default=False, action='store_true')
     parser.add_argument('--write_plot', default=False, action='store_true')
@@ -233,7 +234,8 @@ def main():
 
     if args.resume_training:
         os.system('touch {}'.format(save_data_full_endname))
-        os.system('rm {}'.format(os.path.join(args.save_data_bdir, save_data_fname)))
+        if not args.save_last_net:
+            os.system('rm {}'.format(os.path.join(args.save_data_bdir, save_data_fname)))
 
 
 if __name__ == '__main__':

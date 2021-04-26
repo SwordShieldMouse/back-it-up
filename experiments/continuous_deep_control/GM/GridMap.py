@@ -394,8 +394,8 @@ class GridMap2D(object):
         self.endingPoint     = BlockCoor(0, 0)
 
         self.haveMisleadingBlock = False
-        self.misleadingBlockIdx  = BlockIndex(0, 0)
-        self.misleadingPoint     = BlockCoor(0, 0)        
+        self.misleadingBlockIdx_list  = []
+        self.misleadingPoint_list     = []
 
         self.obstacleIndices = []
 
@@ -492,8 +492,8 @@ class GridMap2D(object):
             "endingBlockIdx": [ self.endingBlockIdx.r, self.endingBlockIdx.c ], \
             "endingPoint": [ self.endingPoint.x, self.endingPoint.y ], \
             "haveMisleadingBlock": self.haveMisleadingBlock, \
-            "misleadingBlockIdx": [self.misleadingBlockIdx.r, self.misleadingBlockIdx.c], \
-            "misleadingPoint": [self.misleadingPoint.x, self.misleadingPoint.y], \
+            "misleadingBlockIdx_list": [ [misleadingBlockIdx.r, misleadingBlockIdx.c] for misleadingBlockIdx in self.misleadingBlockIdx_list], \
+            "misleadingPoint_list": [ [misleadingPoint.x, misleadingPoint.y] for misleadingPoint in self.misleadingPoint_list] , \
             "obstacleIndices": self.obstacleIndices
             }
         
@@ -551,11 +551,13 @@ class GridMap2D(object):
                     d["endingPoint"][0], d["endingPoint"][1] ) )
 
         if ( True == d["haveMisleadingBlock"] ):
-            self.set_misleading_block( \
-                BlockIndex( \
-                    d["misleadingBlockIdx"][0], d["misleadingBlockIdx"][1] ),
-                endPoint=BlockCoor(
-                    d["misleadingPoint"][0], d["misleadingPoint"][1] ) )                    
+            assert len(d["misleadingBlockIdx_list"]) == len(d["misleadingPoint_list"])
+            for i_misl in range(len(d["misleadingBlockIdx_list"])):
+                self.set_misleading_block( \
+                    BlockIndex( \
+                        d["misleadingBlockIdx_list"][i_misl][0], d["misleadingBlockIdx_list"][i_misl][1] ),
+                    endPoint=BlockCoor(
+                        d["misleadingPoint_list"][i_misl][0], d["misleadingPoint_list"][i_misl][1] ) )                    
 
         for obs in d["obstacleIndices"]:
             self.add_obstacle( \
@@ -623,7 +625,7 @@ class GridMap2D(object):
         if ( False == self.haveMisleadingBlock ):
             raise GridMapException("No misleading block set yet.")
         
-        return copy.deepcopy( self.misleadingBlockIdx )        
+        return copy.deepcopy( self.misleadingBlockIdx_list )        
 
     def is_in_ending_block(self, coor):
         """Return ture if coor is in the ending block."""
@@ -675,9 +677,12 @@ class GridMap2D(object):
             return False
 
         # Get the ending block.
-        eb = self.get_block(self.misleadingBlockIdx)
-
-        return eb.is_in_range( coor.x, coor.y, radius )        
+        for misleadingBlock in self.misleadingBlockIdx_list:
+            eb = self.get_block(misleadingBlockIdx)
+            is_in_range = eb.is_in_range( coor.x, coor.y, radius )
+            if is_in_range == True:
+                return True
+        return False
 
     def enable_potential_value(self, valMax = None, valPerStep = None):
         if ( valMax is not None ):
@@ -834,16 +839,11 @@ class GridMap2D(object):
             raise GridMapException("The target index for misleading block (%d, %d) is already assigned to a starting block." % (r, c))
 
         if ( True == self.is_ending_block( BlockIndex(r,c) ) ):
-            raise GridMapException("The target index for misleading block (%d, %d) is already assigned to an ending block." % (r, c))        
-        
-        if ( True == self.haveMisleadingBlock ):
-            # Get the coordinate of the original starting block.
-            cl = self.get_block( self.misleadingBlockIdx ).corners[0]
+            raise GridMapException("The target index for misleading block (%d, %d) is already assigned to an ending block." % (r, c))   
 
-            # Overwrite the old staring point with a NormalBlock.
-            self.overwrite_block( self.misleadingBlockIdx.r, self.misleadingBlockIdx.c, \
-                NormalBlock( cl[GridMap2D.I_X], cl[GridMap2D.I_Y], self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueNormalBlock ) )
-        
+        if ( True == self.is_misleading_block( BlockIndex(r,c) ) ):
+            return                
+                
         # Overwrite a block. Make it to be a ending block.
 
         if ( value is not None ):
@@ -855,9 +855,13 @@ class GridMap2D(object):
         b = MisleadingBlock(coor.x, coor.y, self.stepSize[GridMap2D.I_Y], self.stepSize[GridMap2D.I_X], value=self.valueMisleadingBlock, endPoint=endPoint)
 
         self.overwrite_block( r, c, b )
-        self.misleadingBlockIdx.r = r
-        self.misleadingBlockIdx.c = c
-        self.misleadingPoint = b.get_ending_point_coor()
+
+        misleadingBlockIdx = BlockIndex(0, 0)
+        misleadingBlockIdx.r = r
+        misleadingBlockIdx.c = c
+        self.misleadingBlockIdx_list.append(misleadingBlockIdx)
+
+        self.misleadingPoint_list.append( b.get_ending_point_coor() )
 
         self.haveMisleadingBlock = True
 
@@ -930,7 +934,10 @@ class GridMap2D(object):
             raise IndexError( "Cannot turn a ending block (%d, %d) into obstacle." % (r, c) )
 
         # Check if the location is a misleading block.
-        if ( r == self.misleadingBlockIdx.r and c == self.misleadingBlockIdx.c ):
+        all_misl_r = list(map(lambda a: a.r, self.misleadingBlockIdx_list))
+        all_misl_c = list(map(lambda a: a.c, self.misleadingBlockIdx_list))
+
+        if ( r in all_misl_r and c in all_misl_c ):
             raise IndexError( "Cannot turn a misleading block (%d, %d) into obstacle." % (r, c) )        
 
         # Check if the destination is already an obstacle.
@@ -996,8 +1003,11 @@ class GridMap2D(object):
 
     def get_string_misleading_block(self):
         if ( True == self.haveMisleadingBlock ):
-            s = "misleading block at [%d, %d], value = %f." % \
-                ( self.misleadingBlockIdx.r, self.misleadingBlockIdx.c, self.misleadingEndingBlock )
+            s = "misleading blocks at "
+            
+            for misl_idx in range(len(self.misleadingBlockIdx_list)):
+                "[%d, %d], value = %f. ;" % \
+                    ( self.misleadingBlockIdx_list[misl_idx].r, self.misleadingBlockIdx_list[misl_idx].c, self.valueMisleadingBlock )
         else:
             s = "No misleading block."
 
@@ -1453,23 +1463,23 @@ class GridMapEnv(object):
         if ( False == self.map.haveStartingBlock ):
             raise GridMapException("Map of the environemnt does not have a starting block.")
         
-        # Get the ending point.
-        idxEnd = self.map.get_index_misleading_block()
-        bEnd   = self.map.get_block( idxEnd )
-        ep     = bEnd.get_ending_point_coor()
+        idxEnd_list = self.map.get_index_misleading_block()
+        for idxEnd in idxEnd_list:
+            # Get the ending point.
+            bEnd   = self.map.get_block( idxEnd )
+            ep     = bEnd.get_ending_point_coor()
 
-        # Get the starting point.
-        idxStart = self.map.get_index_starting_block()
-        bStart   = self.map.get_block( idxStart )
-        sp       = bStart.get_starting_point_coor()
+            # Get the starting point.
+            idxStart = self.map.get_index_starting_block()
+            bStart   = self.map.get_block( idxStart )
+            sp       = bStart.get_starting_point_coor()
 
-        # Test the distance.
-        d = two_coor_distance( ep, sp )
-        
-        if ( d <= self.endPointRadius ):
-            return False
-        else:
-            return True            
+            # Test the distance.
+            d = two_coor_distance( ep, sp )
+            
+            if ( d > self.endPointRadius ):
+                return True    
+        return False            
 
     def random_staring_and_ending_blocks(self):
         if ( self.map is None ):
@@ -1859,7 +1869,7 @@ class GridMapEnv(object):
             elif pause < 0:
                 plt.show(block=False)
             elif ( pause > 0 ):
-                # print("Render %s for %f seconds." % (self.name, pause))
+                print("Render %s for %f seconds." % (self.name, pause))
                 # plt.show( block = False )
                 # plt.pause( pause )
                 # plt.close()

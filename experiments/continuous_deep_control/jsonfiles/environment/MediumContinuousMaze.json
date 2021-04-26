@@ -1,8 +1,8 @@
 {
     "environment": "MediumContinuousMaze",
 
-    "TotalMilSteps": 0.5,
-    "EpisodeSteps": 500000,
+    "TotalMilSteps": 3.0,
+    "EpisodeSteps": 3000000,
     "TimeoutSteps": 10000,
     "XAxisSteps": 100,
     "XAxisFormatingSteps": 100000,

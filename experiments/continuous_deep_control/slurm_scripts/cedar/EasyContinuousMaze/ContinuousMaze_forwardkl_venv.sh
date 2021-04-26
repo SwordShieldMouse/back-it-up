@@ -9,7 +9,7 @@
 #SBATCH --time=4:00:00
 #SBATCH --mem-per-cpu=1G
 #SBATCH --dependency=singleton
-#SBATCH --account=def-whitem
+#SBATCH --account=rrg-whitem
 
 ENV_NAME=EasyContinuousMaze
 AGENT_NAME=forward_kl_maze

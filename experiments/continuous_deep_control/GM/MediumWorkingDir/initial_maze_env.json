@@ -15,7 +15,7 @@
     "isRandomCoordinating": false, 
     "isTerminated": false, 
     "mapFn": "initial_maze_map.json", 
-    "maxSteps": 500000, 
+    "maxSteps": 3000000, 
     "nSteps": 0, 
     "name": "GridMapEnv_continuous", 
     "nondimensionalStep": false, 

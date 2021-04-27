@@ -15,7 +15,7 @@ import os
 
 import argparse
 
-matplotlib.rcParams.update({'font.size': 25})
+matplotlib.rcParams.update({'font.size': 35})
 
 cm_exit_count_interval = 100 #Duplicate, defined in utils.py, change if needed
 
@@ -25,7 +25,6 @@ if __name__ == "__main__":
     parser.add_argument('env_name',type=str,choices=['EasyContinuousMaze','MediumContinuousMaze',"HardContinuousMaze"])
     parser.add_argument('--root_dir',type=str, default="experiments/continuous_deep_control/")
     parser.add_argument('--result_loc',type=str, default="/media/data/SSD_data/back_it_up/_results")
-    parser.add_argument('--custom_save_name',type=str,default=None)
     parser.add_argument('--num_runs',type=int, default=30)
     parser.add_argument('--output_plot_dir',type=str,default="/media/data/SSD_data/back_it_up/_plots/cm_exits")
 
@@ -71,9 +70,7 @@ if __name__ == "__main__":
         TOTAL_MIL_STEPS = env_json['TotalMilSteps']
         X_AXIS_STEPS = cm_exit_count_interval
 
-        title = "%s, %s: %d runs" % (env_name, agent_name, num_runs)
         plt.figure(figsize=(12, 12))
-        plt.title(title)
 
         paramfile = result_dir + env_name + '_' + agent_name + '_*' + '_Params.txt'
         print('Reading paramfile.. ' + paramfile)
@@ -129,17 +126,30 @@ if __name__ == "__main__":
             stderr_good_final[agent_name] = entropy_good_data_stderr
             stderr_bad_final[agent_name] = entropy_bad_data_stderr
 
+        entropy_color_dict = {
+                            1000: 'blue',
+                            100: 'orange',
+                            10: 'green',
+                            1: 'red',
+                            0.1: 'purple',
+                            }
         #Plot all entropies together
         for p_type in ["good","bad"]:
+            ax = plt.gca()
             opt_range = range(0, xmax+1)
-            h = plt.ylabel("Times reached",fontsize=30)
+            h = plt.ylabel("Times reached",fontsize=50)
             h.set_rotation(90)
-            xtick_step = int( (TOTAL_MIL_STEPS*1e6/X_AXIS_STEPS)/10  )
+            plt.xlabel('Timesteps ($10^3$)',fontsize=50)
+            xtick_step = int( (TOTAL_MIL_STEPS*1e6/X_AXIS_STEPS)/5  )
             tick = [o for o in opt_range[::xtick_step]]
             plt.xticks(tick, tick)
+            ax.axes.get_xaxis().set_major_formatter(ticker.FuncFormatter(lambda x,pos: '{:.0f}'.format( (x/10) )))
 
+            if p_type == "good":
+                plt.ylim((0, 500))
             xlimt = (0, xmax)
-            plt.xlim(xlimt)            
+            plt.xlim(xlimt)
+
 
             legends = [agent_name + ', ' + str(num_runs) + ' runs']
 
@@ -148,10 +158,10 @@ if __name__ == "__main__":
                 mean = entropy_good_data_mean[i] if p_type == "good" else entropy_bad_data_mean[i]
                 stderr = entropy_good_data_stderr[i] if p_type == "good" else entropy_bad_data_stderr[i]
 
-                plt.fill_between(opt_range, mean - stderr, mean + stderr, alpha=0.2)
-                plt.plot(opt_range, mean, linewidth=1.0, label='{}'.format(type_arr[i]))
+                plt.fill_between(opt_range, mean - stderr, mean + stderr, alpha=0.2, color=entropy_color_dict[ type_arr[i] ])
+                plt.plot(opt_range, mean, linewidth=1.0, color=entropy_color_dict[type_arr[i]])
 
-            plt.legend(loc="best")
+            # plt.legend(loc="best")
             plt.savefig(os.path.join(output_plot_dir, "ALL_{good}_{env}_{ag}.png").format(good=p_type.upper() ,env=env_name, ag=agent_name), bbox_inches='tight')
             plt.clf()
 
@@ -160,7 +170,7 @@ if __name__ == "__main__":
         for p_type in ["bad","good"]:
             ax = plt.gca()
             opt_range = range(0, xmax+1)
-            plt.xlabel('Timesteps ($10^3$)',fontsize=40)
+            plt.xlabel('Timesteps ($10^3$)',fontsize=50)
             xtick_step = int( (TOTAL_MIL_STEPS*1e6/X_AXIS_STEPS)/5  )
             tick = [o for o in opt_range[::xtick_step]]
             plt.xticks(tick, tick)
@@ -174,10 +184,10 @@ if __name__ == "__main__":
             else:
                 ymax = np.max(np.stack([mean_bad_final['ReverseKL'][i],mean_bad_final['ForwardKL'][i]]) )
             if ymax > 1000:
-                h = plt.ylabel("Times reached ($10^3$)",fontsize=40)
+                h = plt.ylabel("Times reached ($10^3$)",fontsize=50)
                 ax.axes.get_yaxis().set_major_formatter(ticker.FuncFormatter(lambda x,pos: '{:.0f}'.format( (x/1000) )))                
             else:
-                h = plt.ylabel("Times reached",fontsize=40)                
+                h = plt.ylabel("Times reached",fontsize=50)                
 
             h.set_rotation(90)
 
@@ -190,12 +200,12 @@ if __name__ == "__main__":
                 else:
                     mean = mean_bad_final[agent_name][i]
                     stderr = stderr_bad_final[agent_name][i]                    
-                    dash = (2,2)
+                    dash = (4,4)
 
                 rgba_color = np.concatenate( [np.array(color)/255.,[1.] ])
                 rgba_transp_color = np.concatenate( [np.array(color)/255.,[0.2] ])
                 plt.fill_between(opt_range, mean - stderr, mean + stderr, color=rgba_transp_color)
-                plt.plot(opt_range, mean, linewidth=1.0, color=rgba_color, dashes=dash)
+                plt.plot(opt_range, mean, linewidth=6.0, color=rgba_color, dashes=dash)
 
             plt.savefig(os.path.join(args.output_plot_dir, "{good}_{env}_entropy_{entr}_BOTH.png").format(good=p_type.upper(), env=env_name, entr=type_arr[i]), bbox_inches='tight')
             plt.clf()

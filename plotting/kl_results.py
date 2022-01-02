@@ -127,7 +127,7 @@ if ybotlim is not None:
 if ytoplim is not None:
     plt.ylim(top = ytoplim)
 plt.subplots_adjust(bottom=0.17, left=0.2)
-plt.savefig(write_dir + "UNLABELED_{}_all_kl.png".format(env))
+plt.savefig(write_dir + "UNLABELED_{}_all_kl.png".format(env),dpi=30)
 
 # plt.legend()
 
@@ -135,7 +135,7 @@ legend_elements = [Line2D([0], [0], marker=markers["forward"], color='black', la
                           markerfacecolor='black', markersize=markersizes["forward"], mew = mews["forward"]), Line2D([0], [0], marker=markers["reverse"], color='black', label='Reverse KL',
                           markerfacecolor='black', markersize=markersizes["reverse"], mew = mews["reverse"])]
 plt.legend(handles = legend_elements, frameon=False)
-plt.savefig(write_dir + "{}_all_kl.png".format(env))
+plt.savefig(write_dir + "{}_all_kl.png".format(env),dpi=30)
 
 
 # combined sensitivity

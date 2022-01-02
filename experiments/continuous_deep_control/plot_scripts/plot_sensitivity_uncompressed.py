@@ -284,8 +284,8 @@ for p in param_dicts:
     _, ymin, ymax, yticks = get_xyrange_with_p(args.env_name, p)
     plt.ylim(bottom=ymin[0], top=ymax[0])
     plt.yticks(ticks=yticks)
-    plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, a, p))
-
+    plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, a, p),dpi=30)
+    plt.clf()
 
     # full_agents = ['ForwardKL', 'ReverseKL']
     # markers = dict(zip( full_agents, ['.', '.'] ))
@@ -299,6 +299,6 @@ for p in param_dicts:
     # plt.xticks(plt_xticks, plt_x)
     # plt.title("{} sensitivity curve".format(translate_param[p]))
     # plt.legend(handles=legend_elements, frameon=False)
-    # plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve.png".format(output_plot_dir, env_name, a, p))
+    # plt.savefig("{}/{}_{}_combined_{}_sensitivity_curve.png".format(output_plot_dir, env_name, a, p,dpi=30))
     # # plt.show()
     # plt.clf()

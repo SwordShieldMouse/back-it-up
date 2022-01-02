@@ -209,6 +209,6 @@ if show_plot:
     plt.show()
 else:
     if show_labels:
-        plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison.png".format(env_name, 'train', parse_type)))
+        plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison.png".format(env_name, 'train', parse_type)),dpi=30)
     else:
-        plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison_unlabeled.png".format(env_name, 'train', parse_type)))
+        plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison_unlabeled.png".format(env_name, 'train', parse_type)),dpi=30)

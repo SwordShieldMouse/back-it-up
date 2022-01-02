@@ -67,7 +67,10 @@ if __name__ == "__main__":
         print('Agent: ' + agent_name)
 
         # ENV specific setting
-        TOTAL_MIL_STEPS = env_json['TotalMilSteps']
+        if '2M' in args.output_plot_dir:
+            TOTAL_MIL_STEPS = 2
+        else:
+            TOTAL_MIL_STEPS = env_json['TotalMilSteps']
         X_AXIS_STEPS = cm_exit_count_interval
 
         plt.figure(figsize=(12, 12))
@@ -145,7 +148,7 @@ if __name__ == "__main__":
             plt.xticks(tick, tick)
             ax.axes.get_xaxis().set_major_formatter(ticker.FuncFormatter(lambda x,pos: '{:.0f}'.format( (x/10) )))
 
-            if p_type == "good":
+            if p_type == "good" and TOTAL_MIL_STEPS <= 0.5:
                 plt.ylim((0, 500))
             xlimt = (0, xmax)
             plt.xlim(xlimt)
@@ -162,7 +165,7 @@ if __name__ == "__main__":
                 plt.plot(opt_range, mean, linewidth=1.0, color=entropy_color_dict[type_arr[i]])
 
             # plt.legend(loc="best")
-            plt.savefig(os.path.join(output_plot_dir, "ALL_{good}_{env}_{ag}.png").format(good=p_type.upper() ,env=env_name, ag=agent_name), bbox_inches='tight')
+            plt.savefig(os.path.join(output_plot_dir, "ALL_{good}_{env}_{ag}.png").format(good=p_type.upper() ,env=env_name, ag=agent_name), bbox_inches='tight',dpi=30)
             plt.clf()
 
     #Plot per entropy
@@ -184,8 +187,12 @@ if __name__ == "__main__":
             else:
                 ymax = np.max(np.stack([mean_bad_final['ReverseKL'][i],mean_bad_final['ForwardKL'][i]]) )
             if ymax > 1000:
-                h = plt.ylabel("Times reached ($10^3$)",fontsize=50)
-                ax.axes.get_yaxis().set_major_formatter(ticker.FuncFormatter(lambda x,pos: '{:.0f}'.format( (x/1000) )))                
+                if type_arr[i] in (1,10) and p_type == "good":
+                    h = plt.ylabel("Times reached ($10^3$)",fontsize=50)
+                    ax.axes.get_yaxis().set_major_formatter(ticker.FuncFormatter(lambda x,pos: '{:.1f}'.format( (x/1000) )))                
+                else:
+                    h = plt.ylabel("Times reached ($10^3$)",fontsize=50)
+                    ax.axes.get_yaxis().set_major_formatter(ticker.FuncFormatter(lambda x,pos: '{:.0f}'.format( (x/1000) )))                
             else:
                 h = plt.ylabel("Times reached",fontsize=50)                
 
@@ -207,7 +214,7 @@ if __name__ == "__main__":
                 plt.fill_between(opt_range, mean - stderr, mean + stderr, color=rgba_transp_color)
                 plt.plot(opt_range, mean, linewidth=6.0, color=rgba_color, dashes=dash)
 
-            plt.savefig(os.path.join(args.output_plot_dir, "{good}_{env}_entropy_{entr}_BOTH.png").format(good=p_type.upper(), env=env_name, entr=type_arr[i]), bbox_inches='tight')
+            plt.savefig(os.path.join(args.output_plot_dir, "{good}_{env}_entropy_{entr}_BOTH.png").format(good=p_type.upper(), env=env_name, entr=type_arr[i]), bbox_inches='tight',dpi=30)
             plt.clf()
 
     

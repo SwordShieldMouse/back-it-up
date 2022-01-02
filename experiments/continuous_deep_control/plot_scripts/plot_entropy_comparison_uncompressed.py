@@ -201,8 +201,8 @@ else:
     plt.xlabel('{} of Timesteps'.format(map_xlabel[X_FORMATING_STEPS]))
     plt.ylabel("Average return").set_rotation(90)    
     #Unlabeled
-    plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison_unlabeled.png".format(args.agent, env_name, parse_type)))
+    plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison_unlabeled.png".format(args.agent, env_name, parse_type)),dpi=30)
     #Labeled
     # plt.title(env_name)
     # plt.legend(handles=legend_elements, frameon=False)
-    # plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison.png".format(args.agent, env_name, parse_type)))
+    # plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_comparison.png".format(args.agent, env_name, parse_type)),dpi=30)

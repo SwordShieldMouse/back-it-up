@@ -153,7 +153,7 @@ def plot_top_algs(colors, styles, data, params_to_fix, auc_fraction, env, write_
 
     fig_dir = write_dir + combined_base_names + "/"
     os.makedirs(fig_dir, exist_ok=True)
-    plt.savefig(fig_dir + plot_name)
+    plt.savefig(fig_dir + plot_name, dpi=30)
 
     if show_legend is True:
         plt.legend(frameon=False)
@@ -163,7 +163,7 @@ def plot_top_algs(colors, styles, data, params_to_fix, auc_fraction, env, write_
         plt.title("Top Algs by {}-AUC on {} {}".format(auc_fraction, env, combined_param_names))
     # print(plot_names)
     plot_name = "auc{}-{}_compare_{}.png".format(auc_fraction, env, combined_param_names)
-    plt.savefig(fig_dir + plot_name)
+    plt.savefig(fig_dir + plot_name, dpi=30)
     plt.close()
     t_end = time.time()
     print("plotting took {}s".format(t_end - t_start))
@@ -278,7 +278,7 @@ def plot_sensitivity(x_params, colors, styles, fnames, data, params_to_fix, auc_
         fig_dir = write_dir + combined_base_names + "/"
         plt.ylabel("Average {}-AUC".format(auc_fraction))
         os.makedirs(fig_dir, exist_ok = True)
-        plt.savefig(fig_dir + "UNLABELED_" + plt_name)
+        plt.savefig(fig_dir + "UNLABELED_" + plt_name, dpi=30)
 
         if xticks is not None:
             plt.xticks(xticks)
@@ -288,7 +288,7 @@ def plot_sensitivity(x_params, colors, styles, fnames, data, params_to_fix, auc_
             plt.title("{} Sensitivity on {} {}".format(x_param, env, fixed_params))
         if show_legend is True:
             plt.legend(frameon=False)
-        plt.savefig(fig_dir + plt_name)
+        plt.savefig(fig_dir + plt_name, dpi=30)
         plt.close()
         t_end = time.time()
         print("plotting {} took {}s".format(x_param, t_end - t_start))

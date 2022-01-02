@@ -197,8 +197,8 @@ if show_plot:
     plt.show()  
 else:    
     #Unlabeled
-    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison_unlabeled.png".format(env_name, parse_type)),bbox_inches='tight')
+    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison_unlabeled.png".format(env_name, parse_type)),bbox_inches='tight',dpi=30)
     #Labeled
     # plt.title(env_name)
     plt.legend(handles=legend_elements, fontsize=30)
-    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison.png".format(env_name, parse_type)),bbox_inches='tight')
+    plt.savefig(os.path.join(output_plot_dir, "{}_{}_comparison.png".format(env_name, parse_type)),bbox_inches='tight',dpi=30)

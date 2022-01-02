@@ -91,7 +91,7 @@ tick_interval = 50
 if show_plot:
     plt.show()
 else:
-    plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_runs.png").format(ENV_NAME, AGENT_NAME, custom_save_name))
+    plt.savefig(os.path.join(output_plot_dir, "{}_{}_{}_runs.png").format(ENV_NAME, AGENT_NAME, custom_save_name),dpi=30)
 plt.close()
 
 

@@ -298,7 +298,7 @@ if __name__ == "__main__":
         if show_plot:
             plt.show()
         else:
-            plt.savefig(os.path.join(output_plot_dir, "{best_type}_{env}_{ag}_{res}.png").format(env=env_name, ag=agent_name, res=result + '_' + custom_save_name, best_type=best_setting_type))
+            plt.savefig(os.path.join(output_plot_dir, "{best_type}_{env}_{ag}_{res}.png").format(env=env_name, ag=agent_name, res=result + '_' + custom_save_name, best_type=best_setting_type),dpi=30)
         plt.close()
 
         savelc = bestlc

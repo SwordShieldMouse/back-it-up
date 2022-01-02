@@ -255,7 +255,7 @@ for p in param_dicts:
         plt.title("{} sensitivity curve".format(p))
         plt.xlabel(p)
         plt.ylabel("0.5 AUC", rotation=90)
-        plt.savefig("{}/{}_combined_{}_sensitivity_curve.png".format(output_plot_dir, env_name, p))
+        plt.savefig("{}/{}_combined_{}_sensitivity_curve.png".format(output_plot_dir, env_name, p),dpi=30)
     else:
 
         legend_elements = [Line2D([0], [0], marker='o', color='black', label='Forward KL',
@@ -266,7 +266,7 @@ for p in param_dicts:
 
         plt.xticks(plt_xticks, [])
         plt.yticks(yticks, [])
-        plt.savefig("{}/{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, p))
+        plt.savefig("{}/{}_combined_{}_sensitivity_curve_unlabeled.png".format(output_plot_dir, env_name, p),dpi=30)
 
     # plt.show()
     plt.clf()

@@ -73,7 +73,7 @@ def main():
                 raise NotImplementedError
             working_dir = os.path.join(save_dir, wd_name)
             if not os.path.exists(working_dir):
-                shutil.copytree(os.path.join("experiments/continuous_deep_control/GM",wd_name) ,working_dir)
+                shutil.copytree(os.path.join("GM",wd_name) ,working_dir)
             netsave_data_bdir = os.path.join(save_dir, 'saved_nets')
             if not os.path.exists(netsave_data_bdir):
                 os.makedirs(netsave_data_bdir, exist_ok=True)                

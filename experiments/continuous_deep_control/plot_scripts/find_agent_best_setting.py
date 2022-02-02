@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     parser.add_argument('env_name',type=str)
     parser.add_argument('agent_name',type=str)
-    parser.add_argument('--root_dir',type=str, default="experiments/continuous_deep_control/")
+    parser.add_argument('--root_dir',type=str, default="/")
     parser.add_argument('--merged_result_loc',type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
     parser.add_argument('--custom_save_name',type=str,default=None)
     parser.add_argument('--num_runs',type=int, default=30)

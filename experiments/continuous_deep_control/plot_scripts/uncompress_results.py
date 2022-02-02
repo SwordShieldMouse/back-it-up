@@ -11,7 +11,7 @@ from multiprocessing import Pool
 parser = argparse.ArgumentParser()
 parser.add_argument("env", type=str, choices=["HalfCheetah-v2", "Pendulum-v0", "Swimmer-v2", "Reacher-v2","EasyContinuousMaze","MediumContinuousMaze","HardContinuousMaze"])
 parser.add_argument("--input_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_results")
-parser.add_argument("--env_json_dir", type=str, default="experiments/continuous_deep_control/jsonfiles/environment")
+parser.add_argument("--env_json_dir", type=str, default="/jsonfiles/environment")
 parser.add_argument("--window",type=int,default=20)
 args = parser.parse_args()
 

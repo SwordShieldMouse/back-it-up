@@ -29,7 +29,7 @@ parser.add_argument("env_name", type=str)
 parser.add_argument("--stored_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
 parser.add_argument("--output_plot_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_plots/all_high_all_low")
 parser.add_argument("--parse_type", type=str, default="entropy_scale")
-parser.add_argument("--root_dir", type=str, default="experiments/continuous_deep_control")
+parser.add_argument("--root_dir", type=str, default="")
 parser.add_argument("--best_setting_type", type=str, default="top20", choices=["best","top20"])
 
 args = parser.parse_args()

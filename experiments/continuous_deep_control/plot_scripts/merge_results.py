@@ -34,7 +34,7 @@ parser.add_argument("env_name", type=str)
 parser.add_argument("agent_name", type=str, choices=["ForwardKL", "ReverseKL"])
 parser.add_argument("--results_dir", type=str, default="my_results/normal_sweeps/joint_rkl_fkl/_uncompressed_results")
 parser.add_argument("--num_runs", type=int, default=10)
-parser.add_argument("--root_dir", type=str, default="experiments/continuous_deep_control")
+parser.add_argument("--root_dir", type=str, default="")
 parser.add_argument("--dont_use_moving_average", action="store_false", default=True)
 
 args = parser.parse_args()

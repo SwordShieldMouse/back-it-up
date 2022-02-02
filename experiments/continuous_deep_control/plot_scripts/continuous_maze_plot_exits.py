@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument('env_name',type=str,choices=['EasyContinuousMaze','MediumContinuousMaze',"HardContinuousMaze"])
-    parser.add_argument('--root_dir',type=str, default="experiments/continuous_deep_control/")
+    parser.add_argument('--root_dir',type=str, default="/")
     parser.add_argument('--result_loc',type=str, default="/media/data/SSD_data/back_it_up/_results")
     parser.add_argument('--num_runs',type=int, default=30)
     parser.add_argument('--output_plot_dir',type=str,default="/media/data/SSD_data/back_it_up/_plots/cm_exits")

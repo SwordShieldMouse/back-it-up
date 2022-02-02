@@ -45,7 +45,7 @@ def main():
         netsave_data_file =  "saved_nets/{env}_{agent}_setting_{setting}_run_{run}.tar".format(setting=args.setting, run=args.run, timestep=args.timestep, agent=full_aname, env=args.environment)        
 
     # read env/agent json
-    with open('experiments/continuous_deep_control/jsonfiles/environment/{}.json'.format(args.environment), 'r') as env_dat:
+    with open('jsonfiles/environment/{}.json'.format(args.environment), 'r') as env_dat:
         env_json = json.load(env_dat, object_pairs_hook=OrderedDict)
 
     if args.from_results:
@@ -55,7 +55,7 @@ def main():
             j_aname = "forward_kl_maze_image"
         else:
             raise NotImplementedError
-    with open('experiments/continuous_deep_control/jsonfiles/agent/{}.json'.format(j_aname), 'r') as agent_dat:
+    with open('jsonfiles/agent/{}.json'.format(j_aname), 'r') as agent_dat:
         agent_json = json.load(agent_dat, object_pairs_hook=OrderedDict)
     
 

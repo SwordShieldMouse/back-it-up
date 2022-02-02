@@ -73,7 +73,7 @@ def main():
                 raise NotImplementedError
             working_dir = os.path.join(save_dir, wd_name)
             if not os.path.exists(working_dir):
-                shutil.copytree(os.path.join("GM",wd_name) ,working_dir)
+                shutil.copytree(os.path.join("environments/classes/GM",wd_name) ,working_dir)
             netsave_data_bdir = os.path.join(save_dir, 'saved_nets')
             if not os.path.exists(netsave_data_bdir):
                 os.makedirs(netsave_data_bdir, exist_ok=True)                
@@ -83,11 +83,9 @@ def main():
 
     # initialize env
     if 'ContinuousMaze' in args.env_json:
-        train_env = envs.create_environment(env_json, working_dir)
-        test_env = envs.create_environment(env_json, working_dir)
-    else:
-        train_env = envs.create_environment(env_json)
-        test_env = envs.create_environment(env_json)        
+        env_json['working_dir'] = working_dir
+    train_env = envs.create_environment(env_json)
+    test_env = envs.create_environment(env_json)
 
     # Create env_params for agent
     env_params = {

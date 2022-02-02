@@ -4,7 +4,7 @@ from __future__ import print_function
 import math
 import numpy as np
 
-from GM import GridMap
+from . import GridMap
 
 def get_two_random_indices(r, c):
     """Return a 2x2 NumPy array, containing two different index pair."""

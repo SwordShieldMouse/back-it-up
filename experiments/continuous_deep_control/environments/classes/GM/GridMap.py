@@ -9,7 +9,7 @@ import numpy as np
 from numpy.random import randn, rand
 import os
 
-from GM import LineIntersection2D
+from . import LineIntersection2D
 
 def two_point_distance(x0, y0, x1, y1):
     dx = x1 - x0

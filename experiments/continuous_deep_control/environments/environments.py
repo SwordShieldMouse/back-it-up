@@ -1,7 +1,6 @@
 import gym
 import numpy as np
 from .classes.GM import GridMap
-from .classes.GW.continous_grids import GridWorld
 from .config.GW import GridWorldConfig
 
 import os
@@ -319,6 +318,7 @@ class GridWorldEnvironment(ContinuousEnvironment):
         self.timeout_steps = env_params['TimeoutSteps']
 
     def init_instance(self, env_params):
+        from .classes.GW.continous_grids import GridWorld
         return GridWorld(silent_mode=not env_params['render'], max_episode_len=env_params['EpisodeSteps'], **GridWorldConfig.config())
 
     def step(self, action):

@@ -1,0 +1,12 @@
+{
+    "environment": "GridWorld",
+
+    "TotalMilSteps": 0.1,
+    "EpisodeSteps": 100000,
+    "TimeoutSteps": 2500,
+    "XAxisSteps": 100000,
+    "XAxisFormatingSteps": 100000,
+
+    "EvalIntervalMilSteps": 0.5,
+    "EvalEpisodes": 1
+}

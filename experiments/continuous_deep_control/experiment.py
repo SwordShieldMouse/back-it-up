@@ -7,7 +7,8 @@ import torch
 from utils.config import Config
         
 class Experiment(object):
-    def __init__(self, agent, train_environment, test_environment, seed, writer, write_log, write_plot, resume_params):
+    def __init__(self, agent, train_environment, test_environment, seed, writer, write_log, write_plot, resume_params, has_eval=False):
+        self.has_eval = has_eval
         self.agent = agent
         self.train_environment = train_environment
         self.train_environment.set_random_seed(seed)
@@ -57,7 +58,8 @@ class Experiment(object):
         print("Start run at: " + str(start_run)+'\n')
 
         # evaluate once at beginning
-        self.cum_eval_time += self.eval()
+        if self.has_eval:
+            self.cum_eval_time += self.eval()
 
         if self.resume_training:
             self.link_variables_and_names()
@@ -71,7 +73,9 @@ class Experiment(object):
             force_terminated = self.run_episode_train(is_train=True)
             train_end_time = time.time()
 
-            train_ep_time = train_end_time - self.train_start_time - self.eval_session_time
+            train_ep_time = train_end_time - self.train_start_time
+            if self.has_eval:
+                train_ep_time -= self.eval_session_time
 
             self.cum_train_time += train_ep_time
             print("Train:: ep: " + str(self.episode_count) + ", r: " + str(self.episode_reward) + ", n_steps: " + str(self.episode_step_count) + ", elapsed: " + time.strftime("%H:%M:%S", time.gmtime(train_ep_time)))            
@@ -116,7 +120,7 @@ class Experiment(object):
                     self.last_time_saved = time.time()
                     print("#########SAVED#########")
 
-            if "ContinuousMaze" in self.train_environment.name and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:
+            if ("ContinuousMaze" in self.train_environment.name or "ContinuousWorld" in self.train_environment.name) and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:
                 netsave_dir = os.path.join(self.netsave_data_bdir,os.path.splitext(self.save_data_fname)[0], '{}'.format(self.total_step_count))
                 if not os.path.isdir(netsave_dir):
                     os.makedirs(netsave_dir, exist_ok=True)
@@ -155,7 +159,7 @@ class Experiment(object):
 
             self.obs = obs_n
 
-            if self.total_step_count % self.train_environment.eval_interval == 0:
+            if self.total_step_count % self.train_environment.eval_interval == 0 and self.has_eval:
                 self.eval_session_time += self.eval()
 
         # check if this episode is finished because of Total Training Step Limit
@@ -292,14 +296,12 @@ class Experiment(object):
         Aold = self.agent.start(obs, is_train)
 
         episode_step_count = 0
-        while not (done or episode_step_count == test_env.EPISODE_STEPS_LIMIT):
-            if "ContinuousMaze" in self.train_environment.name and episode_step_count == 5000:
-                break                
-            
+        steps_limit = test_env.EPISODE_STEPS_LIMIT if not hasattr(test_env, 'timeout_steps') else min(test_env.EPISODE_STEPS_LIMIT, test_env.timeout_steps)
+        while not (done or episode_step_count == steps_limit):
             obs_n, reward, done, info = test_env.step(Aold)
 
-            episode_reward += reward  
-            if not done:          
+            episode_reward += reward
+            if not done:
                 Aold = self.agent.step(obs_n, is_train)
 
             obs = obs_n

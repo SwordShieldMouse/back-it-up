@@ -50,8 +50,6 @@ class SoftQNetwork(nn.Module):
 
         self.linear2 = nn.Sequential(*linear2)
 
-        # self.linear1 = nn.Linear(state_dim, layer_dim)
-        # self.linear2 = nn.Linear(layer_dim + action_dim, layer_dim)
         self.linear3 = nn.Linear(layer_dim, 1)
 
         self.linear3.weight.data.uniform_(-init_w, init_w)
@@ -64,11 +62,6 @@ class SoftQNetwork(nn.Module):
         x = F.relu(self.linear1(x))
         x = self.linear2(x)
         x = self.linear3(x)
-
-        # x = F.relu(self.linear1(state))
-        # x = torch.cat([x, action], 1)
-        # x = F.relu(self.linear2(x))
-        # x = self.linear3(x)
         return x
 
 
@@ -104,7 +97,6 @@ class PolicyNetwork(nn.Module):
 
     def forward(self, state):
         x = F.relu(self.linear1(state))
-        # x = F.relu(self.linear2(x))
         x = self.linear2(x)
 
         mean = self.mean_linear(x)
@@ -115,12 +107,15 @@ class PolicyNetwork(nn.Module):
 
         return mean, std
 
-    def evaluate(self, state, epsilon=1e-6):
+    def evaluate(self, state, epsilon=1e-6, no_grad=False):
         pre_mean, std = self.forward(state)
 
         normal = self.get_distribution(pre_mean, std)
 
-        raw_action = normal.rsample()
+        if no_grad:
+            raw_action = normal.sample()
+        else:
+            raw_action = normal.rsample()
         action = torch.tanh(raw_action)
         log_prob = normal.log_prob(raw_action)
 

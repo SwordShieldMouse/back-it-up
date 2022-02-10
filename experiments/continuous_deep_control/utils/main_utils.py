@@ -1,5 +1,4 @@
 from collections import OrderedDict
-import tensorflow as tf
 
 # Takes a string and returns and instance of an agent
 # [env] is an instance of an environment
@@ -33,10 +32,7 @@ def get_sweep_parameters(parameters, index):
 
 # write to tf Summary
 def write_summary(writer, increment, stuff_to_log, tag):
-    summary = tf.Summary()
-    summary.value.add(simple_value=stuff_to_log, tag=tag)
-    writer.add_summary(summary, increment)
-    writer.flush()
+    raise NotImplementedError
 
 
 

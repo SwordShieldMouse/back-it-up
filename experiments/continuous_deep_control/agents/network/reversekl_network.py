@@ -306,12 +306,6 @@ class ReverseKLNetwork(BaseNetwork):
         else:
             raise ValueError("Invalid self.optim_type")
 
-        # for debugging/visualization
-        # dot = make_dot(policy_loss)
-        # dot.format = 'png'
-        # dot.render('policy_loss')
-        # exit()
-
         if not self.use_true_q:
             self.q_optimizer.zero_grad()
             self.v_optimizer.zero_grad()

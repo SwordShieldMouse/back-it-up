@@ -1,6 +1,5 @@
 # -*- encoding:utf8 -*-
 import gym
-# import tensorflow as tf
 import environments.environments as envs
 from utils.config import Config
 from experiment import Experiment
@@ -60,20 +59,22 @@ def main():
     if not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
         
-    if 'ContinuousMaze' in args.env_json:
+    if 'ContinuousMaze' in args.env_json or 'ContinuousWorld' in args.env_json:
         f_lock = LockFile(os.path.join(save_dir,'f_lock.lock'))
         with f_lock:
             if 'EasyContinuousMaze' in args.env_json:
-                wd_name = 'EasyWorkingDir'
+                wd_name = 'EasyMazeWorkingDir'
             elif 'MediumContinuousMaze' in args.env_json:
-                wd_name = 'MediumWorkingDir'
+                wd_name = 'MediumMazeWorkingDir'
             elif 'HardContinuousMaze' in args.env_json:
-                wd_name = 'HardWorkingDir'
+                wd_name = 'HardMazeWorkingDir'
+            elif 'EasyContinuousWorld' in args.env_json:
+                wd_name = 'EasyWorldWorkingDir'
+            elif 'MultimodalContinuousWorld' in args.env_json:
+                wd_name = 'MultimodalWorldWorkingDir'
             else:
                 raise NotImplementedError
-            working_dir = os.path.join(save_dir, wd_name)
-            if not os.path.exists(working_dir):
-                shutil.copytree(os.path.join("environments/classes/GM",wd_name) ,working_dir)
+            working_dir = os.path.join("environments/classes/GM",wd_name)
             netsave_data_bdir = os.path.join(save_dir, 'saved_nets')
             if not os.path.exists(netsave_data_bdir):
                 os.makedirs(netsave_data_bdir, exist_ok=True)                
@@ -82,8 +83,9 @@ def main():
         
 
     # initialize env
-    if 'ContinuousMaze' in args.env_json:
+    if 'ContinuousMaze' in args.env_json or 'ContinuousWorld' in args.env_json:
         env_json['working_dir'] = working_dir
+    env_json['render'] = args.render
     train_env = envs.create_environment(env_json)
     test_env = envs.create_environment(env_json)
 
@@ -110,7 +112,7 @@ def main():
     # set Random Seed (for training)
     RANDOM_SEED = RUN_NUM
     arg_params['random_seed'] = RANDOM_SEED
-    if 'ContinuousMaze' in args.env_json:
+    if 'ContinuousMaze' in args.env_json or 'ContinuousWorld' in args.env_json:
         torch.manual_seed(RANDOM_SEED)    
 
     # save/resume params and dirs
@@ -156,15 +158,11 @@ def main():
 
     # monitor/render
     if args.monitor or args.render:
-        if 'ContinuousMaze' in args.env_json:
+        if 'ContinuousMaze' in args.env_json or 'ContinuousWorld' in args.env_json or 'GridWorld' in args.env_json:
             if args.monitor:
                 raise NotImplementedError('Recording not implemented')
-            else:
-                train_env.render = True
-                train_env.render_time = 0.001
         else:
             monitor_dir = log_dir+'/monitor'
-
             if args.render:
                 train_env.instance = gym.wrappers.Monitor(train_env.instance, monitor_dir, video_callable=(lambda x: True), force=True)
             else:
@@ -196,7 +194,7 @@ def main():
     train_episode_steps_filename = prefix + '_EpisodeStepsLC.txt'
     np.array(train_episode_steps).tofile(train_episode_steps_filename, sep=',', format='%15.8f')
 
-    if 'ContinuousMaze' in args.env_json:
+    if 'ContinuousMaze' in args.env_json or 'ContinuousWorld' in args.env_json:
         right_exit_count_filename = prefix + '_RightExit.txt'
         np.array(experiment.right_exit_global_count).tofile(right_exit_count_filename, sep=',')
 

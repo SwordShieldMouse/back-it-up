@@ -1,6 +1,6 @@
 
 from __future__ import print_function
-
+import itertools
 import copy
 import json
 import math
@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.random import randn, rand
 import os
+from scipy.sparse.csgraph import floyd_warshall
 
 from . import LineIntersection2D
 
@@ -564,6 +565,49 @@ class GridMap2D(object):
                 BlockIndex( \
                     obs[0], obs[1] ) )
 
+    def make_graph_rewards(self):
+        self.create_adj_matrix()
+        self.create_dist_matrix()
+        self.change_block_values()
+
+    def create_adj_matrix(self):
+        offsets = [0, -1, 1]
+        self.adj_matrix = np.eye(self.rows * self.cols, dtype=np.float64)
+        for i in range(self.rows):
+            for j in range(self.cols):
+                f_i = float(i)
+                f_j = float(j)
+                displacements = list(itertools.product(offsets, offsets))
+                assert displacements[0][0] == 0 and displacements[0][1] == 0
+                for di, dj in displacements:
+                    ni, nj = i+di, j+dj
+                    if ni < 0 or ni >= self.rows or nj < 0 or nj >= self.cols:
+                        continue
+                    idx = BlockIndex(ni, nj)
+                    if self.is_obstacle_block(idx):
+                        if di == 0 and dj == 0:
+                            break
+                    else:
+                        self.adj_matrix[i * self.cols + j, ni * self.cols + nj] = 1
+
+    def create_dist_matrix(self):
+        self.dist_matrix = floyd_warshall(self.adj_matrix, directed=False)
+
+    def change_block_values(self):
+        edIdx = self.get_index_ending_block()
+        mislIdxs = self.get_index_misleading_block()
+        goalIdxs = [edIdx] + mislIdxs
+        unrolledGoals = list(map(lambda idx: idx.r * self.cols + idx.c, goalIdxs))
+        distToGoals = self.dist_matrix[unrolledGoals,:]
+        minDistToGoals = np.min(distToGoals, axis=0)
+        C = np.max(minDistToGoals[minDistToGoals != np.inf])
+        XI = 5.0
+        for i, row in enumerate(self.blockRows):
+            for j, element in enumerate(row):
+                if self.is_normal_block(BlockIndex(i, j)) or self.is_starting_block(BlockIndex(i, j)):
+                    d_closest = minDistToGoals[i * self.cols + j]
+                    element.value = -XI * d_closest / C
+
     def get_block(self, index):
         if ( isinstance( index, BlockIndex ) ):
             if ( index.r >= self.rows or index.c >= self.cols ):
@@ -677,7 +721,7 @@ class GridMap2D(object):
             return False
 
         # Get the ending block.
-        for misleadingBlock in self.misleadingBlockIdx_list:
+        for misleadingBlockIdx in self.misleadingBlockIdx_list:
             eb = self.get_block(misleadingBlockIdx)
             is_in_range = eb.is_in_range( coor.x, coor.y, radius )
             if is_in_range == True:
@@ -1393,6 +1437,7 @@ class GridMapEnv(object):
 
         self.isRandomCoordinating = False # If True, a noise will be added to the final coordinate produced by each calling to step() function.
         self.randomCoordinatingVariance = 0 # The variance of the randomized coordinate.
+        self.denseRewards = False
 
         self.flagActionValue = False
         self.actionValueFactor = 1.0
@@ -1869,7 +1914,7 @@ class GridMapEnv(object):
             elif pause < 0:
                 plt.show(block=False)
             elif ( pause > 0 ):
-                print("Render %s for %f seconds." % (self.name, pause))
+                # print("Render %s for %f seconds." % (self.name, pause))
                 # plt.show( block = False )
                 # plt.pause( pause )
                 # plt.close()
@@ -2008,11 +2053,14 @@ class GridMapEnv(object):
         self.actStepSize = d["actStepSize"]
         self.normalizedCoordinate = d["normalizedCoordinate"]
         self.isRandomCoordinating = d["isRandomCoordinating"]
+        self.denseRewards = d["denseRewards"]
         self.randomCoordinatingVariance = d["randomCoordinatingVariance"]
 
         # Create a new map.
         m = GridMap2D( rows = 1, cols = 1 ) # A temporay map.
         m.read_JSON( self.workingDir + "/" + d["mapFn"] )
+        if self.denseRewards:
+            m.make_graph_rewards()
 
         # Set map.
         self.map = m
@@ -2021,8 +2069,9 @@ class GridMapEnv(object):
         self.reset()
 
         # Update other member variables.
-        self.agentCurrentLoc = BlockCoor( \
-            d["agentCurrentLoc"][0], d["agentCurrentLoc"][1] )
+        if len(d["agentCurrentLoc"]) > 0:
+            self.agentCurrentLoc = BlockCoor( \
+                d["agentCurrentLoc"][0], d["agentCurrentLoc"][1] )
         self.agentCurrentAct = BlockCoorDelta( \
             d["agentCurrentAct"][0], d["agentCurrentAct"][1] )
         

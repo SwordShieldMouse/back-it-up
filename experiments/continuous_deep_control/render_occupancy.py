@@ -1,6 +1,5 @@
 # -*- encoding:utf8 -*-
 import gym
-import tensorflow as tf
 import environments.environments as envs
 from utils.config import Config
 from experiment import Experiment

@@ -5,13 +5,14 @@ name = "pypi"
 
 [packages]
 gym = "==0.14.0"
-matplotlib = "==3.1.1"
 torch = "==1.7.0"
 torchvision = "==0.8.0"
 lockfile = "==0.12.2"
 tensorflow = "==1.14.0"
 quadpy = "==0.14.11"
 mujoco-py = "==2.1.2.14"
+pyqt5 = "*"
+matplotlib = "*"
 
 [dev-packages]
 

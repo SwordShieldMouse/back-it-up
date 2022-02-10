@@ -9,11 +9,16 @@ import gym.spaces
 import matplotlib.patches as patches
 import matplotlib.path as path
 import matplotlib.pyplot as plt
-import numpy as np
-from exploration_models import *
-from graphics import *
+
+from scipy.sparse.csgraph import floyd_warshall
+from scipy.special import expit
+import itertools
+
+from .exploration_models import *
+from .graphics import *
 from gym import spaces
 
+XI = 0.1
 
 class GridWorld(gym.Env):
     """
@@ -32,7 +37,7 @@ class GridWorld(gym.Env):
                  max_episode_len=1000,
                  grid_len=100,
                  wall_breadth=1,
-                 door_breadth=5,
+                 door_breadth=1,
                  action_limit_max=1.0,
                  silent_mode=False):
         """
@@ -45,6 +50,7 @@ class GridWorld(gym.Env):
 
         # grid size
         self.grid_len = float(grid_len)
+        self.int_grid_len = int(grid_len)
         self.wall_breadth = float(wall_breadth)
         self.door_breadth = float(door_breadth)
         self.min_position = 0.0
@@ -59,6 +65,7 @@ class GridWorld(gym.Env):
         self.dense_reward = dense_reward
         # List of dense goal coordinates
         self.dense_goals = dense_goals
+        self.all_goals = [self.goal_position] + self.dense_goals
 
         # rewards
         self.goal_reward = goal_reward
@@ -80,7 +87,9 @@ class GridWorld(gym.Env):
 
         # add the walls here
         self.create_walls()
-        self.scale = 5
+        self.create_neighborhood_matrix()
+        self.create_dist_matrix()
+        self.scale = 20
 
         # This code enables live visualization of trajectories
         # Susan added these lines for visual purposes
@@ -102,6 +111,11 @@ class GridWorld(gym.Env):
     def _get_obs(self):
         return copy.deepcopy(self.state)
 
+    def _scaled_dsigmoid(self, d):
+        peakness = 100.
+        d = d/peakness
+        return expit(d+.5) * expit(1 - (d+.5)) / (expit(.5)**2)
+
     def draw_init(self):
         if hasattr(self,'win1'):
             self.win1.delete("all")
@@ -113,24 +127,24 @@ class GridWorld(gym.Env):
         rectangle1.draw(self.win1)
 
         if self.num_rooms > 0:
-            wall1 = Rectangle(Point(self.min_position * self.scale + 20,
-                                    self.max_position * self.scale / 2 + 20 - self.wall_breadth * self.scale),
-                              Point(self.max_position * self.scale / 2 + 20,
-                                    self.max_position * self.scale / 2 + 20 + self.wall_breadth * self.scale))
+            wall1 = Rectangle(Point(self.walls[0].vertices[0][0] * self.scale + 20,
+                                    self.walls[0].vertices[0][1] * self.scale + 20),
+                              Point(self.walls[0].vertices[2][0] * self.scale + 20,
+                                    self.walls[0].vertices[2][1] * self.scale + 20))
             wall1.draw(self.win1)
             wall1.setFill('aquamarine')
 
-            wall2 = Rectangle(Point(self.max_position * self.scale / 2 + 20 - self.wall_breadth * self.scale,
-                                    self.min_position * self.scale + 20),
-                              Point(self.max_position * self.scale / 2 + 20 + self.wall_breadth * self.scale,
-                                    self.max_position * self.scale / 4 + 20 - self.door_breadth * self.scale))
+            wall2 = Rectangle(Point(self.walls[1].vertices[0][0] * self.scale + 20,
+                                    self.walls[1].vertices[0][1] * self.scale + 20),
+                              Point(self.walls[1].vertices[2][0] * self.scale + 20,
+                                    self.walls[1].vertices[2][1] * self.scale + 20))
             wall2.draw(self.win1)
             wall2.setFill('aquamarine')
 
-            wall3 = Rectangle(Point(self.max_position * self.scale / 2 + 20 - self.wall_breadth * self.scale,
-                                    self.max_position * self.scale / 4 + 20 + self.door_breadth * self.scale),
-                              Point(self.max_position * self.scale / 2 + 20 + self.wall_breadth * self.scale,
-                                    self.max_position * self.scale / 2 + 20 + self.wall_breadth * self.scale))
+            wall3 = Rectangle(Point(self.walls[2].vertices[0][0] * self.scale + 20,
+                                    self.walls[2].vertices[0][1] * self.scale + 20),
+                              Point(self.walls[2].vertices[2][0] * self.scale + 20,
+                                    self.walls[2].vertices[2][1] * self.scale + 20))
             wall3.draw(self.win1)
             wall3.setFill('aquamarine')
         start_point = Circle(Point(self.start_position[0] * self.scale + 20, self.start_position[1] * self.scale + 20),
@@ -148,6 +162,14 @@ class GridWorld(gym.Env):
                                      self.goal_radius * self.scale)
             mini_goal_point.draw(self.win1)
             mini_goal_point.setFill('blue')
+
+        for i in range(self.int_grid_len + 1):
+            h_line = Line(Point(self.min_position * self.scale + 20, i * self.scale + 20),
+                          Point(self.max_position * self.scale + 20, i * self.scale + 20))
+            v_line = Line(Point(i * self.scale + 20, self.min_position * self.scale + 20),
+                          Point(i * self.scale + 20, self.max_position * self.scale + 20))
+            h_line.draw(self.win1)
+            v_line.draw(self.win1)
 
         # self.win1.getMouse()
 
@@ -176,7 +198,12 @@ class GridWorld(gym.Env):
         self.state[1] = np.clip(self.state[1], self.min_position, self.max_position)
 
         # the reward logic
-        reward = self.per_step_penalty
+        reward = 0
+        cur_i, cur_j = min(np.floor(self.state[1]), self.grid_len-1.), min(np.floor(self.state[0]), self.grid_len-1)
+        for g in self.all_goals:
+            d, _ = self.graph_distance((cur_i, cur_j), (np.floor(g[1]), np.floor(g[0])))
+            if d != 0:
+                reward -= XI * d
 
         # Adding dense Rewards:
         for idx, mini_goal in enumerate(self.dense_goals):
@@ -238,30 +265,31 @@ class GridWorld(gym.Env):
             # create one room with one opening
 
             # a wall parallel to x-axis, at (0,grid_len/2), (grid_len/2,grid_len/2)
-            self.walls.append(path.Path([(0, self.grid_len / 2.0 + self.wall_breadth),
-                                         (0, self.grid_len / 2.0 - self.wall_breadth),
+            self.walls.append(path.Path([(0, self.grid_len / 2.0 - self.wall_breadth),
                                          (self.grid_len / 2.0, self.grid_len / 2.0 - self.wall_breadth),
                                          (self.grid_len / 2.0, self.grid_len / 2.0 + self.wall_breadth),
-                                         (0, self.grid_len / 2.0 + self.wall_breadth)
-                                         ], codes=codes))
-
-            # the top part  of wall on (0,grid_len/2), parallel to y -axis containg
-            self.walls.append(path.Path([(self.grid_len / 2.0 - self.wall_breadth, self.grid_len / 2.0),
-                                         (self.grid_len / 2.0 - self.wall_breadth,
-                                          self.grid_len / 4.0 + self.door_breadth),
-                                         (self.grid_len / 2.0 + self.wall_breadth,
-                                          self.grid_len / 4.0 + self.door_breadth),
-                                         (self.grid_len / 2.0 + self.wall_breadth, self.grid_len / 2.0),
-                                         (self.grid_len / 2.0 - self.wall_breadth, self.grid_len / 2.0),
+                                         (0, self.grid_len / 2.0 + self.wall_breadth),
+                                         (0, self.grid_len / 2.0 - self.wall_breadth)
                                          ], codes=codes))
 
             # the bottom part  of wall on (0,grid_len/2), parallel to y -axis containg
+            self.walls.append(path.Path([(self.grid_len / 2.0 - self.wall_breadth,
+                                          self.grid_len / 4.0 + self.door_breadth),
+                                         (self.grid_len / 2.0 + self.wall_breadth,
+                                          self.grid_len / 4.0 + self.door_breadth),
+                                         (self.grid_len / 2.0 + self.wall_breadth, self.grid_len / 2.0 + self.wall_breadth),
+                                         (self.grid_len / 2.0 - self.wall_breadth, self.grid_len / 2.0 + self.wall_breadth),
+                                         (self.grid_len / 2.0 - self.wall_breadth,
+                                          self.grid_len / 4.0 + self.door_breadth)
+                                         ], codes=codes))
+
+            # the top part  of wall on (0,grid_len/2), parallel to y -axis containg
             self.walls.append(
-                path.Path([(self.grid_len / 2.0 - self.wall_breadth, self.grid_len / 4.0 - self.door_breadth),
-                           (self.grid_len / 2.0 - self.wall_breadth, 0.),
+                path.Path([(self.grid_len / 2.0 - self.wall_breadth, 0.),
                            (self.grid_len / 2.0 + self.wall_breadth, 0.),
                            (self.grid_len / 2.0 + self.wall_breadth, self.grid_len / 4.0 - self.door_breadth),
                            (self.grid_len / 2.0 - self.wall_breadth, self.grid_len / 4.0 - self.door_breadth),
+                           (self.grid_len / 2.0 - self.wall_breadth, 0.)
                            ], codes=codes))
 
         elif self.num_rooms == 4:
@@ -270,6 +298,47 @@ class GridWorld(gym.Env):
         else:
             raise Exception("Logic for current number of rooms " +
                             str(self.num_rooms) + " is not implemented yet :(")
+
+    def create_neighborhood_matrix(self):
+        offsets = [0, -1, 1]
+        self.adj_matrix = np.eye(self.int_grid_len **2, dtype=np.float64)
+        for i in range(self.int_grid_len):
+            for j in range(self.int_grid_len):
+                f_i = float(i)
+                f_j = float(j)
+                displacements = list(itertools.product(offsets, offsets))
+                assert displacements[0][0] == 0 and displacements[0][1] == 0
+                for di, dj in displacements:
+                    ni, nj = i+di, j+dj
+                    if ni < 0 or ni >= self.int_grid_len or nj < 0 or nj >= self.int_grid_len:
+                        continue
+                    center = (f_i + di + .5, f_j + dj + .5)
+                    is_wall = False
+                    for w in self.walls:
+                        if w.contains_point((center[1], center[0])):
+                            is_wall = True
+                            break
+                    if is_wall:
+                        if di == 0 and dj == 0:
+                            break
+                    else:
+                        self.adj_matrix[i * self.int_grid_len + j, ni * self.int_grid_len + nj] = 1
+
+    def create_dist_matrix(self):
+        self.dist_matrix, self.predecessors = floyd_warshall(self.adj_matrix, directed=False, return_predecessors=True)
+
+    def graph_distance(self, pi, pf):
+        unroll_i = int(pi[0]* self.int_grid_len + pi[1])
+        unroll_f = int(pf[0] * self.int_grid_len + pf[1])
+        i = unroll_i
+        j = unroll_f
+        path = []
+        while j != i and j != -9999:
+            path += [ (j//self.int_grid_len, j%self.int_grid_len) ]
+            j = self.predecessors[i, j]
+        path += [ (i//self.int_grid_len, i%self.int_grid_len) ]
+        path = path[::-1]
+        return self.dist_matrix[unroll_i, unroll_f], path
 
     def collides(self, pt):
         """

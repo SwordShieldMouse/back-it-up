@@ -616,7 +616,6 @@ class GridMap2D(object):
         unrolledGoals = list(map(lambda idx: idx.r * self.cols + idx.c, goalIdxs))
         self.info_goal_dist = []
         for u_g in unrolledGoals:
-            self.diag = np.sqrt((self.rows ** 2) + (self.cols ** 2))
             all_distances_to_cur_g = np.zeros([self.rows, self.cols])
             for i, row in enumerate(self.blockRows):
                 for j, element in enumerate(row):
@@ -641,6 +640,7 @@ class GridMap2D(object):
                         cur_dist = np.sqrt((i - oIdx[0])**2 + (j - oIdx[1])**2)
                         all_distances_all_obst[for_o_it_n, i, j] = cur_dist
             self.info_obst_dist = np.min(all_distances_all_obst, axis=0)
+            self.max_dist_to_obst = np.max(self.info_obst_dist)
 
     def get_info_state(self, coord, normalized=False, normalization_factor=1.0, agentLocs=[]):
         blockIdx = self.get_index_by_coordinates(coord)
@@ -663,7 +663,7 @@ class GridMap2D(object):
                 s.append(d)
         if hasattr(self,'info_obst_dist'):
             if normalized:
-                s.append( 2*((self.info_obst_dist[i, j] / self.diag) - 0.5)*normalization_factor )
+                s.append( 2*((self.info_obst_dist[i, j] / self.max_dist_to_obst) - 0.5)*normalization_factor )
             else:
                 s.append(self.info_obst_dist[i,j])
         return s
@@ -1541,7 +1541,7 @@ class GridMapEnv(object):
 
         if ( False == self.map.haveStartingBlock ):
             raise GridMapException("Map of the environemnt does not have a starting block.")
-        
+
         # Get the ending point.
         idxEnd = self.map.get_index_ending_block()
         bEnd   = self.map.get_block( idxEnd )
@@ -1554,7 +1554,7 @@ class GridMapEnv(object):
 
         # Test the distance.
         d = two_coor_distance( ep, sp )
-        
+
         if ( d <= self.endPointRadius ):
             return False
         else:
@@ -1573,7 +1573,7 @@ class GridMapEnv(object):
 
         if ( False == self.map.haveStartingBlock ):
             raise GridMapException("Map of the environemnt does not have a starting block.")
-        
+
         idxEnd_list = self.map.get_index_misleading_block()
         for idxEnd in idxEnd_list:
             # Get the ending point.
@@ -1587,15 +1587,15 @@ class GridMapEnv(object):
 
             # Test the distance.
             d = two_coor_distance( ep, sp )
-            
+
             if ( d > self.endPointRadius ):
-                return True    
-        return False            
+                return True
+        return False
 
     def random_staring_and_ending_blocks(self):
         if ( self.map is None ):
             raise GridMapException("Could not randomize the starting and ending blocks. self.map is None.")
-        
+
         self.map.random_starting_block( self.map.valueStartingBlock )
         self.map.random_ending_block( self.map.valueEndingBlock )
 
@@ -1629,11 +1629,7 @@ class GridMapEnv(object):
             return np.array([np.inf, np.inf])
 
     def get_action_range(self):
-        if self.flagActionClip:
-            delta = self.actionClip[1] - self.actionClip[0]
-            return np.array([delta, delta])
-        else:
-            return np.array([np.inf, np.inf])
+        return self.get_action_max() - self.get_action_min()
 
     def get_state_max(self):
         if self.informativeState:
@@ -1645,11 +1641,11 @@ class GridMapEnv(object):
                     max_s += [self.normalizationFactor] # obstacles
                 return np.array(max_s)
             else:
-                max_s = np.array([float(self.map.cols) * self.map.get_step_size()[GridMap2D.I_X], float(self.map.rows) * self.map.get_step_size()[GridMap2D.I_Y]])
+                max_s = [float(self.map.cols) * self.map.get_step_size()[GridMap2D.I_X], float(self.map.rows) * self.map.get_step_size()[GridMap2D.I_Y]]
                 for g in range(len(self.map.info_goal_dist)):
                     max_s += [self.map.max_dist_to_goal]
-                if hasattr(self.map, 'info_goal_dist'):
-                    max_s += [self.map.diag] # obstacles
+                if hasattr(self.map, 'info_obst_dist'):
+                    max_s += [self.map.max_dist_to_obst] # obstacles
                 return np.array(max_s)
         else:
             if self.normalizedCoordinate:
@@ -1667,10 +1663,10 @@ class GridMapEnv(object):
                     min_s += [-self.normalizationFactor] # obstacles
                 return np.array(min_s)
             else:
-                min_s = np.array([0., 0.])
+                min_s = [0., 0.]
                 for g in range(len(self.map.info_goal_dist)):
                     min_s += [0.]
-                if hasattr(self.map, 'info_goal_dist'):
+                if hasattr(self.map, 'info_obst_dist'):
                     min_s += [0.] # obstacles
                 return np.array(min_s)
         else:
@@ -1681,10 +1677,10 @@ class GridMapEnv(object):
 
     def get_state_range(self):
         return self.get_state_max() - self.get_state_min()
-    
+
     def get_action_size(self):
         return self.agentCurrentAct.size
-    
+
     def is_terminated(self):
         return self.isTerminated
 
@@ -1698,14 +1694,14 @@ class GridMapEnv(object):
 
         self.visForcePauseTime = t
         self.visIsForcePause   = True
-    
+
     def disable_force_pause(self):
         self.visIsForcePause = False
 
     def enable_nondimensional_step(self):
         if ( self.map is None ):
             raise GridMapException("GridMapEnv could not enable non-dimensional step. self.map is None.")
-        
+
         # self.actStepSize[0] = self.nondimensionalStepRatio * \
         #     ( self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X] )
         # self.actStepSize[1] = self.nondimensionalStepRatio * \
@@ -1731,7 +1727,7 @@ class GridMapEnv(object):
     def clip_action(self, action):
         if ( False == self.flagActionClip ):
             raise GridMapException("Action clipping is disabled.")
-        
+
         clipped = copy.deepcopy(action)
 
         if ( action.dx < self.actionClip[0] ):
@@ -1743,21 +1739,21 @@ class GridMapEnv(object):
             clipped.dy = self.actionClip[0]
         elif ( action.dy > self.actionClip[1] ):
             clipped.dy = self.actionClip[1]
-        
+
         return clipped
 
     def enable_normalized_coordinate(self):
         if ( self.map is None ):
             raise GridMapException("GridMapEnv could not enable normalized coordinate. self.map is None.")
-        
+
         self.centerCoordinate = self.map.get_center_coor()
         self.halfMapSize = self.map.get_map_size()
         self.halfMapSize[0] /= 2.0 # H.
         self.halfMapSize[1] /= 2.0 # W.
-        
+
         self.normalizedCoordinate = True
         self.normalizationFactor = 100
-    
+
     def disable_normalized_coordinate(self):
         self.normalizedCoordinate = False
 
@@ -1767,7 +1763,7 @@ class GridMapEnv(object):
         if ( True == self.normalizedCoordinate ):
             b.x = (x * self.halfMapSize[GridMap2D.I_C] + self.centerCoordinate.x) * self.normalizationFactor
             b.y = (y * self.halfMapSize[GridMap2D.I_R] + self.centerCoordinate.y) * self.normalizationFactor
-        
+
         return b
 
     def enable_random_coordinating(self, v):
@@ -1829,8 +1825,8 @@ class GridMapEnv(object):
         self.agentStartingLoc = BlockCoor( \
             coor.x + sizeW / 2.0, \
             coor.y + sizeH / 2.0 \
-        )
-        
+            )
+
         # Reset the location of the agent.
         self.agentCurrentLoc = copy.deepcopy( self.agentStartingLoc )
 
@@ -1844,9 +1840,9 @@ class GridMapEnv(object):
         # Non-dimensional step size.
         if ( True == self.nondimensionalStep ):
             self.actStepSize[0] = self.nondimensionalStepRatio * \
-                ( self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X] )
+                                  ( self.map.corners[1][GridMap2D.I_X] - self.map.corners[0][GridMap2D.I_X] )
             self.actStepSize[1] = self.nondimensionalStepRatio * \
-                ( self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y] )
+                                  ( self.map.corners[3][GridMap2D.I_Y] - self.map.corners[0][GridMap2D.I_Y] )
 
         if ( True == self.normalizedCoordinate ):
             self.centerCoordinate = self.map.get_center_coor()
@@ -1898,7 +1894,7 @@ class GridMapEnv(object):
 
         if ( True == self.isTerminated ):
             raise GridMapException("Episode already terminated.")
-        
+
         self.agentCurrentAct = copy.deepcopy( action )
         # import ipdb; ipdb.set_trace()
         # Action clipping.
@@ -2007,7 +2003,7 @@ class GridMapEnv(object):
             # ax.autoscale()
         else:
             ax = plt.gca()
-        
+
         # Agent locations.
         nLocs = len( self.agentLocs )
         if ( nLocs > 0 and self.drawnAgentLocations < nLocs ):
@@ -2016,9 +2012,9 @@ class GridMapEnv(object):
                 circle.set_facecolor( "#FFFF0080" )
                 circle.set_edgecolor( "k" )
                 ax.add_patch(circle)
-            
+
             self.drawnAgentLocations = nLocs
-        
+
         # for loc in self.agentLocs:
         #     circle = Circle( (loc.x, loc.y), self.visAgentRadius, fill = True )
         #     circle.set_facecolor( "#FFFF0080" )
@@ -2035,9 +2031,9 @@ class GridMapEnv(object):
                     continue
 
                 plt.arrow( loc0.x, loc0.y, loc1.x - loc0.x, loc1.y - loc0.y, \
-                    width=self.visPathArrowWidth, \
-                    alpha=0.5, color='k', length_includes_head=True )
-                
+                           width=self.visPathArrowWidth, \
+                           alpha=0.5, color='k', length_includes_head=True )
+
             self.drawnAgentPaths = nLocs - 1
 
         plt.xlim( ( self.map.corners[0][GridMap2D.I_X], self.map.corners[1][GridMap2D.I_X] ) )
@@ -2099,7 +2095,7 @@ class GridMapEnv(object):
 
         if ( fn is None ):
             fn = "GridMapEnv.json"
-                
+
         fnPart = os.path.splitext(os.path.split(fn)[1])[0]
 
         strFn  = "%s/%s" % ( self.workingDir, fn )
@@ -2151,7 +2147,7 @@ class GridMapEnv(object):
             "isTerminated": self.isTerminated, \
             "nSteps": self.nSteps, \
             "totalValue": self.totalValue
-            }
+        }
 
         # Open the file.
         fp = open( strFn, "w" )
@@ -2188,7 +2184,7 @@ class GridMapEnv(object):
 
         # Update current environment.
         self.workingDir = workingDir
-        
+
         self.name = d["name"]
         self.renderDir = "%s/%s" % ( self.workingDir, "Render" )
         self.maxSteps = d["maxSteps"]
@@ -2228,19 +2224,19 @@ class GridMapEnv(object):
                 d["agentCurrentLoc"][0], d["agentCurrentLoc"][1] )
         self.agentCurrentAct = BlockCoorDelta( \
             d["agentCurrentAct"][0], d["agentCurrentAct"][1] )
-        
+
         # Agent location history.
         self.agentLocs = []
         for loc in d["agentLocs"]:
             self.agentLocs.append( \
                 BlockCoor( loc[0], loc[1] ) )
-        
+
         # Agent action history.
         self.agentActs = []
         for act in d["agentActs"]:
             self.agentActs.append( \
                 BlockCoorDelta( act[0], act[1] ) )
-        
+
         # Other member variables.
         self.isTerminated = d["isTerminated"]
         self.nSteps = d["nSteps"]
@@ -2255,48 +2251,48 @@ class GridMapEnv(object):
 
         if ( True == self.map.is_east_boundary(coor) ):
             return False
-        
+
         if ( True == self.map.is_north_boundary(coor) or \
-             True == self.map.is_south_boundary(coor) ):
+                True == self.map.is_south_boundary(coor) ):
             return False
-            
+
         loc = self.map.is_corner_or_principle_line(coor)
 
         if ( (True == loc[0]) or (True == loc[1]) ):
             if ( isinstance( self.map.get_block( loc[3] ), ObstacleBlock ) ):
                 return False
-            
+
             index = copy.deepcopy(loc[3])
             index.r -= 1
 
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
-            
+
             return True
-        
+
         if ( True == loc[2] ):
             if ( isinstance( self.map.get_block( loc[3] ), ObstacleBlock ) ):
                 return False
 
         return True
-                
+
     def can_move_northeast(self, coor):
         """
         coor is an object of BlockCoor.
         """
-        
+
         if ( True == self.map.is_east_boundary(coor) or \
-             True == self.map.is_north_boundary(coor) ):
+                True == self.map.is_north_boundary(coor) ):
             return False
-        
+
         loc = self.map.is_corner_or_principle_line(coor)
 
         if ( True == loc[0] ):
             if ( isinstance( self.map.get_block(loc[3]), ObstacleBlock ) ):
                 return False
             else:
-                return True    
-        
+                return True
+
         if ( True == loc[1] ):
             if ( isinstance( self.map.get_block(loc[3]), ObstacleBlock ) ):
                 return False
@@ -2318,25 +2314,25 @@ class GridMapEnv(object):
 
         if ( True == self.map.is_north_boundary(coor) ):
             return False
-        
+
         if ( True == self.map.is_east_boundary(coor) or \
-             True == self.map.is_west_boundary(coor) ):
+                True == self.map.is_west_boundary(coor) ):
             return False
-            
+
         loc = self.map.is_corner_or_principle_line(coor)
 
         if ( (True == loc[0]) or (True == loc[2]) ):
             if ( isinstance( self.map.get_block( loc[3] ), ObstacleBlock ) ):
                 return False
-            
+
             index = copy.deepcopy(loc[3])
             index.c -= 1
 
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
-            
+
             return True
-        
+
         if ( True == loc[1] ):
             if ( isinstance( self.map.get_block( loc[3] ), ObstacleBlock ) ):
                 return False
@@ -2347,11 +2343,11 @@ class GridMapEnv(object):
         """
         coor is an object of BlockCoor.
         """
-        
+
         if ( True == self.map.is_west_boundary(coor) or \
-             True == self.map.is_north_boundary(coor) ):
+                True == self.map.is_north_boundary(coor) ):
             return False
-        
+
         loc = self.map.is_corner_or_principle_line(coor)
 
         if ( True == loc[0] ):
@@ -2360,8 +2356,8 @@ class GridMapEnv(object):
             if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
                 return False
             else:
-                return True    
-        
+                return True
+
         if ( True == loc[1] ):
             index = copy.deepcopy(loc[3])
             if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
@@ -2386,34 +2382,34 @@ class GridMapEnv(object):
 
         if ( True == self.map.is_west_boundary(coor) ):
             return False
-        
+
         if ( True == self.map.is_north_boundary(coor) or \
-             True == self.map.is_south_boundary(coor) ):
+                True == self.map.is_south_boundary(coor) ):
             return False
-            
+
         loc = self.map.is_corner_or_principle_line(coor)
 
         if ( True == loc[0] ):
             index = copy.deepcopy(loc[3])
             index.c -= 1 # Left block.
-            
+
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
-            
+
             index.r -= 1 # Now bottom left block.
 
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
-            
+
             return True
-        
+
         if ( True == loc[1] ):
             index = copy.deepcopy(loc[3])
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
 
             index.r -= 1 # Bottom block.
-            
+
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
 
@@ -2425,16 +2421,16 @@ class GridMapEnv(object):
                 return False
 
         return True
-    
+
     def can_move_southwest(self, coor):
         """
         coor is an object of BlockCoor.
         """
-        
+
         if ( True == self.map.is_west_boundary(coor) or \
-             True == self.map.is_south_boundary(coor) ):
+                True == self.map.is_south_boundary(coor) ):
             return False
-        
+
         loc = self.map.is_corner_or_principle_line(coor)
 
         if ( True == loc[0] ):
@@ -2444,8 +2440,8 @@ class GridMapEnv(object):
             if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
                 return False
             else:
-                return True    
-        
+                return True
+
         if ( True == loc[1] ):
             index = copy.deepcopy(loc[3])
             index.r -= 1 # Bottom block.
@@ -2463,7 +2459,7 @@ class GridMapEnv(object):
                 return True
 
         return True
-    
+
     def can_move_south(self, coor):
         """
         coor is an object of BlockCoor.
@@ -2471,34 +2467,34 @@ class GridMapEnv(object):
 
         if ( True == self.map.is_south_boundary(coor) ):
             return False
-        
+
         if ( True == self.map.is_east_boundary(coor) or \
-             True == self.map.is_west_boundary(coor) ):
+                True == self.map.is_west_boundary(coor) ):
             return False
-            
+
         loc = self.map.is_corner_or_principle_line(coor)
 
         if ( True == loc[0] ):
             index = copy.deepcopy(loc[3])
             index.r -= 1 # Bottom block.
-            
+
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
-            
+
             index.c -= 1 # Now bottom left block.
 
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
-            
+
             return True
-        
+
         if ( True == loc[2] ):
             index = copy.deepcopy(loc[3])
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
 
             index.c -= 1 # Left block.
-            
+
             if ( isinstance( self.map.get_block( index ), ObstacleBlock ) ):
                 return False
 
@@ -2515,11 +2511,11 @@ class GridMapEnv(object):
         """
         coor is an object of BlockCoor.
         """
-        
+
         if ( True == self.map.is_east_boundary(coor) or \
-             True == self.map.is_south_boundary(coor) ):
+                True == self.map.is_south_boundary(coor) ):
             return False
-        
+
         loc = self.map.is_corner_or_principle_line(coor)
 
         if ( True == loc[0] ):
@@ -2528,8 +2524,8 @@ class GridMapEnv(object):
             if ( isinstance( self.map.get_block(index), ObstacleBlock ) ):
                 return False
             else:
-                return True    
-        
+                return True
+
         if ( True == loc[1] ):
             index = copy.deepcopy(loc[3])
             index.r -= 1 # Bottom block.
@@ -2626,11 +2622,11 @@ class GridMapEnv(object):
 
                     for i in range(n):
                         print("%s, %s" % (tryCoor[i], tryCoorDelta[i]))
-                    
+
                     raise GridMapException("try_move() reaches its maximum allowed moves.")
                 else:
                     tryCount += 1
-                
+
                 # Done with status monitor.
 
                 # Get the index of coor.
@@ -2674,7 +2670,7 @@ class GridMapEnv(object):
                 [xH, yH], flagH = LineIntersection2D.line_intersect( \
                     coorOri.x, coorOri.y, coorOri.x + coorDelta.dx, coorOri.y + coorDelta.dy, \
                     self.map.corners[0][GridMap2D.I_X], coorH.y, self.map.corners[1][GridMap2D.I_X], coorH.y )
-                
+
                 xH = round_if_needed(xH)
                 yH = round_if_needed(yH)
 
@@ -2683,19 +2679,19 @@ class GridMapEnv(object):
                 else:
                     distV = 0
 
-                if ( LineIntersection2D.VALID_INTERSECTION == flagH ): 
+                if ( LineIntersection2D.VALID_INTERSECTION == flagH ):
                     distH = two_point_distance( coor.x, coor.y, xH, yH )
                 else:
                     distH = 0
-                    
+
                 # Auxiliary check.
                 auxV = self.map.is_corner_or_principle_line( BlockCoor( xV, yV ) )
                 auxH = self.map.is_corner_or_principle_line( BlockCoor( xH, yH ) )
 
                 if ( LineIntersection2D.VALID_INTERSECTION == flagV and \
-                     True == auxV[0] and \
-                     LineIntersection2D.VALID_INTERSECTION == flagH and \
-                     True == auxH[0] ):
+                        True == auxV[0] and \
+                        LineIntersection2D.VALID_INTERSECTION == flagH and \
+                        True == auxH[0] ):
                     # Same distance.
                     # Choose a pair of valid coordinates that are not None.
                     if ( xV is not None and yV is not None ):
@@ -2711,7 +2707,7 @@ class GridMapEnv(object):
                         coorPre.x, coorPre.y = coor.x, coor.y
                         coor.x, coor.y = xi, yi
                         break
-                    
+
                     # Get the index at (xi, yi). 
                     interIdxH = self.map.get_index_by_coordinates( BlockCoor(xi, yi) )
 
@@ -2721,42 +2717,42 @@ class GridMapEnv(object):
                     if ( False == flagCornerFoundObstacle and \
                             True == self.map.is_obstacle_block( interIdxH ) ):
                         flagCornerFoundObstacle = True
-                    
+
                     interIdxH.c -= 1
                     if ( False == flagCornerFoundObstacle and \
                             True == self.map.is_obstacle_block( interIdxH ) ):
                         flagCornerFoundObstacle = True
-                    
+
                     interIdxH.r -= 1
                     if ( False == flagCornerFoundObstacle and \
                             True == self.map.is_obstacle_block( interIdxH ) ):
                         flagCornerFoundObstacle = True
-                    
+
                     interIdxH.c += 1
                     if ( False == flagCornerFoundObstacle and \
                             True == self.map.is_obstacle_block( interIdxH ) ):
                         flagCornerFoundObstacle = True
-                    
+
                     if ( True == flagCornerFoundObstacle ):
                         # Stop here.
                         coorPre.x, coorPre.y = coor.x, coor.y
                         coor.x, coor.y = xi, yi
                         break
-                    
+
                     coorPre.x, coorPre.y = coor.x, coor.y
                     coor.x, coor.y = xi, yi
                     continue
 
                 if ( LineIntersection2D.VALID_INTERSECTION == flagV ):
                     if ( LineIntersection2D.VALID_INTERSECTION != flagH or \
-                         distV < distH ):
+                            distV < distH ):
                         # Check if (xV, yV) is on the boundary.
                         if ( True == self.map.is_out_of_or_on_boundary( BlockCoor( xV, yV ) ) ):
                             # Stop here.
                             coorPre.x, coorPre.y = coor.x, coor.y
                             coor.x, coor.y = xV, yV
                             break
-                        
+
                         # Get the index at (xV, yV).
                         interIdxV = self.map.get_index_by_coordinates( BlockCoor(xV, yV) )
 
@@ -2780,11 +2776,11 @@ class GridMapEnv(object):
                             coorPre.x, coorPre.y = coor.x, coor.y
                             coor.x, coor.y = xV, yV
                             break
-                        
+
                         coorPre.x, coorPre.y = coor.x, coor.y
                         coor.x, coor.y = xV, yV
                         continue
-                        
+
                 if ( LineIntersection2D.VALID_INTERSECTION == flagH ):
                     # Not same distance.
                     # Check if (xH, yH) is on the boundary.
@@ -2793,7 +2789,7 @@ class GridMapEnv(object):
                         coorPre.x, coorPre.y = coor.x, coor.y
                         coor.x, coor.y = xH, yH
                         break
-                    
+
                     # Get the index at (xH, yH).
                     interIdxH = self.map.get_index_by_coordinates( BlockCoor(xH, yH) )
 
@@ -2806,21 +2802,21 @@ class GridMapEnv(object):
                         coorPre.x, coorPre.y = coor.x, coor.y
                         coor.x, coor.y = xH, yH
                         break
-                    
+
                     # Check if we are travelling along a vertical line.
                     if ( loc[2] == True and delta.dx == 0 ):
                         interIdxH.c -= 1
-                    
+
                     if ( True == self.map.is_obstacle_block( interIdxH ) ):
                         # Stop here.
                         coorPre.x, coorPre.y = coor.x, coor.y
                         coor.x, coor.y = xH, yH
                         break
-                    
+
                     coorPre.x, coorPre.y = coor.x, coor.y
                     coor.x, coor.y = xH, yH
                     continue
-                
+
                 # No valid intersectons. Stop here.
                 coorPre.x, coorPre.y = coor.x, coor.y
 
@@ -2858,7 +2854,7 @@ class GridMapEnv(object):
                 val += self.map.valueEndingBlock
             elif (True == self.map.is_in_misleading_block( coor )):
                 flagTerm = True
-                val += self.map.valueMisleadingBlock                
+                val += self.map.valueMisleadingBlock
         elif ( GridMapEnv.END_POINT_MODE_RADIUS == self.endPointMode ):
             if ( True == self.map.is_around_ending_block( coor, self.endPointRadius ) ):
                 flagTerm = True
@@ -2884,7 +2880,7 @@ class GridMapEnv(object):
 
         for act in self.agentActs:
             s += "(%f, %f)\n" % (act.dx, act.dy)
-        
+
         return s
 
     def __str__(self):
@@ -2895,7 +2891,7 @@ class GridMapEnv(object):
             s += "(No map)\n"
         else:
             s += "Map: %s\n" % (self.map.name)
-        
+
         s += "Working directory: %s\nRender directory: %s\n" % (self.workingDir, self.renderDir)
         s += "maxSteps = %d\n" % (self.maxSteps)
 

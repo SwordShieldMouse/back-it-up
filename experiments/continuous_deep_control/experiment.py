@@ -1,5 +1,6 @@
 import numpy as np
 from datetime import datetime
+import datetime as dtime
 import time
 import os
 import pickle
@@ -55,6 +56,8 @@ class Experiment(object):
 
         # For total time
         start_run = datetime.now()
+        self.run_start_time = time.time()
+
         print("Start run at: " + str(start_run)+'\n')
 
         # evaluate once at beginning
@@ -97,7 +100,7 @@ class Experiment(object):
         return self.train_rewards_per_episode, self.eval_mean_rewards_per_episode, self.eval_std_rewards_per_episode, self.train_cum_steps
 
     # Runs a single episode (TRAIN)
-    def run_episode_train(self, is_train):
+    def run_episode_train(self, is_train, measure_speed_step=3000):
 
         if self.first_load is False:
             self.eval_session_time = 0.0
@@ -127,6 +130,12 @@ class Experiment(object):
                 self.save_nets_custom_path(netsave_dir)
             self.episode_step_count += 1
             self.total_step_count += 1
+
+            if self.total_step_count == measure_speed_step:
+                speed = self.total_step_count / (time.time() - self.run_start_time)
+                total_estimated_time = self.train_environment.TOTAL_STEPS_LIMIT / speed
+                print("Current speed: {} steps/second".format(speed))
+                print("Total estimated time: {} ".format(dtime.timedelta(seconds=total_estimated_time)))
 
             obs_n, reward, done, info = self.train_environment.step(self.Aold)
             self.episode_reward += reward

@@ -7,8 +7,7 @@ import os
 import matplotlib as mpl
 if os.environ.get('DISPLAY','') == '':
     print('no display found. Using non-interactive Agg backend')
-    # TODO
-    mpl.use('TkAgg')
+    mpl.use('Agg')
 # mpl.use('Agg')
 
 
@@ -286,14 +285,14 @@ class ContinuousMazeEnvironment(object):
 
     # Return state range
     def get_state_range(self):
-        return np.array([2.,2.])
+        return self.instance.get_state_range()
     
     # Return state min
     def get_state_min(self):
-        return np.array([-1.,-1.])
+        return self.instance.get_state_min()
 
     def get_state_max(self):
-        return np.array([1.,1.])
+        return self.instance.get_state_max()
 
     # Close the environment and clear memory
     def close(self):

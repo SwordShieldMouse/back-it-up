@@ -1,7 +1,7 @@
 {
     "actStepSize": [ 1, 1 ], 
     "actionClip": [ -1, 1 ], 
-    "actionValueFactor": 5.0, 
+    "actionValueFactor": 0.1,
     "agentActs": [], 
     "agentCurrentAct": [ 0, 0 ], 
     "agentCurrentLoc": [ ],
@@ -19,7 +19,7 @@
     "name": "GridMapEnv_continuous", 
     "nondimensionalStep": false, 
     "nondimensionalStepRatio": 0.1, 
-    "normalizedCoordinate": true, 
+    "normalizedCoordinate": true, "normalizationFactor": 1, "informativeState": true,
     "randomCoordinatingVariance": 0.2, 
     "totalValue": 0, 
     "visAgentRadius": 0.1, 

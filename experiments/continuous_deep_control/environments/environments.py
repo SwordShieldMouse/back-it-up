@@ -7,7 +7,8 @@ import os
 import matplotlib as mpl
 if os.environ.get('DISPLAY','') == '':
     print('no display found. Using non-interactive Agg backend')
-    mpl.use('Agg')
+    # TODO
+    mpl.use('TkAgg')
 # mpl.use('Agg')
 
 
@@ -248,14 +249,7 @@ class ContinuousMazeEnvironment(object):
 
     # Reset the environment for a new episode. return the initial state
     def reset(self):
-        state = self.instance.reset()
-        '''
-        if self.state_bounded:
-            # normalize to [-1,1]
-            scaled_state = 2.*(state - self.state_min)/self.state_range - 1.
-            return scaled_state
-        '''
-        return np.array([state.x, state.y])
+        return self.instance.reset()
 
     def step(self, action):
         if self.inner_step_count == self.timeout_steps:
@@ -268,33 +262,27 @@ class ContinuousMazeEnvironment(object):
         state, reward, done, _ = self.instance.step(act)
         self.inner_step_count += 1
         if self.render:
-            self.instance.render(self.render_time, flagSave=False) 
-        '''
-        if self.state_bounded:
-            scaled_state = 2.*(state - self.state_min)/self.state_range - 1.
-            return (scaled_state, reward, done, info)
-        '''
-        state = np.array([state.x, state.y])
+            self.instance.render(self.render_time, flagSave=False)
         return (state, reward, done, None)
 
     def get_state_dim(self):
-        return 2
+        return self.instance.get_state_size()
   
     # this will be the output units in NN
     def get_action_dim(self):
-        return 2
+        return self.instance.get_action_size()
 
-    # Return action ranges, NOT IN USE
+    # Return action ranges
     def get_action_range(self):
-        return np.array([2.,2.])
+        return self.instance.get_action_range()
 
     # Return action ranges
     def get_action_max(self):
-        return np.array([1.,1.])
+        return self.instance.get_action_max()
 
     # Return action min
     def get_action_min(self):
-        return np.array([-1.,-1.])
+        return self.instance.get_action_min()
 
     # Return state range
     def get_state_range(self):

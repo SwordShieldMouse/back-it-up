@@ -11,8 +11,10 @@ lockfile = "==0.12.2"
 tensorflow = "==1.14.0"
 quadpy = "==0.14.11"
 mujoco-py = "==2.1.2.14"
-pyqt5 = "*"
 matplotlib = "*"
+pip = "==21.3.1"
+pyqt5-sip = "*"
+pyqt5 = "*"
 
 [dev-packages]
 

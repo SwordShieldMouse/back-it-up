@@ -608,6 +608,67 @@ class GridMap2D(object):
                     d_closest = minDistToGoals[i * self.cols + j]
                     element.value = -XI * d_closest / C
 
+    def calculate_info_distances(self):
+        # Calculate distance to goals
+        edIdx = self.get_index_ending_block()
+        mislIdxs = self.get_index_misleading_block()
+        goalIdxs = [edIdx] + mislIdxs
+        unrolledGoals = list(map(lambda idx: idx.r * self.cols + idx.c, goalIdxs))
+        self.info_goal_dist = []
+        for u_g in unrolledGoals:
+            self.diag = np.sqrt((self.rows ** 2) + (self.cols ** 2))
+            all_distances_to_cur_g = np.zeros([self.rows, self.cols])
+            for i, row in enumerate(self.blockRows):
+                for j, element in enumerate(row):
+                    unrolledElement = i * self.cols + j
+                    cur_dist = self.dist_matrix[unrolledElement, u_g]
+                    all_distances_to_cur_g[i, j] = cur_dist
+            self.info_goal_dist.append(all_distances_to_cur_g)
+            m = np.max(all_distances_to_cur_g[all_distances_to_cur_g != np.inf])
+            if hasattr(self, 'max_dist_to_goal'):
+                self.max_dist_to_goal = max(m, self.max_dist_to_goal)
+            else:
+                self.max_dist_to_goal = m
+
+        # Calculate distance to obstacles
+        # Cannot use self.dist_matrix in its current form (obstacles are not neighbors to any block)
+        obstIdxs = self.get_index_obstacle_blocks()
+        if len(obstIdxs) > 0:
+            all_distances_all_obst = np.zeros([len(obstIdxs), self.rows, self.cols])
+            for for_o_it_n, oIdx in enumerate(obstIdxs):
+                for i, row in enumerate(self.blockRows):
+                    for j, element in enumerate(row):
+                        cur_dist = np.sqrt((i - oIdx[0])**2 + (j - oIdx[1])**2)
+                        all_distances_all_obst[for_o_it_n, i, j] = cur_dist
+            self.info_obst_dist = np.min(all_distances_all_obst, axis=0)
+
+    def get_info_state(self, coord, normalized=False, normalization_factor=1.0, agentLocs=[]):
+        blockIdx = self.get_index_by_coordinates(coord)
+        i, j = min(blockIdx.r, self.rows - 1), min(blockIdx.c, self.cols - 1)
+        s = []
+        for d_mat in self.info_goal_dist:
+            if not np.isinf(d_mat[i, j]):
+                d = d_mat[i, j]
+            else:
+                d = np.inf
+                for p_coord in agentLocs[::-1]:
+                    pBlockIdx = self.get_index_by_coordinates(p_coord)
+                    p_i, p_j = min(pBlockIdx.r, self.rows - 1), min(pBlockIdx.c, self.cols - 1)
+                    d = d_mat[p_i, p_j]
+                    if not np.isinf(d):
+                        break
+            if normalized:
+                s.append( 2*((d/self.max_dist_to_goal) - 0.5)*normalization_factor )
+            else:
+                s.append(d)
+        if hasattr(self,'info_obst_dist'):
+            if normalized:
+                s.append( 2*((self.info_obst_dist[i, j] / self.diag) - 0.5)*normalization_factor )
+            else:
+                s.append(self.info_obst_dist[i,j])
+        return s
+
+
     def get_block(self, index):
         if ( isinstance( index, BlockIndex ) ):
             if ( index.r >= self.rows or index.c >= self.cols ):
@@ -649,6 +710,9 @@ class GridMap2D(object):
     def get_step_size(self):
         """[x, y]"""
         return self.stepSize
+
+    def get_index_obstacle_blocks(self):
+        return self.obstacleIndices
 
     def get_index_starting_block(self):
         """Return a copy of the index of the starting block."""
@@ -1432,12 +1496,14 @@ class GridMapEnv(object):
         self.actionClip = [-1, 1]
 
         self.normalizedCoordinate = False
+        self.normalizationFactor = 100
         self.centerCoordinate     = BlockCoor(0, 0)
         self.halfMapSize          = [1, 1]
 
         self.isRandomCoordinating = False # If True, a noise will be added to the final coordinate produced by each calling to step() function.
         self.randomCoordinatingVariance = 0 # The variance of the randomized coordinate.
         self.denseRewards = False
+        self.informativeState = False
 
         self.flagActionValue = False
         self.actionValueFactor = 1.0
@@ -1543,7 +1609,78 @@ class GridMapEnv(object):
         return self.maxSteps
 
     def get_state_size(self):
-        return self.agentCurrentLoc.size
+        d = self.agentCurrentLoc.size
+        if hasattr(self.map, 'info_goal_dist'):
+            d += len(self.map.info_goal_dist)
+        if hasattr(self.map, 'info_obst_dist'):
+            d += 1
+        return d
+
+    def get_action_min(self):
+        if self.flagActionClip:
+            return np.array([self.actionClip[0], self.actionClip[0]])
+        else:
+            return np.array([np.inf, np.inf])
+
+    def get_action_max(self):
+        if self.flagActionClip:
+            return np.array([self.actionClip[1], self.actionClip[1]])
+        else:
+            return np.array([np.inf, np.inf])
+
+    def get_action_range(self):
+        if self.flagActionClip:
+            delta = self.actionClip[1] - self.actionClip[0]
+            return np.array([delta, delta])
+        else:
+            return np.array([np.inf, np.inf])
+
+    def get_state_max(self):
+        if self.informativeState:
+            if self.normalizedCoordinate:
+                max_s = [self.normalizationFactor, self.normalizationFactor]
+                for g in range(len(self.map.info_goal_dist)):
+                    max_s += [self.normalizationFactor]
+                if hasattr(self.map, 'info_goal_dist'):
+                    max_s += [self.normalizationFactor] # obstacles
+                return np.array(max_s)
+            else:
+                max_s = np.array([float(self.map.cols) * self.map.get_step_size()[GridMap2D.I_X], float(self.map.rows) * self.map.get_step_size()[GridMap2D.I_Y]])
+                for g in range(len(self.map.info_goal_dist)):
+                    max_s += [self.map.max_dist_to_goal]
+                if hasattr(self.map, 'info_goal_dist'):
+                    max_s += [self.map.diag] # obstacles
+                return np.array(max_s)
+        else:
+            if self.normalizedCoordinate:
+                return np.array([self.normalizationFactor, self.normalizationFactor])
+            else:
+                return np.array([float(self.map.cols) * self.map.get_step_size()[GridMap2D.I_X], float(self.map.rows) * self.map.get_step_size()[GridMap2D.I_Y]])
+
+    def get_state_min(self):
+        if self.informativeState:
+            if self.normalizedCoordinate:
+                min_s = [-self.normalizationFactor, -self.normalizationFactor]
+                for g in range(len(self.map.info_goal_dist)):
+                    min_s += [-self.normalizationFactor]
+                if hasattr(self.map, 'info_goal_dist'):
+                    min_s += [-self.normalizationFactor] # obstacles
+                return np.array(min_s)
+            else:
+                min_s = np.array([0., 0.])
+                for g in range(len(self.map.info_goal_dist)):
+                    min_s += [0.]
+                if hasattr(self.map, 'info_goal_dist'):
+                    min_s += [0.] # obstacles
+                return np.array(min_s)
+        else:
+            if self.normalizedCoordinate:
+                return np.array([-self.normalizationFactor, -self.normalizationFactor])
+            else:
+                return np.array([0., 0.])
+
+    def get_state_range(self):
+        return self.get_state_max() - self.get_state_min()
     
     def get_action_size(self):
         return self.agentCurrentAct.size
@@ -1619,6 +1756,7 @@ class GridMapEnv(object):
         self.halfMapSize[1] /= 2.0 # W.
         
         self.normalizedCoordinate = True
+        self.normalizationFactor = 100
     
     def disable_normalized_coordinate(self):
         self.normalizedCoordinate = False
@@ -1627,8 +1765,8 @@ class GridMapEnv(object):
         b = BlockCoor(x, y)
 
         if ( True == self.normalizedCoordinate ):
-            b.x = x * self.halfMapSize[GridMap2D.I_C] + self.centerCoordinate.x
-            b.y = y * self.halfMapSize[GridMap2D.I_R] + self.centerCoordinate.y
+            b.x = (x * self.halfMapSize[GridMap2D.I_C] + self.centerCoordinate.x) * self.normalizationFactor
+            b.y = (y * self.halfMapSize[GridMap2D.I_R] + self.centerCoordinate.y) * self.normalizationFactor
         
         return b
 
@@ -1738,11 +1876,17 @@ class GridMapEnv(object):
 
         agentCurrentLocation = copy.deepcopy( self.agentCurrentLoc )
 
-        if ( True == self.normalizedCoordinate ):
-            agentCurrentLocation.x = ( agentCurrentLocation.x - self.centerCoordinate.x ) / self.halfMapSize[GridMap2D.I_C]
-            agentCurrentLocation.y = ( agentCurrentLocation.y - self.centerCoordinate.y ) / self.halfMapSize[GridMap2D.I_R]
+        if ( True == self.informativeState ):
+            info_state = self.map.get_info_state(agentCurrentLocation, self.normalizedCoordinate, self.normalizationFactor, self.agentLocs)
+        else:
+            info_state = []
 
-        return agentCurrentLocation
+        if ( True == self.normalizedCoordinate ):
+            agentCurrentLocation.x = (( agentCurrentLocation.x - self.centerCoordinate.x ) / self.halfMapSize[GridMap2D.I_C]) * self.normalizationFactor
+            agentCurrentLocation.y = (( agentCurrentLocation.y - self.centerCoordinate.y ) / self.halfMapSize[GridMap2D.I_R]) * self.normalizationFactor
+
+        s0 = [agentCurrentLocation.x, agentCurrentLocation.y] + info_state
+        return np.array(s0)
 
     def step(self, action):
         """
@@ -1799,11 +1943,17 @@ class GridMapEnv(object):
         if ( True == termFlag ):
             self.isTerminated = True
 
-        if ( True == self.normalizedCoordinate ):
-            newLoc.x = ( newLoc.x - self.centerCoordinate.x ) / self.halfMapSize[GridMap2D.I_C]
-            newLoc.y = ( newLoc.y - self.centerCoordinate.y ) / self.halfMapSize[GridMap2D.I_R]
+        if ( True == self.informativeState ):
+            info_state = self.map.get_info_state(newLoc, self.normalizedCoordinate, self.normalizationFactor, self.agentLocs)
+        else:
+            info_state = []
 
-        return newLoc, value, termFlag, None
+        if ( True == self.normalizedCoordinate ):
+            newLoc.x = (( newLoc.x - self.centerCoordinate.x ) / self.halfMapSize[GridMap2D.I_C]) * self.normalizationFactor
+            newLoc.y = (( newLoc.y - self.centerCoordinate.y ) / self.halfMapSize[GridMap2D.I_R]) * self.normalizationFactor
+
+        sp = [newLoc.x, newLoc.y] + info_state
+        return np.array(sp), value, termFlag, None
 
     def render(self, pause = 0, flagSave = False, fn = None):
         """Render with matplotlib.
@@ -2051,9 +2201,11 @@ class GridMapEnv(object):
         self.endPointMode = d["endPointMode"]
         self.endPointRadius = d["endPointRadius"]
         self.actStepSize = d["actStepSize"]
+        self.normalizationFactor = d["normalizationFactor"]
         self.normalizedCoordinate = d["normalizedCoordinate"]
         self.isRandomCoordinating = d["isRandomCoordinating"]
         self.denseRewards = d["denseRewards"]
+        self.informativeState = d["informativeState"]
         self.randomCoordinatingVariance = d["randomCoordinatingVariance"]
 
         # Create a new map.
@@ -2061,6 +2213,8 @@ class GridMapEnv(object):
         m.read_JSON( self.workingDir + "/" + d["mapFn"] )
         if self.denseRewards:
             m.make_graph_rewards()
+        if self.informativeState:
+            m.calculate_info_distances()
 
         # Set map.
         self.map = m

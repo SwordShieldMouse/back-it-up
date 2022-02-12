@@ -10,7 +10,7 @@
         "sample_for_eval": [false],
         "use_true_q": [false],
 
-        "entropy_scale": [5e-2],
+        "entropy_scale": [0.1],
 
         "l_param": [6],
         "N_param": [64],
@@ -23,7 +23,7 @@
         "use_hard_policy": [false],
         "use_hard_value": [false],
 
-        "n_action_points": [128]
+        "n_action_points": [32]
 
     }
 }

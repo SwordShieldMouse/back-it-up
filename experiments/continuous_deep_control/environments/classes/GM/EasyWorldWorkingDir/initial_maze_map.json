@@ -68,6 +68,54 @@
     [
       7,
       14
+    ],
+    [
+      8,
+      4
+    ],
+    [
+      9,
+      4
+    ],
+    [
+      10,
+      4
+    ],
+    [
+      11,
+      4
+    ],
+    [
+      12,
+      4
+    ],
+    [
+      14,
+      4
+    ],
+    [
+      8,
+      9
+    ],
+    [
+      10,
+      9
+    ],
+    [
+      11,
+      9
+    ],
+    [
+      12,
+      9
+    ],
+    [
+      13,
+      9
+    ],
+    [
+      14,
+      9
     ]
   ],
   "origin": [
@@ -88,9 +136,9 @@
     1,
     1
   ],
-  "valueEndingBlock": 100000,
+  "valueEndingBlock": 1000,
   "valueNormalBlock": -1,
   "valueObstacleBlock": -20,
   "valueStartingBlock": -1,
-  "valueMisleadingBlock": 1000
+  "valueMisleadingBlock": 0
 }

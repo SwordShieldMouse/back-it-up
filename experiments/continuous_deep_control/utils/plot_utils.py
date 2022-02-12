@@ -1,8 +1,9 @@
 import os
 import matplotlib as mpl
 if os.environ.get('DISPLAY','') == '':
+    # TODO
     print('no display found. Using non-interactive Agg backend')
-    mpl.use('Agg')
+    mpl.use('TkAgg')
 # mpl.use('Agg')
 from matplotlib import pyplot as plt
 import numpy as np

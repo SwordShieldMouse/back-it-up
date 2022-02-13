@@ -1,3 +1,4 @@
 .venv/
 slurm_logs/
 results/
+helper_scripts/commands.txt

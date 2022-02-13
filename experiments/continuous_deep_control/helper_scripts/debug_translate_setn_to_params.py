@@ -1,18 +1,26 @@
-from experiments.continuous_deep_control.utils.main_utils import get_sweep_parameters
+from utils.main_utils import get_sweep_parameters
 import json
 import argparse
 from collections import OrderedDict
 
-parser = argparse.ArgumentParser()
-parser.add_argument('agent_json', type=str)
-parser.add_argument('index', type=int)
+def return_setting_and_run(agent_json, index):
+    with open(agent_json, 'r') as agent_dat:
+        agent_json = json.load(agent_dat, object_pairs_hook=OrderedDict)
+    agent_params, total_num_sweeps = get_sweep_parameters(agent_json['sweeps'], index)
+    setting = index % total_num_sweeps
+    run = int(index / total_num_sweeps)
+    return agent_params, setting, run
 
-args = parser.parse_args()
+def main(args=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('agent_json', type=str)
+    parser.add_argument('index', type=int)
+    args = parser.parse_args(args)
 
-with open(args.agent_json, 'r') as agent_dat:
-    agent_json = json.load(agent_dat, object_pairs_hook=OrderedDict)
-agent_params, total_num_sweeps = get_sweep_parameters(agent_json['sweeps'], args.index)
-print(agent_params)
+    agent_params, setting, run = return_setting_and_run(args.agent_json, args.index)
+    print(agent_params)
+    print("Setting: {}".format(setting))
+    print("Run: {}".format(run))
 
-print("Setting: {}".format(args.index % total_num_sweeps))
-print("Run: {}".format(int(args.index / total_num_sweeps)))
+if __name__ == '__main__':
+    main()

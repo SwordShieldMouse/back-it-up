@@ -2,11 +2,11 @@ from multiprocessing import Pool
 import os
 import itertools
 
-stored_dir = "/media/data/SSD_data/back_it_up/_uncompressed_results"
-output_plot_dir = "/media/data/SSD_data/back_it_up/_plots/entropy_comparison"
+stored_dir = "results/_uncompressed_results"
+output_plot_dir = "results/_plots/entropy_comparison"
 
 def f(env,agent):
-    os.system("python3 experiments/continuous_deep_control/plot_scripts/plot_entropy_comparison_uncompressed.py {} --agent {} --stored_dir {} --output_plot_dir {}".format(env,agent, stored_dir, output_plot_dir))
+    os.system("python3 plot_scripts/plot_entropy_comparison_uncompressed.py {} --agent {} --stored_dir {} --output_plot_dir {}".format(env,agent, stored_dir, output_plot_dir))
 
 envs = ["HalfCheetah-v2", "Pendulum-v0", "Swimmer-v2", "Reacher-v2"]
 agents = ["ForwardKL","ReverseKL","both"]

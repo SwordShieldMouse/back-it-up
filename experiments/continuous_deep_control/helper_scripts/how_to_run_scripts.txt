@@ -1,0 +1,5 @@
+Scripts should be run with:
+
+python3 -m helper_scripts.<name>
+
+Otherwise imports from the cwd will not work

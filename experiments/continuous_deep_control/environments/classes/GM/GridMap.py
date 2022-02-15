@@ -1911,7 +1911,7 @@ class GridMapEnv(object):
             self.agentCurrentAct = self.randomize_action(self.agentCurrentLoc, self.agentCurrentAct)
 
         # Move.
-        newLoc, value, termFlag = self.try_move( self.agentCurrentLoc, self.agentCurrentAct )
+        newLoc, value, termFlag, stepInfo = self.try_move( self.agentCurrentLoc, self.agentCurrentAct )
 
         # Additional action value.
         if ( True == self.flagActionValue ):
@@ -1949,7 +1949,7 @@ class GridMapEnv(object):
             newLoc.y = (( newLoc.y - self.centerCoordinate.y ) / self.halfMapSize[GridMap2D.I_R]) * self.normalizationFactor
 
         sp = [newLoc.x, newLoc.y] + info_state
-        return np.array(sp), value, termFlag, None
+        return np.array(sp), value, termFlag, stepInfo
 
     def render(self, pause = 0, flagSave = False, fn = None):
         """Render with matplotlib.
@@ -2848,24 +2848,30 @@ class GridMapEnv(object):
         # Check if it is in the ending block.
         flagTerm = False
 
+        info = {"ending_goal": False, "misleading_goal": False}
+
         if ( GridMapEnv.END_POINT_MODE_BLOCK == self.endPointMode ):
             if ( True == self.map.is_in_ending_block( coor )):
                 flagTerm = True
+                info["ending_goal"] = True
                 val += self.map.valueEndingBlock
             elif (True == self.map.is_in_misleading_block( coor )):
                 flagTerm = True
+                info["misleading_goal"] = True
                 val += self.map.valueMisleadingBlock
         elif ( GridMapEnv.END_POINT_MODE_RADIUS == self.endPointMode ):
             if ( True == self.map.is_around_ending_block( coor, self.endPointRadius ) ):
                 flagTerm = True
+                info["ending_goal"] = True
                 val += self.map.valueEndingBlock
             elif ( True == self.map.is_around_misleading_block( coor, self.endPointRadius ) ):
                 flagTerm = True
+                info["misleading_goal"] = True
                 val += self.map.valueMisleadingBlock
         else:
             raise GridMapException("Unexpected self.endPointMode. self.endPointMode = {}".format(self.endPointMode))
 
-        return coor, val, flagTerm
+        return coor, val, flagTerm, info
 
     def get_string_agent_locs(self):
         s = ""

@@ -140,12 +140,16 @@ class Experiment(object):
             obs_n, reward, done, info = self.train_environment.step(self.Aold)
             self.episode_reward += reward
 
-            if reward == Config.cm_high_reward:
-                assert done
-                self.right_exit_count += 1
-            elif reward == Config.cm_low_reward:
-                assert done
-                self.bad_exit_count += 1
+            if isinstance(info, dict):
+                try:
+                    if info["ending_goal"]:
+                        assert done
+                        self.right_exit_count += 1
+                    elif info["misleading_goal"]:
+                        assert done
+                        self.bad_exit_count += 1
+                except KeyError:
+                    pass
 
             if self.total_step_count % Config.cm_exit_count_interval == 0:
                 self.right_exit_global_count.append(self.right_exit_count)

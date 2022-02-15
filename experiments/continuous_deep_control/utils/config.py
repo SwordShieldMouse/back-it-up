@@ -1,7 +1,5 @@
 class Config:
 
-    cm_high_reward = 100000
-    cm_low_reward = 1000
     cm_exit_count_interval = 100
 
     # default setting

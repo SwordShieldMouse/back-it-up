@@ -57,6 +57,8 @@ def main(args=None):
                 wd_name = 'EasyWorldWorkingDir'
             elif 'MultimodalContinuousWorld' in args.env_json:
                 wd_name = 'MultimodalWorldWorkingDir'
+            elif 'DebugContinuousWorld' in args.env_json:
+                wd_name = 'DebugContinuousWorldWorkingDir'
             else:
                 raise NotImplementedError
             working_dir = os.path.join("environments/classes/GM",wd_name)

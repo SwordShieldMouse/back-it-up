@@ -5,7 +5,9 @@ from .config.GW import GridWorldConfig
 
 import os
 import matplotlib as mpl
-if os.environ.get('DISPLAY','') == '':
+if 'MATPLOTLIB_AGG' in os.environ:
+    mpl.use(os.environ['MATPLOTLIB_AGG'])
+elif os.environ.get('DISPLAY','') == '':
     print('no display found. Using non-interactive Agg backend')
     mpl.use('Agg')
 # mpl.use('Agg')
@@ -258,11 +260,11 @@ class ContinuousMazeEnvironment(object):
         if action[0] == 0 and action[1] == 0:
             action[0] = 1e-10
         act = GridMap.BlockCoorDelta( action[0], action[1] )
-        state, reward, done, _ = self.instance.step(act)
+        state, reward, done, info = self.instance.step(act)
         self.inner_step_count += 1
         if self.render:
             self.instance.render(self.render_time, flagSave=False)
-        return (state, reward, done, None)
+        return (state, reward, done, info)
 
     def get_state_dim(self):
         return self.instance.get_state_size()

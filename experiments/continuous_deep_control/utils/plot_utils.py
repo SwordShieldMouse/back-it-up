@@ -1,9 +1,12 @@
 import os
 import matplotlib as mpl
-if os.environ.get('DISPLAY','') == '':
+
+if 'MATPLOTLIB_AGG' in os.environ:
+    mpl.use(os.environ['MATPLOTLIB_AGG'])
+elif os.environ.get('DISPLAY','') == '':
     print('no display found. Using non-interactive Agg backend')
     mpl.use('Agg')
-# mpl.use('Agg')
+
 from matplotlib import pyplot as plt
 import numpy as np
 

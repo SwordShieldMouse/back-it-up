@@ -8,8 +8,8 @@ import glob
 import sys
 import json
 
-from utils import get_agent_parse_info
-from plot_config import get_xyrange
+from plot_scripts.utils import get_agent_parse_info
+from plot_scripts.plot_config import get_xyrange
 
 import os
 
@@ -22,11 +22,11 @@ cm_exit_count_interval = 100 #Duplicate, defined in utils.py, change if needed
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('env_name',type=str,choices=['EasyContinuousMaze','MediumContinuousMaze',"HardContinuousMaze"])
-    parser.add_argument('--root_dir',type=str, default="/")
-    parser.add_argument('--result_loc',type=str, default="/media/data/SSD_data/back_it_up/_results")
-    parser.add_argument('--num_runs',type=int, default=30)
-    parser.add_argument('--output_plot_dir',type=str,default="/media/data/SSD_data/back_it_up/_plots/cm_exits")
+    parser.add_argument('env_name',type=str,choices=['EasyContinuousMaze','MediumContinuousMaze',"HardContinuousMaze","EasyContinuousWorld"])
+    parser.add_argument('--root_dir',type=str, default=os.getcwd())
+    parser.add_argument('--result_loc',type=str, default=os.path.join(os.getcwd(), "results/_results"))
+    parser.add_argument('--num_runs',type=int, default=5)
+    parser.add_argument('--output_plot_dir',type=str,default=os.path.join(os.getcwd(), "results/_plots/cm_exits"))
 
     args = parser.parse_args()
 

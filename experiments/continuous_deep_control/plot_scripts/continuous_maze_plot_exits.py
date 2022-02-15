@@ -8,8 +8,8 @@ import glob
 import sys
 import json
 
-from plot_scripts.utils import get_agent_parse_info
-from plot_scripts.plot_config import get_xyrange
+from utils import get_agent_parse_info
+from plot_config import get_xyrange
 
 import os
 

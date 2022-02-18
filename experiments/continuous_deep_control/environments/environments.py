@@ -223,6 +223,7 @@ class ContinuousMazeEnvironment(object):
 
         self.inner_step_count = 0
         self.timeout_steps = env_params['TimeoutSteps']
+        self.x_axis_steps = env_params['XAxisSteps']
 
         # total number of steps allowed in a run
         self.TOTAL_STEPS_LIMIT = env_params['TotalMilSteps'] * 1000000

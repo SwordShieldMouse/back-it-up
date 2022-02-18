@@ -40,6 +40,7 @@ class Experiment(object):
 
         self.first_load = False
 
+        self.is_maze = ("ContinuousMaze" in self.train_environment.name or "ContinuousWorld" in self.train_environment.name)
         # save/resume params
         self.resume_training = resume_params['resume_training']
         self.save_data_bdir = resume_params['save_data_bdir']
@@ -123,7 +124,7 @@ class Experiment(object):
                     self.last_time_saved = time.time()
                     print("#########SAVED#########")
 
-            if ("ContinuousMaze" in self.train_environment.name or "ContinuousWorld" in self.train_environment.name) and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:
+            if self.is_maze and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:
                 netsave_dir = os.path.join(self.netsave_data_bdir,os.path.splitext(self.save_data_fname)[0], '{}'.format(self.total_step_count))
                 if not os.path.isdir(netsave_dir):
                     os.makedirs(netsave_dir, exist_ok=True)
@@ -140,20 +141,21 @@ class Experiment(object):
             obs_n, reward, done, info = self.train_environment.step(self.Aold)
             self.episode_reward += reward
 
-            if isinstance(info, dict):
-                try:
-                    if info["ending_goal"]:
-                        assert done
-                        self.right_exit_count += 1
-                    elif info["misleading_goal"]:
-                        assert done
-                        self.bad_exit_count += 1
-                except KeyError:
-                    pass
+            if self.is_maze:
+                if isinstance(info, dict):
+                    try:
+                        if info["ending_goal"]:
+                            assert done
+                            self.right_exit_count += 1
+                        elif info["misleading_goal"]:
+                            assert done
+                            self.bad_exit_count += 1
+                    except KeyError:
+                        pass
 
-            if self.total_step_count % Config.cm_exit_count_interval == 0:
-                self.right_exit_global_count.append(self.right_exit_count)
-                self.bad_exit_global_count.append(self.bad_exit_count)
+                if self.total_step_count % self.train_environment.x_axis_steps == 0:
+                    self.right_exit_global_count.append(self.right_exit_count)
+                    self.bad_exit_global_count.append(self.bad_exit_count)
 
             # if the episode was externally terminated by episode step limit, don't do update
             # (except ContinuousBandits, where the episode is only 1 step)

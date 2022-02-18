@@ -56,12 +56,10 @@ if __name__ == "__main__":
         # read agent json
         agent_jsonfile = '{}_{}_agent_Params.json'.format(env_name, agent_name)
 
-        with open(result_dir + agent_jsonfile, 'r') as agent_dat:
+        with open(os.path.join(result_dir,agent_jsonfile), 'r') as agent_dat:
             agent_json = json.load(agent_dat, object_pairs_hook=OrderedDict)
 
         type_arr, pre_divider, num_type, post_divider, num_settings = get_agent_parse_info(agent_json, divide_type="entropy_scale")
-
-        assert num_type == num_settings
 
         print('Environment: ' + env_name)
         print('Agent: ' + agent_name)

@@ -40,7 +40,7 @@ def main(args=None):
         agent_json = json.load(agent_dat, object_pairs_hook=OrderedDict)
 
     # create save directory
-    save_dir = './{}/'.format(args.out_dir) + env_json['environment'] + 'results/'
+    save_dir = './{}/'.format(args.out_dir) + env_json['environment'] + '/'
     if not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
         
@@ -126,13 +126,7 @@ def main(args=None):
 
     # create log directory (for tensorboard, gym monitor/render)
     START_DATETIME = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    log_dir = './{}/{}results/log_summary/{}/{}_{}_{}'.format(args.out_dir, str(env_json['environment']), str(agent_json['agent']), str(SETTING_NUM), str(RUN_NUM), str(START_DATETIME))
-
-    # writer = tf.summary.FileWriter(log_dir)
-    #writer = tf.compat.v1.summary.FileWriter(log_dir)
-    # writer = SummaryWriter(log_dir)
-    writer = None
-    agent_params["writer"] = writer
+    log_dir = './{}/{}/log_summary/{}/{}_{}_{}'.format(args.out_dir, str(env_json['environment']), str(agent_json['agent']), str(SETTING_NUM), str(RUN_NUM), str(START_DATETIME))
 
     # init config and merge custom config settings from json
     config = Config()

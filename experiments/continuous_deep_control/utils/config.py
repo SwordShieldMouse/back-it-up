@@ -1,7 +1,4 @@
 class Config:
-
-    cm_exit_count_interval = 100
-
     # default setting
     def __init__(self):
 

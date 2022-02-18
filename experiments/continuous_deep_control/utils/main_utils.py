@@ -1,4 +1,12 @@
 from collections import OrderedDict
+import ast
+
+def tryeval(val):
+    try:
+        val = ast.literal_eval(val)
+    except ValueError:
+        val = None
+    return val
 
 # Takes a string and returns and instance of an agent
 # [env] is an instance of an environment

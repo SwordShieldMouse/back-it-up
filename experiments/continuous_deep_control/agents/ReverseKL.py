@@ -6,8 +6,6 @@ from agents.base_agent import BaseAgent
 from agents.network.base_network_manager import BaseNetwork_Manager
 
 from agents.network import reversekl_network
-from utils.plot_utils import plotFunction
-
 
 class ReverseKL_Network_Manager(BaseNetwork_Manager):
     def __init__(self, config):
@@ -30,23 +28,6 @@ class ReverseKL_Network_Manager(BaseNetwork_Manager):
             self.train_global_steps += 1
 
             chosen_action = self.network.sample_action(np.expand_dims(state, 0))[0]
-
-            if self.write_plot:
-                if self.use_true_q:
-                    q_func = self.network.getTrueQFunction(state)
-                else:
-                    q_func = self.network.getQFunction(state)
-                pi_func = self.network.getPolicyFunction(state)
-                greedy_action = self.network.predict_action(np.expand_dims(state, 0))[0]
-
-                plotFunction("KLDiv", [q_func, pi_func], state,
-                                              greedy_action, chosen_action,
-                                              self.action_min, self.action_max,
-                                              display_title='Reverse KL, steps: ' + str(self.train_global_steps),
-                                              save_title='steps_' + str(self.train_global_steps),
-                                              save_dir=self.writer.get_logdir(), ep_count=self.train_ep_count,
-                                              show=False)
-
         # Eval
         else:
             if self.sample_for_eval:

@@ -2,9 +2,19 @@ from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import pickle
+import json
 from matplotlib import ticker
-from config import CMPlotConfig
+from config import *
 import os
+
+def get_high_low(temp):
+    if temp in BenchmarksPlotConfig.high_temps:
+        return 'high'
+    elif temp in BenchmarksPlotConfig.low_temps:
+        return 'low'
+    else:
+        raise ValueError
 
 def follows_patt(i_str, patt):
     if patt.match(i_str) is not None:
@@ -14,6 +24,34 @@ def follows_patt(i_str, patt):
 
 def filter_files_by_patt(files, patt):
     return list(filter(lambda s: follows_patt(s, patt), files))
+
+def get_unrolled_data(data, steps, max_steps, x_axis_steps):
+    current_episode = 0
+    running_frame = 0
+    n_idxs = int(max_steps/x_axis_steps)
+    output = np.zeros([n_idxs])
+    for global_idx in range(n_idxs):
+        while(running_frame >= steps[current_episode]):
+            current_episode += 1
+        output[global_idx] = np.mean(data[current_episode:current_episode+PlotConfig.episodes_window])
+        running_frame += x_axis_steps
+    return output
+
+def load_and_unroll_files(base_dir, base_name, env_params):
+    rewards_fname = base_name + "_EpisodeRewardsLC.txt"
+    steps_fname = base_name + "_EpisodeStepsLC.txt"
+    unrolled_fname = base_name + "_UnrolledEpisodeStepsLC.txt"
+    full_rewards_fname = os.path.join(base_dir, rewards_fname)
+    full_steps_fname = os.path.join(base_dir, steps_fname)
+    full_unrolled_fname = os.path.join(base_dir, unrolled_fname)
+    if os.path.isfile(full_unrolled_fname):
+        return np.loadtxt(full_unrolled_fname, delimiter=',')
+    else:
+        data = np.loadtxt(full_rewards_fname, delimiter=',')
+        steps = np.loadtxt(full_steps_fname, delimiter=',')
+        data = get_unrolled_data(data, steps, env_params['TotalMilSteps'] * 1e6, env_params['XAxisSteps'])
+        data.tofile(full_unrolled_fname, sep=',')
+        return data
 
 class ExtremePoint:
     def __init__(self, comparator_f):
@@ -26,41 +64,55 @@ class ExtremePoint:
         else:
             self.v = self.comparator_f(self.v, new_v)
 
-
-class PlotDataTable:
-    def __init__(self, divide_type, how_to_group='best'):
-        self.divide_type = divide_type
+class PlotDataObj:
+    def __init__(self, args):
+        self.args = args
+        self.divide_type = args.divide_type
+        self.how_to_group = args.how_to_group
         self.all_data = OrderedDict()
-        self.how_to_group = how_to_group
         self.has_started_iterating = False
+        self.loaded = False
+        self.generator_data = []
 
-    def add(self, agent, params, index, data):
+    def add(self, agent, ag_params, index, data):
         if self.has_started_iterating:
-            raise AssertionError("Trying to add data to a PlotDataTable that is already being iterated over")
+            raise AssertionError("Trying to add data to a PlotDataObj that is already being iterated over")
+        if self.loaded:
+            raise AssertionError("Trying to add data to a PlotDataObj that was loaded from file")
         if agent not in self.all_data:
             self.all_data[agent] = OrderedDict()
         if self.divide_type is None:
             curr_dict = self.all_data[agent]
         else:
-            if params[self.divide_type] not in self.all_data[agent]:
-                self.all_data[agent][params[self.divide_type]] = OrderedDict()
-            curr_dict = self.all_data[agent][params[self.divide_type]]
-
+            if ag_params[self.divide_type] not in self.all_data[agent]:
+                self.all_data[agent][ag_params[self.divide_type]] = OrderedDict()
+            curr_dict = self.all_data[agent][ag_params[self.divide_type]]
         if index not in curr_dict:
             curr_dict[index] = []
-
         curr_dict[index].append(data)
+        
+    def load(self, pickle_data):
+        self.loaded = True
+        self.generator_data = pickle_data
 
     def iterate(self):
         self.has_started_iterating = True
-        for agent in self.all_data.keys():
-            if self.divide_type is None:
-                mean, stderr = self.group(self.all_data[agent])
-                yield agent, mean, stderr
-            else:
-                for divide_param in self.all_data[agent].keys():
-                    mean, stderr = self.group(self.all_data[agent][divide_param])
-                    yield (agent, divide_param), mean, stderr
+        if self.loaded:
+            for output in self.generator_data:
+                yield output
+        else:
+            for agent in self.all_data.keys():
+                if self.divide_type is None:
+                    mean, stderr = self.group(self.all_data[agent])
+                    curve_id = agent
+                    self.generator_data.append((curve_id, mean, stderr))
+                    yield curve_id, mean, stderr
+                else:
+                    for divide_param in self.all_data[agent].keys():
+                        mean, stderr = self.group(self.all_data[agent][divide_param])
+                        curve_id = "_".join([agent, str(divide_param)])
+                        self.generator_data.append((curve_id, mean, stderr))
+                        yield curve_id, mean, stderr
 
     def group(self, data_dict):
         auc_pct = 0.5
@@ -68,11 +120,11 @@ class PlotDataTable:
             k = k_AND_v_arr_list[0]
             v_arr_list = k_AND_v_arr_list[1]
             return k, np.mean(v_arr_list,axis = 0)
-        def _get_auc(k_AND_v_arr):
-            k = k_AND_v_arr[0]
-            v_arr = k_AND_v_arr[1]
-            size = v_arr.size
-            return k, np.sum(v_arr[int(size * auc_pct):])
+        def _get_auc(k_AND_mean_arr):
+            k = k_AND_mean_arr[0]
+            mean_arr = k_AND_mean_arr[1]
+            size = mean_arr.size
+            return k, np.sum(mean_arr[int(size * auc_pct):])
 
         all_means = OrderedDict(map(_get_means, data_dict.items()))
         size = next(iter(all_means.values())).size
@@ -91,116 +143,140 @@ class PlotDataTable:
         return np.mean(output_runs, axis=0), np.std(output_runs, axis=0) / np.sqrt(output_runs.shape[0])
 
 class Plotter:
-    def __init__(self, plot_key, env_params, divide_type):
-        self.config = CMPlotConfig()
-        self.plot_key = plot_key
+    def __init__(self, call_id, plot_id, args, env_params):
+        self.args = args
+        self.config = args.config_class()
         self.env_params = env_params
-        if isinstance(plot_key, tuple):
-            plot_name = "_".join(plot_key)
-        elif isinstance(plot_key, dict):
-            plot_name = "_".join(plot_key.values())
-        else:
-            plot_name = plot_key
-        self.plot_name = env_params["environment"] + "_" + plot_name
-        self.divide_type = divide_type
+        self.plot_name = "_".join([call_id, plot_id])
+        self.divide_type = args.divide_type
         self.max_y_plotted = ExtremePoint(max)
         self.min_y_plotted = ExtremePoint(min)
 
-    def initialize_plot(self, additional_calls=[]):
+    def initialize_plot(self):
         matplotlib.rcParams.update({'font.size': self.config.font_size})
         self.fig = plt.figure(figsize=self.config.figsize)
         self.ax = self.fig.add_subplot()
+        
+        self.x_range = list(range(0, int(self.env_params['TotalMilSteps'] * 1e6 / self.env_params['XAxisSteps'])))
+        self.config.x_lim = (0, self.x_range[-1] + 1)
+        self.ax.set_xlim(self.config.x_lim)
+        
         self.ax.set_ylabel(self.config.ylabel,fontsize=self.config.ylabel_fontsize, rotation=self.config.ylabel_rotation)
         self.ax.set_xlabel(self.config.xlabel, fontsize=self.config.xlabel_fontsize)
 
         self.xtick_step = int((self.env_params['TotalMilSteps'] * 1e6 / self.env_params['XAxisSteps']) / self.config.n_xticks)
-
-        self.x_range = list(range(0, int(self.env_params['TotalMilSteps'] * 1e6 / self.env_params['XAxisSteps'])))
-
         ticks = [o for o in self.x_range[::self.xtick_step]]
         self.ax.set_xticks(ticks)
-        self.ax.set_xlim((0, self.x_range[-1] + 1))
 
-        x_formatter = ticker.FuncFormatter(lambda t, pos: '{:.0f}'.format(t / (self.config.x_formatter_divider / self.env_params['XAxisSteps'])))
-        self.ax.get_xaxis().set_major_formatter(x_formatter)
+        self.ax.get_xaxis().set_major_formatter(self.config.x_formatter)
 
         self.ax.set_yscale(self.config.yscale)
         self.ax.get_yaxis().set_major_formatter(self.config.y_formatter)
-
-        for function, args in additional_calls:
-            f = eval(function)
-            if isinstance(args, list):
-                f(*args)
-            elif isinstance(args, dict):
-                f(**args)
         
-    def plot_curve(self, curve_key, mean, stderr):
+    def plot_curve(self, curve_id, mean, stderr):
         self.max_y_plotted.update(np.max(mean))
         self.min_y_plotted.update(np.min(mean))
-        self.ax.fill_between(self.x_range, mean - stderr, mean + stderr, alpha=self.config.stderr_alpha, color=self.config.get_color(curve_key, self.divide_type))
-        self.ax.plot(self.x_range, mean, linewidth=self.config.linewidth, color=self.config.get_color(curve_key, self.divide_type))
+        self.ax.fill_between(self.x_range, mean - stderr, mean + stderr, alpha=self.config.stderr_alpha, color=self.config.get_color(curve_id, self.divide_type))
+        self.ax.plot(self.x_range, mean, linewidth=self.config.linewidth, color=self.config.get_color(curve_id, self.divide_type))
 
     def save_plot(self, save_dir):
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir, exist_ok=True)
         self.fig.savefig(os.path.join(save_dir, "{}.png".format(self.plot_name)), bbox_inches=self.config.savefig_bbox_in,dpi=self.config.savefig_dpi)
-        # plt.clf()
+    
+    def update_y_lim(self, new_ylim):
+        new_ymin, new_ymax = new_ylim[0], new_ylim[1]
+        self.config.y_lim = (new_ymin, new_ymax)
+        self.ax.get_yaxis().set_major_formatter(self.config.y_formatter)
+        self.ax.set_ylabel(self.config.ylabel)
+        self.ax.set_ylim(bottom=new_ymin, top=new_ymax)
 
 class PlotManager:
-    def __init__(self, divide_type, how_to_group, env_params):
-        self.plot_data_dict = {}
-        self.plotter_dict = {}
-        self.divide_type = divide_type
-        self.how_to_group = how_to_group
-        self.env_params = env_params
-        self.sync_y_max_values = {}
-        self.sync_y_min_values = {}
-        self.key_types = None
+    def __init__(self, args):
+        self.args = args
+        self.call_id = self.get_call_id()
+        with open(self.args.env_json_fname, "r") as f:
+            self.env_params = json.load(f, object_pairs_hook=OrderedDict)            
+        self.env_results_dir = os.path.join(args.results_dir, args.env_name)
+        self.args.config_class = eval(args.config_class)
+        self.plot_dict = {}
+        self.divide_type = args.divide_type
+        self.how_to_group = args.how_to_group
+        self.separate_agent_plots = args.separate_agent_plots
+        self.sync_y_max_data = {}
 
-    def add(self, key, *args, **kwargs):
-        if self.key_types is None:
-            self.key_types = tuple(key.keys())
-        else:
-            assert self.key_types == tuple(key.keys())
-        key_v = tuple(key.values())
-        if key_v not in self.plot_data_dict:
-            self.plot_data_dict[key_v] = PlotDataTable(self.divide_type, self.how_to_group)
-        self.plot_data_dict[key_v].add(*args, **kwargs)
+    def get_call_id(self):
+        sep_id = "SplitAgents" if self.args.separate_agent_plots else "JointAgents"
+        div_id = self.args.divide_type if self.args.divide_type is not None else "NoDivide"
+        return "_".join([sep_id, self.args.how_to_group, div_id])
 
-    def plot_and_save_all(self, plot_dir, synchronize_yaxis_on=None, keep_ymin=False):
-        sync = synchronize_yaxis_on is not None
-        for k in self.plot_data_dict.keys():
-            self.plotter_dict[k] = Plotter(k, self.env_params, self.divide_type)
+    def add(self, plot_id, *f_args, **f_kwargs):
+        if plot_id not in self.plot_dict:
+            self.plot_dict[plot_id] = {'data': PlotDataObj(self.args)}
+        self.plot_dict[plot_id]['data'].add(*f_args, **f_kwargs)
+        
+    def load_existing_data(self, plot_id):
+        if hasattr(self.args, "preprocessed_dir"):
+            full_fname = os.path.join(self.args.preprocessed_dir, "{}.pkl".format("_".join([self.call_id, plot_id])))
+            if os.path.isfile(full_fname):
+                if plot_id not in self.plot_dict:
+                    self.plot_dict[plot_id] = {'data': PlotDataObj(self.args)}
+                    self.plot_dict[plot_id]['data'].load(pickle.load(open(full_fname,'rb')))
+                return True
+        return False
+            
+    def save_all_data(self):
+        preprocessed_dir = self.args.preprocessed_dir
+        for this_plot_id, this_plot_dict in self.plot_dict.items():
+            plot_obj = this_plot_dict['data']
+            ofname = os.path.join(preprocessed_dir, "{}.pkl".format("_".join([self.call_id, this_plot_id])))
+            if not os.path.isfile(ofname):
+                pickle.dump(obj=plot_obj.generator_data, file=open(ofname, "wb"))
+
+    def plot_and_save_all(self, synchronize_y_options=None):
+        sync = synchronize_y_options is not None
+        for plot_id in self.plot_dict.keys():
+            self.plot_dict[plot_id]['plotter'] = Plotter(self.call_id, plot_id, self.args, self.env_params)
             if sync:
-                sync_value = k[self.key_types.index(synchronize_yaxis_on)]
-            plotter = self.plotter_dict[k]
+                if synchronize_y_options["mode"] == "y_idx":
+                    sync_value = plot_id.split("_")[synchronize_y_options["sync_idx"]]
+            plotter = self.plot_dict[plot_id]['plotter']
             plotter.initialize_plot()
-            for curve_key, curve_mean, curve_stderr in self.plot_data_dict[k].iterate():
-                plotter.plot_curve(curve_key, curve_mean, curve_stderr)
+            for curve_id, curve_mean, curve_stderr in self.plot_dict[plot_id]['data'].iterate():
+                plotter.plot_curve(curve_id, curve_mean, curve_stderr)
                 if sync:
-                    if sync_value not in self.sync_y_max_values:
-                        self.sync_y_max_values[sync_value] = ExtremePoint(max)
-                        self.sync_y_min_values[sync_value] = ExtremePoint(min)
-                    self.sync_y_max_values[sync_value].update(plotter.max_y_plotted.v)
-                    self.sync_y_min_values[sync_value].update(plotter.min_y_plotted.v)
+                    if synchronize_y_options["mode"] == "y_idx":
+                        if sync_value not in self.sync_y_max_data:
+                            self.sync_y_max_data[sync_value] = {'max': ExtremePoint(max), 'min': ExtremePoint(min)}
+                        self.sync_y_max_data[sync_value]['max'].update(plotter.max_y_plotted.v)
+                        self.sync_y_max_data[sync_value]['min'].update(plotter.min_y_plotted.v)
         if sync:
-            self.synchronize_y_axis(synchronize_yaxis_on, keep_ymin)
-        for plotter in self.plotter_dict.values():
-            plotter.save_plot(plot_dir)
+            self.synchronize_y_axis(synchronize_y_options)
+        for this_plot_dict in self.plot_dict.values():
+            this_plot_dict['plotter'].save_plot(self.args.plot_dir)
 
-    def synchronize_y_axis(self, synchronize_yaxis_on, keep_ymin=False):
-        for pl_k, plotter in self.plotter_dict.items():
-            sync_value = pl_k[self.key_types.index(synchronize_yaxis_on)]
-            if keep_ymin:
-                new_ymin = self.sync_y_min_values[sync_value].v
-                new_ymax = self.sync_y_max_values[sync_value].v / 0.9
-            else:
-                delta = self.sync_y_max_values[sync_value].v - self.sync_y_min_values[sync_value].v
-                mean_point = (self.sync_y_max_values[sync_value].v + self.sync_y_min_values[sync_value].v) / 2.
-                new_delta = delta / 0.8
-                new_ymax = mean_point + new_delta / 2.
-                new_ymin = mean_point - new_delta / 2.
-            plotter.config.y_lim = (new_ymin, new_ymax)
-            plotter.ax.get_yaxis().set_major_formatter(plotter.config.y_formatter)
-            plotter.ax.set_ylabel(plotter.config.ylabel)
-            plotter.ax.set_ylim(bottom=new_ymin, top=new_ymax)
+    def synchronize_y_axis(self, synchronize_y_options):
+        if "save_max" in synchronize_y_options:
+            out_max = {}
+        if synchronize_y_options["mode"] == "from_file":
+            max_dict = pickle.load(open(os.path.join(self.args.preprocessed_dir, "{}_max_data.pkl".format(synchronize_y_options["target_call_id"])), "rb"))
+        for plot_id, plot_dict in self.plot_dict.items():
+            plotter = self.plot_dict[plot_id]['plotter']
+            sync_value = plot_id.split("_")[synchronize_y_options["sync_idx"]]
+            if synchronize_y_options["mode"] == "y_idx":
+                if synchronize_y_options["keep_ymin"]:
+                    new_ymin = self.sync_y_max_data[sync_value]['min'].v
+                    new_ymax = self.sync_y_max_data[sync_value]['max'].v / 0.9
+                else:
+                    delta = self.sync_y_max_data[sync_value]['max'].v - self.sync_y_max_data[sync_value]['min'].v
+                    mean_point = (self.sync_y_max_data[sync_value]['max'].v + self.sync_y_max_data[sync_value]['min'].v) / 2.
+                    new_delta = delta / 0.8
+                    new_ymax = mean_point + new_delta / 2.
+                    new_ymin = mean_point - new_delta / 2.
+                if "save_max" in synchronize_y_options:
+                    out_max[sync_value] = (new_ymin, new_ymax)
+            elif synchronize_y_options["mode"] == "from_file":
+                new_ymin, new_ymax = max_dict[sync_value]
+            plotter.update_y_lim((new_ymin, new_ymax))
+        if "save_max" in synchronize_y_options:
+            pickle.dump(out_max, open(os.path.join(self.args.preprocessed_dir, "{}_max_data.pkl".format(self.call_id)), "wb"))

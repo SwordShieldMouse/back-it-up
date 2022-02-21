@@ -5,7 +5,7 @@ def tryeval(val):
     try:
         val = ast.literal_eval(val)
     except ValueError:
-        val = None
+        pass
     return val
 
 # Takes a string and returns and instance of an agent

@@ -11,12 +11,12 @@ from config import *
 from utils.main_utils import tryeval
 
 def main(args=None):
-    parser = CMPlotParser()
+    parser = BenchmarksPlotParser()
     args = parser.parse_args(args)
     manager = PlotManager(args)
 
     for agent_name in args.agent_names:
-        patt = re.compile("{e}_{a}_setting_(?P<setting>\d+)_run_(?P<run>\d+)_(?P<exit_type>BadExit|RightExit)\.txt".format(e=args.env_name, a=agent_name))
+        patt = re.compile("{e}_{a}_setting_(?P<setting>\d+)_run_(?P<run>\d+)_EpisodeRewardsLC\.txt".format(e=args.env_name, a=agent_name))
 
         filenames = filter_files_by_patt(os.listdir(manager.env_results_dir), patt)
         full_filenames = [os.path.join(manager.env_results_dir, f) for f in filenames]
@@ -29,7 +29,6 @@ def main(args=None):
             match = patt.search(full_fname)
             setting = int(match.group('setting'))
             run = int(match.group('run'))
-            exit_type = match.group('exit_type')
 
             base_name = "{e}_{a}_setting_{s}_run_{r}".format(e=args.env_name, a=agent_name, s=setting, r=run)
             param_values_filename = base_name + "_agent_Params.txt"
@@ -38,22 +37,22 @@ def main(args=None):
                 csv_reader = csv.reader(p_f)
                 param_values = [tryeval(v) for v in next(iter(csv_reader)) if 'tensorflow' not in v]
             ag_params = dict(zip(param_names, param_values))
+            ag_params['all_high_all_low'] = get_high_low(ag_params['entropy_scale'])
 
-            if args.separate_agent_plots:
-                plot_id = "_".join([agent_name, args.env_name, exit_type])
-            else:
-                plot_id = "_".join([args.env_name, exit_type])
+            plot_id = args.env_name
 
-            sync_idx = plot_id.split("_").index(exit_type)
-            data = np.loadtxt(full_fname, delimiter=',')
-            manager.add(plot_id, agent_name, ag_params, setting, data)
+            sync_idx = plot_id.split("_").index(args.env_name)
+            if not manager.load_existing_data(plot_id):
+                data = load_and_unroll_files(manager.env_results_dir, base_name, manager.env_params)
+                manager.add(plot_id, agent_name, ag_params, setting, data)
 
     synchronize_yaxis_options = {
-        "mode": "y_idx",
-        "sync_idx": sync_idx,
-        "keep_ymin": True,
+        "mode": "from_file",
+        "target_call_id": "_".join(["SplitAgents", args.how_to_group, "entropy_scale"]),
+        "sync_idx": sync_idx
     }
     manager.plot_and_save_all(synchronize_yaxis_options)
+    manager.save_all_data() # To avoid processing again when plotting the next time
 
 if __name__ == "__main__":
     main()

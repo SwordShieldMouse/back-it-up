@@ -1,7 +1,12 @@
 from collections import OrderedDict
 import ast
+import re
 
 def tryeval(val):
+    bytes_patt = re.compile("b'(?P<content>.+)'")
+    m = bytes_patt.match(val)
+    if m is not None:
+        val = m.group("content")
     try:
         val = ast.literal_eval(val)
     except ValueError:

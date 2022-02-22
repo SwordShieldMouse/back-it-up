@@ -20,8 +20,6 @@ class ReverseKLNetwork(BaseNetwork):
         self.config = config
         self.optim_type = config.optim_type
 
-        self.writer = config.writer
-        self.writer_step = 0
         self.rng = np.random.RandomState(config.random_seed)
         self.entropy_scale = config.entropy_scale
 

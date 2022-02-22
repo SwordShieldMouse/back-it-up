@@ -150,8 +150,7 @@ def main(args=None):
                 train_env.instance = gym.wrappers.Monitor(train_env.instance, monitor_dir, video_callable=False, force=True)
 
     # initialize experiment
-    experiment = Experiment(agent=agent, train_environment=train_env, test_environment=test_env, seed=RANDOM_SEED,
-                            writer=writer, write_log=args.write_log, write_plot=args.write_plot,
+    experiment = Experiment(agent=agent, train_environment=train_env, test_environment=test_env, seed=RANDOM_SEED, write_log=args.write_log, write_plot=args.write_plot,
                             resume_params = resume_params)
     
     # run experiment

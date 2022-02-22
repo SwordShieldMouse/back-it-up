@@ -29,7 +29,6 @@ class BaseAgent(object):
         self.write_plot = config.write_plot
 
         self.network_manager = network_manager
-        self.writer = config.writer
         self.config = config
 
     def start(self, state, is_train):

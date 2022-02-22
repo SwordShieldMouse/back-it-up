@@ -13,10 +13,6 @@ class BaseNetwork_Manager(object):
         self.action_min = config.action_min
         self.action_max = config.action_max
 
-        # Log config
-        self.write_plot = config.write_plot
-        self.writer = config.writer
-
         # record step for tf Summary
         self.train_global_steps = 0
         self.eval_global_steps = 0

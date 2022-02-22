@@ -8,7 +8,7 @@ import torch
 from utils.config import Config
         
 class Experiment(object):
-    def __init__(self, agent, train_environment, test_environment, seed, writer, write_log, write_plot, resume_params, has_eval=False):
+    def __init__(self, agent, train_environment, test_environment, seed, write_log, write_plot, resume_params, has_eval=False):
         self.has_eval = has_eval
         self.agent = agent
         self.train_environment = train_environment
@@ -24,7 +24,6 @@ class Experiment(object):
         self.eval_std_rewards_per_episode = []
 
         self.total_step_count = 0
-        self.writer = writer
 
         # boolean to log result for tensorboard
         self.write_log = write_log

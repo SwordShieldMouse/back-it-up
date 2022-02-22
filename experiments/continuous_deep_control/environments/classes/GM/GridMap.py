@@ -601,7 +601,7 @@ class GridMap2D(object):
         distToGoals = self.dist_matrix[unrolledGoals,:]
         minDistToGoals = np.min(distToGoals, axis=0)
         C = np.max(minDistToGoals[minDistToGoals != np.inf])
-        XI = 5.0
+        XI = 25.0
         for i, row in enumerate(self.blockRows):
             for j, element in enumerate(row):
                 if self.is_normal_block(BlockIndex(i, j)) or self.is_starting_block(BlockIndex(i, j)):

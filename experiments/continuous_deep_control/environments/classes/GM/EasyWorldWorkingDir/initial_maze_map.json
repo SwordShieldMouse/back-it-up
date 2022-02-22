@@ -1,12 +1,12 @@
 {
   "cols": 15,
   "endingBlockIdx": [
-    14,
+    8,
     14
   ],
   "endingPoint": [
     14.5,
-    14.5
+    8.5
   ],
   "haveMisleadingBlock": true,
   "misleadingPoint_list": [
@@ -23,28 +23,8 @@
   ],
   "haveEndingBlock": true,
   "haveStartingBlock": true,
-  "name": "25_by_25_map",
+  "name": "15_by_15_map",
   "obstacleIndices": [
-    [
-      7,
-      4
-    ],
-    [
-      7,
-      5
-    ],
-    [
-      7,
-      6
-    ],
-    [
-      7,
-      7
-    ],
-    [
-      7,
-      8
-    ],
     [
       7,
       9
@@ -71,30 +51,10 @@
     ],
     [
       8,
-      4
+      9
     ],
     [
       9,
-      4
-    ],
-    [
-      10,
-      4
-    ],
-    [
-      11,
-      4
-    ],
-    [
-      12,
-      4
-    ],
-    [
-      14,
-      4
-    ],
-    [
-      8,
       9
     ],
     [
@@ -112,17 +72,13 @@
     [
       13,
       9
-    ],
-    [
-      14,
-      9
     ]
   ],
   "origin": [
     0,
     0
   ],
-  "outOfBoundValue": -20,
+  "outOfBoundValue": -50,
   "rows": 15,
   "startingBlockIdx": [
     0,
@@ -136,9 +92,9 @@
     1,
     1
   ],
-  "valueEndingBlock": 1000,
+  "valueEndingBlock": 5000,
   "valueNormalBlock": -1,
-  "valueObstacleBlock": -20,
+  "valueObstacleBlock": -50,
   "valueStartingBlock": -1,
   "valueMisleadingBlock": 0
 }

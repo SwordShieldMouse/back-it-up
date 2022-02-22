@@ -5,7 +5,7 @@ import matplotlib
 import pickle
 import json
 from matplotlib import ticker
-from config import *
+from .config import *
 import os
 
 def get_high_low(temp):

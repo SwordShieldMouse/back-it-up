@@ -1,12 +1,12 @@
 {
-  "cols": 9,
+  "cols": 11,
   "endingBlockIdx": [
-    8,
-    8
+    10,
+    10
   ],
   "endingPoint": [
-    8.5,
-    8.5
+    10.5,
+    10.5
   ],
   "haveMisleadingBlock": true,
   "misleadingPoint_list": [
@@ -23,15 +23,15 @@
   ],
   "haveEndingBlock": true,
   "haveStartingBlock": true,
-  "name": "9_by_9_map",
-  "obstacleIndices": [ [5,2],[5,3],[5,4],[5,5],[5,6],[5,7],[5,8],[7,5],[8,5],[6,2],[7,2]
+  "name": "11_by_11_map",
+  "obstacleIndices": [ [5,4],[5,5],[5,6],[5,7],[5,8],[5,9],[5,10],[7,8],[8,8],[9,8],[10,8],[6,4],[7,4],[8,4],[9,4]
   ],
   "origin": [
     0,
     0
   ],
   "outOfBoundValue": -50,
-  "rows": 9,
+  "rows": 11,
   "startingBlockIdx": [
     0,
     4

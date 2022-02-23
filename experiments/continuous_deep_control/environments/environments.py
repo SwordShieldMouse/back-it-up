@@ -251,11 +251,11 @@ class ContinuousMazeEnvironment(object):
 
     # Reset the environment for a new episode. return the initial state
     def reset(self):
+        self.inner_step_count = 0
         return self.instance.reset()
 
     def step(self, action):
         if self.inner_step_count == self.timeout_steps:
-            self.inner_step_count = 0
             state = self.reset()
             return (state, 0, False, None)
         if action[0] == 0 and action[1] == 0:

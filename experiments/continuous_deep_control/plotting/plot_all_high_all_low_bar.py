@@ -37,24 +37,16 @@ def main(args=None):
                 csv_reader = csv.reader(p_f)
                 param_values = [tryeval(v) for v in next(iter(csv_reader)) if 'tensorflow' not in v]
             ag_params = dict(zip(param_names, param_values))
+            ag_params['all_high_all_low'] = get_high_low(ag_params['entropy_scale'])
 
-            if args.separate_agent_plots:
-                plot_id = "_".join([agent_name, args.env_name])
-            else:
-                plot_id = args.env_name
+            plot_id = args.env_name
 
             sync_idx = plot_id.split("_").index(args.env_name)
             if not manager.load_existing_data(plot_id):
                 data = load_and_unroll_files(manager.env_results_dir, base_name, manager.env_params)
                 manager.add(plot_id, agent_name, ag_params, setting, data)
 
-    synchronize_yaxis_options = {
-        "mode": "y_idx",
-        "save_max": True,
-        "sync_idx": sync_idx,
-        "keep_ymin": False
-    }
-    manager.plot_and_save_all(synchronize_yaxis_options)
+    manager.plot_and_save_all(None)
     manager.save_all_data() # To avoid processing again when plotting the next time
 
 if __name__ == "__main__":

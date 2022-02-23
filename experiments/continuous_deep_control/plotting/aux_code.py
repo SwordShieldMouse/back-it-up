@@ -7,6 +7,7 @@ import json
 from matplotlib import ticker
 from .config import *
 import os
+import functools
 
 def get_high_low(temp):
     if temp in BenchmarksPlotConfig.high_temps:
@@ -52,6 +53,14 @@ def load_and_unroll_files(base_dir, base_name, env_params):
         data = get_unrolled_data(data, steps, env_params['TotalMilSteps'] * 1e6, env_params['XAxisSteps'])
         data.tofile(full_unrolled_fname, sep=',')
         return data
+
+def expand_limits(pct, low_lim, high_lim):
+    delta = high_lim - low_lim
+    mean_point = (high_lim + low_lim) / 2.
+    new_delta = delta / pct
+    new_high = mean_point + new_delta / 2.
+    new_low = mean_point - new_delta / 2.
+    return new_low, new_high
 
 class ExtremePoint:
     def __init__(self, comparator_f):
@@ -140,44 +149,64 @@ class PlotDataObj:
 
         nested_output_runs = list(map(lambda it: it[1], filter(lambda it: it[0] in out_k, data_dict.items())))
         output_runs = np.array(nested_output_runs).reshape((-1, size))
-        return np.mean(output_runs, axis=0), np.std(output_runs, axis=0) / np.sqrt(output_runs.shape[0])
+        if self.args.bar:
+            output_auc = np.mean(output_runs[:, int(auc_pct * size):], axis=1)
+            return np.mean(output_auc), np.std(output_auc) / np.sqrt(output_runs.shape[0])
+        else:
+            return np.mean(output_runs, axis=0), np.std(output_runs, axis=0) / np.sqrt(output_runs.shape[0])
 
 class Plotter:
     def __init__(self, call_id, plot_id, args, env_params):
         self.args = args
         self.config = args.config_class()
+        if hasattr(args, 'normalize'):
+            self.config.normalize_formatter = args.normalize
         self.env_params = env_params
         self.plot_name = "_".join([call_id, plot_id])
         self.divide_type = args.divide_type
         self.max_y_plotted = ExtremePoint(max)
         self.min_y_plotted = ExtremePoint(min)
+        self.call_buffer = []
 
     def initialize_plot(self):
         matplotlib.rcParams.update({'font.size': self.config.font_size})
         self.fig = plt.figure(figsize=self.config.figsize)
         self.ax = self.fig.add_subplot()
-        
-        self.x_range = list(range(0, int(self.env_params['TotalMilSteps'] * 1e6 / self.env_params['XAxisSteps'])))
-        self.config.x_lim = (0, self.x_range[-1] + 1)
-        self.ax.set_xlim(self.config.x_lim)
+
+        if not self.args.bar:
+            self.x_range = list(range(0, int(self.env_params['TotalMilSteps'] * 1e6 / self.env_params['XAxisSteps'])))
+            self.config.x_lim = (0, self.x_range[-1] + 1)
+            self.ax.set_xlim(self.config.x_lim)
         
         self.ax.set_ylabel(self.config.ylabel,fontsize=self.config.ylabel_fontsize, rotation=self.config.ylabel_rotation)
         self.ax.set_xlabel(self.config.xlabel, fontsize=self.config.xlabel_fontsize)
 
-        self.xtick_step = int((self.env_params['TotalMilSteps'] * 1e6 / self.env_params['XAxisSteps']) / self.config.n_xticks)
-        ticks = [o for o in self.x_range[::self.xtick_step]]
-        self.ax.set_xticks(ticks)
+        if not hasattr(self.config, 'xticks'):
+            self.xtick_step = int((self.env_params['TotalMilSteps'] * 1e6 / self.env_params['XAxisSteps']) / self.config.n_xticks)
+            ticks = [o for o in self.x_range[::self.xtick_step]]
+            self.ax.set_xticks(ticks)
+        else:
+            self.ax.set_xticks(self.config.xticks)
 
         self.ax.get_xaxis().set_major_formatter(self.config.x_formatter)
 
         self.ax.set_yscale(self.config.yscale)
         self.ax.get_yaxis().set_major_formatter(self.config.y_formatter)
+
+        if hasattr(self.config, "locator_params_kwargs"):
+            self.ax.locator_params(**self.config.locator_params_kwargs)
         
     def plot_curve(self, curve_id, mean, stderr):
         self.max_y_plotted.update(np.max(mean))
         self.min_y_plotted.update(np.min(mean))
-        self.ax.fill_between(self.x_range, mean - stderr, mean + stderr, alpha=self.config.stderr_alpha, color=self.config.get_color(curve_id, self.divide_type))
-        self.ax.plot(self.x_range, mean, linewidth=self.config.linewidth, color=self.config.get_color(curve_id, self.divide_type))
+        color = self.config.get_color(curve_id, self.divide_type)
+        if self.args.bar:
+            x_pos = self.config.get_x_position(curve_id, self.divide_type)
+            plot_partial_call = functools.partial(self.ax.bar, x=x_pos, height=mean, yerr=stderr, color=color, width=self.config.width)
+            self.call_buffer.append(plot_partial_call)
+        else:
+            self.ax.fill_between(self.x_range, mean - stderr, mean + stderr, alpha=self.config.stderr_alpha, color=self.config.get_color(curve_id, self.divide_type))
+            self.ax.plot(self.x_range, mean, linewidth=self.config.linewidth, color=color)
 
     def save_plot(self, save_dir):
         if not os.path.isdir(save_dir):
@@ -190,6 +219,13 @@ class Plotter:
         self.ax.get_yaxis().set_major_formatter(self.config.y_formatter)
         self.ax.set_ylabel(self.config.ylabel)
         self.ax.set_ylim(bottom=new_ymin, top=new_ymax)
+        if self.args.bar and self.args.normalize:
+            for partial_call in self.call_buffer:
+                partial_call.keywords['height'] = partial_call.keywords['height'] - new_ymin
+                partial_call(bottom=new_ymin)
+            delta = new_ymax - new_ymin
+            self.ax.set_yticks([new_ymin + pct * delta for pct in self.config.yticks_pct])
+
 
 class PlotManager:
     def __init__(self, args):
@@ -208,7 +244,8 @@ class PlotManager:
     def get_call_id(self):
         sep_id = "SplitAgents" if self.args.separate_agent_plots else "JointAgents"
         div_id = self.args.divide_type if self.args.divide_type is not None else "NoDivide"
-        return "_".join([sep_id, self.args.how_to_group, div_id])
+        bar_id = ["bar"] if self.args.bar else [""]
+        return "_".join([sep_id, self.args.how_to_group, div_id] + bar_id)
 
     def add(self, plot_id, *f_args, **f_kwargs):
         if plot_id not in self.plot_dict:
@@ -250,6 +287,9 @@ class PlotManager:
                             self.sync_y_max_data[sync_value] = {'max': ExtremePoint(max), 'min': ExtremePoint(min)}
                         self.sync_y_max_data[sync_value]['max'].update(plotter.max_y_plotted.v)
                         self.sync_y_max_data[sync_value]['min'].update(plotter.min_y_plotted.v)
+            if not sync and self.args.normalize:
+                new_ymin, new_ymax = expand_limits(0.8, plotter.min_y_plotted.v, plotter.max_y_plotted.v)
+                plotter.update_y_lim((new_ymin, new_ymax))
         if sync:
             self.synchronize_y_axis(synchronize_y_options)
         for this_plot_dict in self.plot_dict.values():
@@ -268,11 +308,7 @@ class PlotManager:
                     new_ymin = self.sync_y_max_data[sync_value]['min'].v
                     new_ymax = self.sync_y_max_data[sync_value]['max'].v / 0.9
                 else:
-                    delta = self.sync_y_max_data[sync_value]['max'].v - self.sync_y_max_data[sync_value]['min'].v
-                    mean_point = (self.sync_y_max_data[sync_value]['max'].v + self.sync_y_max_data[sync_value]['min'].v) / 2.
-                    new_delta = delta / 0.8
-                    new_ymax = mean_point + new_delta / 2.
-                    new_ymin = mean_point - new_delta / 2.
+                    new_ymin, new_ymax = expand_limits(0.8, self.sync_y_max_data[sync_value]['min'].v, self.sync_y_max_data[sync_value]['max'].v)
                 if "save_max" in synchronize_y_options:
                     out_max[sync_value] = (new_ymin, new_ymax)
             elif synchronize_y_options["mode"] == "from_file":

@@ -36,6 +36,7 @@ class PlotConfig:
     yscale = "linear"
     x_str = "Timesteps"
     y_str = "Reward"
+    normalize_formatter = False
 
     @property
     def y_formatter(self):
@@ -54,19 +55,32 @@ class PlotConfig:
         return self.label(self.x_str, 'x_lim')
 
     def formatter(self, attr):
+        def _normalized(x, pos):
+            if getattr(self, attr) is not None:
+                _max = getattr(self, attr)[1]
+                _min = getattr(self, attr)[0]
+                n = float(x - _min)/(_max-_min)
+                return '{:.2f}'.format(n)
+            else:
+                return '{}'.format(int(x))
         regular = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x)))
         thousands = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x) / 1000))
-        if getattr(self, attr) is not None:
-            if getattr(self, attr)[1] - getattr(self, attr)[0] > 1000:
-                return thousands
+        normalized = ticker.FuncFormatter(_normalized)
+        if self.normalize_formatter is False:
+            if getattr(self, attr) is not None:
+                if getattr(self, attr)[1] - getattr(self, attr)[0] > 1000:
+                    return thousands
+        else:
+            return normalized
         return regular
 
     def label(self, id_str, attr):
         regular = id_str
         thousands = "{} ($10^3$)".format(id_str)
-        if getattr(self, attr) is not None:
-            if getattr(self, attr)[1] - getattr(self, attr)[0] > 1000:
-                return thousands
+        if self.normalize_formatter is False:
+            if getattr(self, attr) is not None:
+                if getattr(self, attr)[1] - getattr(self, attr)[0] > 1000:
+                    return thousands
         return regular
 
     kl_color_dict = {
@@ -149,3 +163,50 @@ class BenchmarksPlotConfig(PlotConfig):
                 return self.high_low_color_dict[agent][divider]
             else:
                 raise NotImplementedError
+
+class BenchmarksBarPlotConfig(BenchmarksPlotConfig):
+    high_low_color_dict = {
+        "ReverseKL": {
+            "low": np.array((0, 128, 66))/255.,
+            "high": np.array((0, 204, 105))/255.
+        },
+        "ForwardKL": {
+            "low": np.array((0, 66, 128))/255.,
+            "high": np.array((0, 119, 230))/255.
+        }
+    }
+
+    width = 0.05
+    intra_offset = 0.01
+    inter_offset = 0.1
+
+    ylabel = "AUC @ 0.5"
+    xlabel = ""
+
+    locator_params_kwargs = {
+        "axis": "y",
+        "nbins": 5,
+    }
+
+    @property
+    def x_formatter(self):
+        return ticker.FuncFormatter(lambda x, pos: "RKL" if x == 0 else "FKL")
+
+    xticks = [0.0, intra_offset + 2* width + inter_offset]
+    yticks_pct = [0.0, 0.25, 0.5, 0.75, 1.0]
+
+    x_axis_dict = {
+        "ReverseKL": {
+            "low": width/2. + intra_offset/2.,
+            "high": -width/2. - intra_offset/2.
+        },
+        "ForwardKL": {
+            "low": (width/2. + intra_offset/2.) + (inter_offset + 2*width + intra_offset),
+            "high": (-width/2. - intra_offset/2.) + (inter_offset + 2*width + intra_offset)
+        }
+    }
+
+    def get_x_position(self, key, divide_type):
+        assert divide_type == 'all_high_all_low'
+        agent, divider = split_key(key)
+        return self.x_axis_dict[agent][divider]

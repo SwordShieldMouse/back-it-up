@@ -6,8 +6,8 @@ import re
 import numpy as np
 from collections import OrderedDict
 import itertools
-from aux_code import *
-from config import *
+from .aux_code import *
+from .config import *
 from utils.main_utils import tryeval
 
 def main(args=None):
@@ -51,6 +51,7 @@ def main(args=None):
         "target_call_id": "_".join(["SplitAgents", args.how_to_group, "entropy_scale"]),
         "sync_idx": sync_idx
     }
+
     manager.plot_and_save_all(synchronize_yaxis_options)
     manager.save_all_data() # To avoid processing again when plotting the next time
 

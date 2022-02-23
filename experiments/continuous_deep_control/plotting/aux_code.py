@@ -174,16 +174,16 @@ class Plotter:
         self.ax = self.fig.add_subplot()
 
         if not self.args.bar:
-            self.x_range = list(range(0, int(self.env_params['TotalMilSteps'] * 1e6 / self.env_params['XAxisSteps'])))
-            self.config.x_lim = (0, self.x_range[-1] + 1)
+            self.x_range = list(range(0, int(self.env_params['TotalMilSteps'] * 1e6), int(self.env_params['XAxisSteps'] )))
+            self.config.x_lim = (0, (self.x_range[-1] + 1) )
             self.ax.set_xlim(self.config.x_lim)
         
         self.ax.set_ylabel(self.config.ylabel,fontsize=self.config.ylabel_fontsize, rotation=self.config.ylabel_rotation)
         self.ax.set_xlabel(self.config.xlabel, fontsize=self.config.xlabel_fontsize)
 
         if not hasattr(self.config, 'xticks'):
-            self.xtick_step = int((self.env_params['TotalMilSteps'] * 1e6 / self.env_params['XAxisSteps']) / self.config.n_xticks)
-            ticks = [o for o in self.x_range[::self.xtick_step]]
+            xtick_max = int((self.env_params['TotalMilSteps'] * 1e6 ) )
+            ticks = range(0, xtick_max+1, int(xtick_max/self.config.n_xticks))
             self.ax.set_xticks(ticks)
         else:
             self.ax.set_xticks(self.config.xticks)
@@ -205,8 +205,9 @@ class Plotter:
             plot_partial_call = functools.partial(self.ax.bar, x=x_pos, height=mean, yerr=stderr, color=color, width=self.config.width)
             self.call_buffer.append(plot_partial_call)
         else:
-            self.ax.fill_between(self.x_range, mean - stderr, mean + stderr, alpha=self.config.stderr_alpha, color=self.config.get_color(curve_id, self.divide_type))
-            self.ax.plot(self.x_range, mean, linewidth=self.config.linewidth, color=color)
+            x_pos = np.array(self.x_range)
+            self.ax.fill_between(x_pos, mean - stderr, mean + stderr, alpha=self.config.stderr_alpha, color=self.config.get_color(curve_id, self.divide_type))
+            self.ax.plot(x_pos, mean, linewidth=self.config.linewidth, color=color)
 
     def save_plot(self, save_dir):
         if not os.path.isdir(save_dir):
@@ -244,7 +245,7 @@ class PlotManager:
     def get_call_id(self):
         sep_id = "SplitAgents" if self.args.separate_agent_plots else "JointAgents"
         div_id = self.args.divide_type if self.args.divide_type is not None else "NoDivide"
-        bar_id = ["bar"] if self.args.bar else [""]
+        bar_id = ["bar"] if self.args.bar else []
         return "_".join([sep_id, self.args.how_to_group, div_id] + bar_id)
 
     def add(self, plot_id, *f_args, **f_kwargs):

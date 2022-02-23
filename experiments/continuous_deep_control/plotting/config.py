@@ -65,11 +65,18 @@ class PlotConfig:
                 return '{}'.format(int(x))
         regular = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x)))
         thousands = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x) / 1000))
+        hundreds_of_thousands = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x / 1e5)))
+        millions = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x / 1e6)))
         normalized = ticker.FuncFormatter(_normalized)
         if self.normalize_formatter is False:
             if getattr(self, attr) is not None:
-                if getattr(self, attr)[1] - getattr(self, attr)[0] > 1000:
+                dif = getattr(self, attr)[1] - getattr(self, attr)[0]
+                if dif > 1000 and dif < 1e5:
                     return thousands
+                elif dif > 1e5 and dif < 1e6:
+                    return hundreds_of_thousands
+                elif dif > 1e6:
+                    return millions
         else:
             return normalized
         return regular
@@ -77,10 +84,17 @@ class PlotConfig:
     def label(self, id_str, attr):
         regular = id_str
         thousands = "{} ($10^3$)".format(id_str)
+        hundreds_of_thousands = "{} ($10^5$)".format(id_str)
+        millions = "{} ($10^6$)".format(id_str)
         if self.normalize_formatter is False:
             if getattr(self, attr) is not None:
-                if getattr(self, attr)[1] - getattr(self, attr)[0] > 1000:
+                dif = getattr(self, attr)[1] - getattr(self, attr)[0]
+                if dif > 1000 and dif < 1e5:
                     return thousands
+                elif dif > 1e5 and dif < 1e6:
+                    return hundreds_of_thousands
+                elif dif > 1e6:
+                    return millions
         return regular
 
     kl_color_dict = {

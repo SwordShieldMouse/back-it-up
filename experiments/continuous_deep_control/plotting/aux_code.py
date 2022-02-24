@@ -8,6 +8,7 @@ from matplotlib import ticker
 from .config import *
 import os
 import functools
+import bisect
 
 def get_high_low(temp):
     if temp in BenchmarksPlotConfig.high_temps:
@@ -76,8 +77,10 @@ class ExtremePoint:
 class PlotDataObj:
     def __init__(self, args):
         self.args = args
+        self.auc_pct = 0.5
         self.divide_type = args.divide_type
         self.how_to_group = args.how_to_group
+        self.hyperparam_for_sensitivity = args.hyperparam_for_sensitivity
         self.all_data = OrderedDict()
         self.has_started_iterating = False
         self.loaded = False
@@ -91,18 +94,28 @@ class PlotDataObj:
         if agent not in self.all_data:
             self.all_data[agent] = OrderedDict()
         if self.divide_type is None:
+            if self.hyperparam_for_sensitivity is not None:
+                raise NotImplementedError
             curr_dict = self.all_data[agent]
         else:
             if ag_params[self.divide_type] not in self.all_data[agent]:
                 self.all_data[agent][ag_params[self.divide_type]] = OrderedDict()
-            curr_dict = self.all_data[agent][ag_params[self.divide_type]]
+            if self.hyperparam_for_sensitivity is not None:
+                if ag_params[self.hyperparam_for_sensitivity] not in self.all_data[agent][ag_params[self.divide_type]]:
+                    self.all_data[agent][ag_params[self.divide_type]][ag_params[self.hyperparam_for_sensitivity]] = OrderedDict()
+                curr_dict = self.all_data[agent][ag_params[self.divide_type]][ag_params[self.hyperparam_for_sensitivity]]
+                if ag_params[self.hyperparam_for_sensitivity] not in self.args.all_hyper:
+                    bisect.insort(self.args.all_hyper, ag_params[self.hyperparam_for_sensitivity])
+            else:
+                curr_dict = self.all_data[agent][ag_params[self.divide_type]]
         if index not in curr_dict:
             curr_dict[index] = []
         curr_dict[index].append(data)
         
     def load(self, pickle_data):
         self.loaded = True
-        self.generator_data = pickle_data
+        self.generator_data = pickle_data['generator_data']
+        self.args.all_hyper = pickle_data['all_hyper']
 
     def iterate(self):
         self.has_started_iterating = True
@@ -117,14 +130,21 @@ class PlotDataObj:
                     self.generator_data.append((curve_id, mean, stderr))
                     yield curve_id, mean, stderr
                 else:
-                    for divide_param in self.all_data[agent].keys():
-                        mean, stderr = self.group(self.all_data[agent][divide_param])
-                        curve_id = "_".join([agent, str(divide_param)])
-                        self.generator_data.append((curve_id, mean, stderr))
-                        yield curve_id, mean, stderr
+                    if self.hyperparam_for_sensitivity is None:
+                        for divide_param in self.all_data[agent].keys():
+                            mean, stderr = self.group(self.all_data[agent][divide_param])
+                            curve_id = "_".join([agent, str(divide_param)])
+                            self.generator_data.append((curve_id, mean, stderr))
+                            yield curve_id, mean, stderr
+                    else:
+                        for divide_param in sorted(self.all_data[agent].keys()):
+                            mean, stderr = self.group_sensitivity(self.all_data[agent][divide_param])
+                            curve_id = "_".join([agent, str(divide_param)])
+                            self.generator_data.append((curve_id, mean, stderr))
+                            yield curve_id, mean, stderr
 
     def group(self, data_dict):
-        auc_pct = 0.5
+        auc_pct = self.auc_pct
         def _get_means(k_AND_v_arr_list):
             k = k_AND_v_arr_list[0]
             v_arr_list = k_AND_v_arr_list[1]
@@ -149,16 +169,26 @@ class PlotDataObj:
 
         nested_output_runs = list(map(lambda it: it[1], filter(lambda it: it[0] in out_k, data_dict.items())))
         output_runs = np.array(nested_output_runs).reshape((-1, size))
-        if self.args.bar:
+        if self.args.bar or self.hyperparam_for_sensitivity is not None:
             output_auc = np.mean(output_runs[:, int(auc_pct * size):], axis=1)
             return np.mean(output_auc), np.std(output_auc) / np.sqrt(output_runs.shape[0])
         else:
             return np.mean(output_runs, axis=0), np.std(output_runs, axis=0) / np.sqrt(output_runs.shape[0])
 
+    def group_sensitivity(self, ag_AND_scale_all_hypers_dict):
+        out_auc = np.zeros([len(self.args.all_hyper)])
+        out_stderr = np.zeros([len(self.args.all_hyper)])
+        for h_idx, h in enumerate(self.args.all_hyper):
+            dict_all_sett = ag_AND_scale_all_hypers_dict[h]
+            auc, stderr = self.group(dict_all_sett)
+            out_auc[h_idx] = auc
+            out_stderr[h_idx] = stderr
+        return out_auc, out_stderr
+
 class Plotter:
     def __init__(self, call_id, plot_id, args, env_params):
         self.args = args
-        self.config = args.config_class()
+        self.config = args.config_class(args)
         if hasattr(args, 'normalize'):
             self.config.normalize_formatter = args.normalize
         self.env_params = env_params
@@ -173,25 +203,27 @@ class Plotter:
         self.fig = plt.figure(figsize=self.config.figsize)
         self.ax = self.fig.add_subplot()
 
-        if not self.args.bar:
+        self.ax.set_yscale(self.config.yscale)
+        self.ax.set_xscale(self.config.xscale)
+
+        if (not self.args.bar) and (self.args.hyperparam_for_sensitivity is None):
             self.x_range = list(range(0, int(self.env_params['TotalMilSteps'] * 1e6), int(self.env_params['XAxisSteps'] )))
             self.config.x_lim = (0, (self.x_range[-1] + 1) )
             self.ax.set_xlim(self.config.x_lim)
-        
-        self.ax.set_ylabel(self.config.ylabel,fontsize=self.config.ylabel_fontsize, rotation=self.config.ylabel_rotation)
+
+        self.ax.set_ylabel(self.config.ylabel, fontsize=self.config.ylabel_fontsize, rotation=self.config.ylabel_rotation)
         self.ax.set_xlabel(self.config.xlabel, fontsize=self.config.xlabel_fontsize)
 
-        if not hasattr(self.config, 'xticks'):
-            xtick_max = int((self.env_params['TotalMilSteps'] * 1e6 ) )
-            ticks = range(0, xtick_max+1, int(xtick_max/self.config.n_xticks))
-            self.ax.set_xticks(ticks)
-        else:
-            self.ax.set_xticks(self.config.xticks)
+        if self.args.hyperparam_for_sensitivity is None:
+            if not hasattr(self.config, 'xticks'):
+                xtick_max = int((self.env_params['TotalMilSteps'] * 1e6 ) )
+                ticks = range(0, xtick_max+1, int(xtick_max/self.config.n_xticks))
+                self.ax.set_xticks(ticks)
+            else:
+                self.ax.set_xticks(self.config.xticks)
 
-        self.ax.get_xaxis().set_major_formatter(self.config.x_formatter)
-
-        self.ax.set_yscale(self.config.yscale)
         self.ax.get_yaxis().set_major_formatter(self.config.y_formatter)
+        self.ax.get_xaxis().set_major_formatter(self.config.x_formatter)
 
         if hasattr(self.config, "locator_params_kwargs"):
             self.ax.locator_params(**self.config.locator_params_kwargs)
@@ -199,14 +231,18 @@ class Plotter:
     def plot_curve(self, curve_id, mean, stderr):
         self.max_y_plotted.update(np.max(mean))
         self.min_y_plotted.update(np.min(mean))
-        color = self.config.get_color(curve_id, self.divide_type)
+        color = self.config.get_color(curve_id)
         if self.args.bar:
-            x_pos = self.config.get_x_position(curve_id, self.divide_type)
+            x_pos = self.config.get_x_position(curve_id)
             plot_partial_call = functools.partial(self.ax.bar, x=x_pos, height=mean, yerr=stderr, color=color, width=self.config.width)
             self.call_buffer.append(plot_partial_call)
+        elif self.args.hyperparam_for_sensitivity is not None:
+            x_axis = np.log10(self.args.all_hyper)
+            self.ax.plot(x_axis, mean, color=self.config.get_color(curve_id), linestyle=self.config.linestyle, marker=self.config.marker, mew=self.config.mew, markersize=self.config.marker_size, linewidth=self.config.linewidth)
+            self.ax.errorbar(x_axis, mean, yerr=stderr, color=self.config.get_color(curve_id), linestyle=self.config.linestyle, linewidth=self.config.linewidth_err)
         else:
             x_pos = np.array(self.x_range)
-            self.ax.fill_between(x_pos, mean - stderr, mean + stderr, alpha=self.config.stderr_alpha, color=self.config.get_color(curve_id, self.divide_type))
+            self.ax.fill_between(x_pos, mean - stderr, mean + stderr, alpha=self.config.stderr_alpha, color=self.config.get_color(curve_id))
             self.ax.plot(x_pos, mean, linewidth=self.config.linewidth, color=color)
 
     def save_plot(self, save_dir):
@@ -241,12 +277,14 @@ class PlotManager:
         self.how_to_group = args.how_to_group
         self.separate_agent_plots = args.separate_agent_plots
         self.sync_y_max_data = {}
+        self.args.all_hyper = []
 
     def get_call_id(self):
         sep_id = "SplitAgents" if self.args.separate_agent_plots else "JointAgents"
         div_id = self.args.divide_type if self.args.divide_type is not None else "NoDivide"
         bar_id = ["bar"] if self.args.bar else []
-        return "_".join([sep_id, self.args.how_to_group, div_id] + bar_id)
+        hypersens_id = ["hsens_{}".format(self.args.hyperparam_for_sensitivity)] if self.args.hyperparam_for_sensitivity is not None else []
+        return "_".join([sep_id, self.args.how_to_group, div_id] + bar_id + hypersens_id)
 
     def add(self, plot_id, *f_args, **f_kwargs):
         if plot_id not in self.plot_dict:
@@ -269,7 +307,7 @@ class PlotManager:
             plot_obj = this_plot_dict['data']
             ofname = os.path.join(preprocessed_dir, "{}.pkl".format("_".join([self.call_id, this_plot_id])))
             if not os.path.isfile(ofname):
-                pickle.dump(obj=plot_obj.generator_data, file=open(ofname, "wb"))
+                pickle.dump(obj={'generator_data': plot_obj.generator_data, 'all_hyper': self.args.all_hyper}, file=open(ofname, "wb"))
 
     def plot_and_save_all(self, synchronize_y_options=None):
         sync = synchronize_y_options is not None

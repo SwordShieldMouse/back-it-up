@@ -34,9 +34,13 @@ class PlotConfig:
     y_lim = None
     x_lim = None
     yscale = "linear"
+    xscale = "linear"
     x_str = "Timesteps"
     y_str = "Reward"
     normalize_formatter = False
+
+    def __init__(self, args):
+        self.args = args
 
     @property
     def y_formatter(self):
@@ -63,10 +67,10 @@ class PlotConfig:
                 return '{:.2f}'.format(n)
             else:
                 return '{}'.format(int(x))
-        regular = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x)))
-        thousands = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x) / 1000))
-        hundreds_of_thousands = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x / 1e5)))
-        millions = ticker.FuncFormatter(lambda x, pos: '{}'.format(int(x / 1e6)))
+        regular = ticker.FuncFormatter(lambda x, pos: '{:.1f}'.format(x))
+        thousands = ticker.FuncFormatter(lambda x, pos: '{:.1f}'.format(x / 1000))
+        hundreds_of_thousands = ticker.FuncFormatter(lambda x, pos: '{:.1f}'.format(x / 1e5))
+        millions = ticker.FuncFormatter(lambda x, pos: '{:.1f}'.format(x / 1e6))
         normalized = ticker.FuncFormatter(_normalized)
         if self.normalize_formatter is False:
             if getattr(self, attr) is not None:
@@ -119,7 +123,8 @@ class CMPlotConfig(PlotConfig):
                         0.001: 'magenta',
                         }
 
-    def get_color(self, key, divide_type):
+    def get_color(self, key):
+        divide_type = self.args.divide_type
         agent, divider = split_key(key)
 
         if divide_type is None:
@@ -166,7 +171,8 @@ class BenchmarksPlotConfig(PlotConfig):
         }
     }
 
-    def get_color(self, key, divide_type):
+    def get_color(self, key):
+        divide_type = self.args.divide_type
         agent, divider = split_key(key)
         if divide_type is None:
             return self.kl_color_dict[agent]
@@ -220,7 +226,26 @@ class BenchmarksBarPlotConfig(BenchmarksPlotConfig):
         }
     }
 
-    def get_x_position(self, key, divide_type):
-        assert divide_type == 'all_high_all_low'
+    def get_x_position(self, key):
+        assert self.args.divide_type == 'all_high_all_low'
         agent, divider = split_key(key)
         return self.x_axis_dict[agent][divider]
+
+class HyperSensPlotConfig(BenchmarksPlotConfig):
+    param = None
+    translate_param = {"pi_lr": "Actor lr", "qf_vf_lr": "Critic lr"}
+
+    linewidth = 5.0
+    linewidth_err = 5
+    figsize = (18, 12)
+    mew = 3
+    marker_size = 15
+    dashes = (5, 0)
+    marker = "."
+    linestyle = "-"
+
+    y_str = "Average 0.5-AUC"
+
+    @property
+    def xlabel(self):
+        return r"$\log_{{10}}$" + "({})".format(self.translate_param[self.args.hyperparam_for_sensitivity])

@@ -20,9 +20,10 @@ class PlotParser:
         self.parser.add_argument('--how_to_group', type=str, default='best', choices=['best', 'top20'])
         self.parser.add_argument('--results_root_dir', type=str, default=os.path.join(self.cwd, "results"))
         self.parser.add_argument('--divide_type', type=str, default="entropy_scale")
+        self.parser.add_argument('--hyperparam_for_sensitivity', type=str, default=None)
         self.parser.add_argument('--no_divide_type', action="store_true")
         self.parser.add_argument('--separate_agent_plots', action="store_true")
-        self.parser.add_argument('--config_class', type=str, default='PlotConfig', choices=['PlotConfig', 'BenchmarksPlotConfig','CMPlotConfig','BenchmarksBarPlotConfig'])
+        self.parser.add_argument('--config_class', type=str, default='PlotConfig', choices=['PlotConfig', 'BenchmarksPlotConfig','CMPlotConfig','BenchmarksBarPlotConfig','HyperSensPlotConfig'])
         self.parser.add_argument('--normalize', action="store_true")
         self.parser.add_argument('--bar', action="store_true")
 

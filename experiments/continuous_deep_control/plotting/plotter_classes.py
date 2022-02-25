@@ -10,13 +10,6 @@ import os
 import functools
 import bisect
 
-def get_high_low(temp):
-    if temp in BenchmarksPlotConfig.high_temps:
-        return 'high'
-    elif temp in BenchmarksPlotConfig.low_temps:
-        return 'low'
-    else:
-        raise ValueError
 
 def expand_limits(pct, low_lim, high_lim):
     delta = high_lim - low_lim
@@ -230,7 +223,7 @@ class Plotter:
 
 
 class PlotManager:
-    def __init__(self, args, env_params):
+    def __init__(self, args):
         self.args = args
         self.call_id = self.get_call_id()
         self.args.config_class = eval(args.config_class)
@@ -241,6 +234,8 @@ class PlotManager:
         self.separate_agent_plots = args.separate_agent_plots
         self.sync_y_max_data = {}
         self.args.all_hyper = []
+        with open(self.args.env_json_fname, "r") as f:
+            self.env_params = json.load(f, object_pairs_hook=OrderedDict)
 
     def get_call_id(self):
         sep_id = "SplitAgents" if self.args.separate_agent_plots else "JointAgents"

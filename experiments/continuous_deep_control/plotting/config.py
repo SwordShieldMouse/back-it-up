@@ -143,7 +143,7 @@ class BenchmarksPlotConfig(PlotConfig):
     figsize = (18, 12)
     stderr_alpha = 0.2
     
-    high_temps = [1, 0.5, 0.1]
+    high_temps = [100., 10., 1., 0.5, 0.1]
     low_temps = [0.05, 0.01, 0.005, 0.001, 0.0]
     @property
     def entropy_and_kl_color_dict(self):

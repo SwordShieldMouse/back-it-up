@@ -15,6 +15,14 @@ def follows_patt(i_str, patt):
 def filter_files_by_patt(files, patt):
     return list(filter(lambda s: follows_patt(s, patt), files))
 
+def get_high_low(temp):
+    if temp in BenchmarksPlotConfig.high_temps:
+        return 'high'
+    elif temp in BenchmarksPlotConfig.low_temps:
+        return 'low'
+    else:
+        raise ValueError
+
 class FileProcessing:
     def __init__(self, args):
         self.args = args
@@ -23,6 +31,7 @@ class FileProcessing:
         self.agent_name = None
         self.base_name = None
         self.ag_params = None
+        self.full_fname = None
         with open(self.args.env_json_fname, "r") as f:
             self.env_params = json.load(f, object_pairs_hook=OrderedDict)
 
@@ -37,11 +46,11 @@ class FileProcessing:
                 json_param_names = json.load(f, object_pairs_hook=OrderedDict)
                 param_names = json_param_names["sweeps"].keys()
 
-            for full_fname in full_filenames:
-                match = patt.search(full_fname)
+            for self.full_fname in full_filenames:
+                match = patt.search(self.full_fname)
 
                 for re_group in input_file_regex_groups:
-                    setattr(self, tryeval(match.group(re_group)))
+                    setattr(self, re_group, tryeval(match.group(re_group)))
 
                 self.base_name = "{e}_{a}_setting_{s}_run_{r}".format(e=args.env_name, a=self.agent_name, s=self.setting, r=self.run)
                 param_values_filename = self.base_name + "_agent_Params.txt"
@@ -50,6 +59,7 @@ class FileProcessing:
                     csv_reader = csv.reader(p_f)
                     param_values = [tryeval(v) for v in next(iter(csv_reader)) if 'tensorflow' not in v]
                 self.ag_params = dict(zip(param_names, param_values))
+                self.ag_params['all_high_all_low'] = get_high_low(self.ag_params['entropy_scale'])
 
                 plot_id = get_plot_id_f(self)
                 self.sync_idx = plot_id.split("_").index(args.env_name)
@@ -57,7 +67,7 @@ class FileProcessing:
                 yield plot_id
 
 
-    def get_unrolled_data(self, data, steps, max_steps, x_axis_steps):
+    def get_unrolled_data(self, data, steps):
         max_steps = self.env_params['TotalMilSteps'] * 1e6
         x_axis_steps = self.env_params['XAxisSteps']
         current_episode = 0
@@ -71,7 +81,7 @@ class FileProcessing:
             running_frame += x_axis_steps
         return output
 
-    def load_and_unroll_files(self):
+    def load_and_unroll_current_file(self):
         base_dir = self.args.env_results_dir
         base_name = self.base_name
         rewards_fname = base_name + "_EpisodeRewardsLC.txt"

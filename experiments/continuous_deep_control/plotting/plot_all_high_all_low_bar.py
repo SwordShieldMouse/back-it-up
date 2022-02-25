@@ -6,7 +6,7 @@ import re
 import numpy as np
 from collections import OrderedDict
 import itertools
-from .aux_code import *
+from .plotter_classes import *
 from .config import *
 from utils.main_utils import tryeval
 

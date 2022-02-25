@@ -18,43 +18,6 @@ def get_high_low(temp):
     else:
         raise ValueError
 
-def follows_patt(i_str, patt):
-    if patt.match(i_str) is not None:
-        return True
-    else:
-        return False
-
-def filter_files_by_patt(files, patt):
-    return list(filter(lambda s: follows_patt(s, patt), files))
-
-def get_unrolled_data(data, steps, max_steps, x_axis_steps):
-    current_episode = 0
-    running_frame = 0
-    n_idxs = int(max_steps/x_axis_steps)
-    output = np.zeros([n_idxs])
-    for global_idx in range(n_idxs):
-        while(running_frame >= steps[current_episode]):
-            current_episode += 1
-        output[global_idx] = np.mean(data[current_episode:current_episode+PlotConfig.episodes_window])
-        running_frame += x_axis_steps
-    return output
-
-def load_and_unroll_files(base_dir, base_name, env_params):
-    rewards_fname = base_name + "_EpisodeRewardsLC.txt"
-    steps_fname = base_name + "_EpisodeStepsLC.txt"
-    unrolled_fname = base_name + "_UnrolledEpisodeStepsLC.txt"
-    full_rewards_fname = os.path.join(base_dir, rewards_fname)
-    full_steps_fname = os.path.join(base_dir, steps_fname)
-    full_unrolled_fname = os.path.join(base_dir, unrolled_fname)
-    if os.path.isfile(full_unrolled_fname):
-        return np.loadtxt(full_unrolled_fname, delimiter=',')
-    else:
-        data = np.loadtxt(full_rewards_fname, delimiter=',')
-        steps = np.loadtxt(full_steps_fname, delimiter=',')
-        data = get_unrolled_data(data, steps, env_params['TotalMilSteps'] * 1e6, env_params['XAxisSteps'])
-        data.tofile(full_unrolled_fname, sep=',')
-        return data
-
 def expand_limits(pct, low_lim, high_lim):
     delta = high_lim - low_lim
     mean_point = (high_lim + low_lim) / 2.
@@ -267,14 +230,12 @@ class Plotter:
 
 
 class PlotManager:
-    def __init__(self, args):
+    def __init__(self, args, env_params):
         self.args = args
         self.call_id = self.get_call_id()
-        with open(self.args.env_json_fname, "r") as f:
-            self.env_params = json.load(f, object_pairs_hook=OrderedDict)            
-        self.env_results_dir = os.path.join(args.results_dir, args.env_name)
         self.args.config_class = eval(args.config_class)
         self.plot_dict = {}
+        self.env_results_dir = self.args.env_results_dir
         self.divide_type = args.divide_type
         self.how_to_group = args.how_to_group
         self.separate_agent_plots = args.separate_agent_plots

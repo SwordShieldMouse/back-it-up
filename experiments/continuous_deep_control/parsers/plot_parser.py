@@ -35,6 +35,7 @@ class PlotParser:
         args.env_json_fname = os.path.join(args.env_json_dir, args.env_name + ".json")
         args.results_dir = os.path.join(args.results_root_dir, '_results')
         args.plot_dir = os.path.join(args.results_root_dir, '_plots')
+        args.env_results_dir = os.path.join(args.results_dir, args.env_name)
         if args.no_divide_type:
             args.divide_type = None
         return args

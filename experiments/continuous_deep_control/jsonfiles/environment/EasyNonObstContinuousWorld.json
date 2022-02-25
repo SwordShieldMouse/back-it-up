@@ -1,9 +1,9 @@
 {
-    "environment": "EasyContinuousWorld",
+    "environment": "EasyNonObstContinuousWorld",
 
     "TotalMilSteps": 0.5,
     "EpisodeSteps": 500000,
-    "TimeoutSteps": 100,
+    "TimeoutSteps": 30,
     "XAxisSteps": 100,
     "XAxisFormatingSteps": 100000,
 

@@ -111,7 +111,10 @@ class PlotConfig:
 
 class CMPlotConfig(PlotConfig):
     x_str = "Timesteps"
-    y_str = "Times Reached"
+    ylabel = "Times Reached"
+
+    yscale = "log"
+    y_formatter = ticker.FuncFormatter(lambda x, pos: '{:.2e}'.format(x))
 
     entropy_color_dict = {
                         1000.: 'blue',

@@ -252,6 +252,8 @@ class Plotter:
     
     def update_y_lim(self, new_ylim):
         new_ymin, new_ymax = new_ylim[0], new_ylim[1]
+        if self.config.yscale == "log" and new_ymin <= 0:
+            new_ymin = 1
         self.config.y_lim = (new_ymin, new_ymax)
         self.ax.get_yaxis().set_major_formatter(self.config.y_formatter)
         self.ax.set_ylabel(self.config.ylabel)

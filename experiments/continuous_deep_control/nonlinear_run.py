@@ -47,20 +47,7 @@ def main(args=None):
     if 'ContinuousMaze' in args.env_json or 'ContinuousWorld' in args.env_json:
         f_lock = LockFile(os.path.join(save_dir,'f_lock.lock'))
         with f_lock:
-            if 'EasyContinuousMaze' in args.env_json:
-                wd_name = 'EasyMazeWorkingDir'
-            elif 'MediumContinuousMaze' in args.env_json:
-                wd_name = 'MediumMazeWorkingDir'
-            elif 'HardContinuousMaze' in args.env_json:
-                wd_name = 'HardMazeWorkingDir'
-            elif 'EasyContinuousWorld' in args.env_json:
-                wd_name = 'EasyWorldWorkingDir'
-            elif 'MultimodalContinuousWorld' in args.env_json:
-                wd_name = 'MultimodalWorldWorkingDir'
-            elif 'DebugContinuousWorld' in args.env_json:
-                wd_name = 'DebugContinuousWorldWorkingDir'
-            else:
-                raise NotImplementedError
+            wd_name = os.path.splitext(os.path.basename(args.env_json))[0]
             working_dir = os.path.join("environments/classes/GM",wd_name)
             netsave_data_bdir = os.path.join(save_dir, 'saved_nets')
             if not os.path.exists(netsave_data_bdir):

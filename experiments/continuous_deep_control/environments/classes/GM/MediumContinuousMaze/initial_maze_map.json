@@ -1,0 +1,108 @@
+{
+    "cols": 7,
+    "endingBlockIdx": [
+        0,
+        6
+    ],
+    "endingPoint": [
+        6.5,
+        0.5
+    ],
+    "haveMisleadingBlock": true,
+    "misleadingPoint_list": [
+        [
+            2.5,
+            2.5
+        ],
+        [
+            6.5,
+            4.5
+        ]
+    ],
+    "misleadingBlockIdx_list": [
+        [
+            2,
+            2
+        ],
+        [
+            4,
+            6
+        ]
+    ],
+    "haveEndingBlock": true,
+    "haveStartingBlock": true,
+    "name": "5_by_7_continuous",
+    "obstacleIndices": [
+        [
+            3,
+            1
+        ],
+        [
+            3,
+            2
+        ],
+        [
+            3,
+            3
+        ],
+        [
+            3,
+            4
+        ],
+        [
+            3,
+            5
+        ],
+        [
+            3,
+            6
+        ],
+        [
+            2,
+            1
+        ],
+        [
+            1,
+            1
+        ],
+        [
+            2,
+            3
+        ],
+        [
+            1,
+            3
+        ],
+        [
+            0,
+            5
+        ],
+        [
+            1,
+            5
+        ]
+    ],
+    "origin": [
+        0,
+        0
+    ],
+    "outOfBoundValue": -10,
+    "rows": 5,
+    "startingBlockIdx": [
+        4,
+        0
+    ],
+    "startingPoint": [
+        0.5,
+        4.5
+    ],
+    "stepSize": [
+        1,
+        1
+    ],
+    "valueEndingBlock": 100000,
+    "valueNormalBlock": -1,
+    "valueObstacleBlock": -10,
+    "valueStartingBlock": -1,
+    "valueMisleadingBlock": 1000
+}

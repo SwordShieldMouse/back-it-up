@@ -100,6 +100,8 @@ class PlotDataObj:
                             yield curve_id, mean, stderr
 
     def group(self, data_dict):
+        for k,v in data_dict.items():
+            data_dict[k] = np.stack(v, axis=0)
         auc_pct = self.auc_pct
         def _get_means(k_AND_v_arr_list):
             k = k_AND_v_arr_list[0]
@@ -124,7 +126,7 @@ class PlotDataObj:
             out_k = sorted_auc_k[int(sorted_auc_k.size * 0.8):]
 
         nested_output_runs = list(map(lambda it: it[1], filter(lambda it: it[0] in out_k, data_dict.items())))
-        output_runs = np.array(nested_output_runs).reshape((-1, size))
+        output_runs = np.concatenate(nested_output_runs,axis=0)
         if self.args.bar or self.hyperparam_for_sensitivity is not None:
             output_auc = np.mean(output_runs[:, int(auc_pct * size):], axis=1)
             return np.mean(output_auc), np.std(output_auc) / np.sqrt(output_runs.shape[0])

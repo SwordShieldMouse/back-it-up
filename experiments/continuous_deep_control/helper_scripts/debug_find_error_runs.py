@@ -31,7 +31,7 @@ for line in lines:
 
     _, setting, run = return_setting_and_run(file_args.agent_json, index)
 
-    results_subdir = os.path.join(input_args.results_dir, '{}results'.format(env))
+    results_subdir = os.path.join(input_args.results_dir, '{}'.format(env))
     fname = '{e}_{a}_setting_{s}_run_{r}_agent_Params.txt'.format(e=env, a=agent, s=setting, r=run )
     full_fname = os.path.join(results_subdir, fname)
 

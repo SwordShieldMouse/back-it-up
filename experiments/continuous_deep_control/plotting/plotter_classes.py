@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import matplotlib
 import pickle
 import json
-from matplotlib import ticker
 from .config import *
 import os
 import functools
@@ -12,6 +11,8 @@ import bisect
 
 
 def expand_limits(pct, low_lim, high_lim):
+    # Expands limits such that the old ones correspond to the central
+    # pct portion of the new limits
     delta = high_lim - low_lim
     mean_point = (high_lim + low_lim) / 2.
     new_delta = delta / pct
@@ -20,6 +21,7 @@ def expand_limits(pct, low_lim, high_lim):
     return new_low, new_high
 
 class ExtremePoint:
+    # Class to store maximum/minimum of many input values
     def __init__(self, comparator_f):
         self.comparator_f = comparator_f
         self.v = None
@@ -31,61 +33,104 @@ class ExtremePoint:
             self.v = self.comparator_f(self.v, new_v)
 
 class PlotDataObj:
+    # Class responsible for storing the data to be plotted
+    # First, the data is iteratively added by PlotManager using self.add,
+    # alternatively, the data can be loaded from a preprocessed pickle using self.load.
+    # After all the data is added (or loaded), the function self.iterate is used to
+    # process (using self.group and/or self.group_sensitivity) and return the data
+    # in plot-ready format (the x and y in matplotlib .plot functions).
+    #
+    # There is one PlotDataObj for each plot (with possibly many curves)
     def __init__(self, args):
         self.args = args
         self.auc_pct = 0.5
+        # Which parameter to use to group settings in curves
         self.divide_type = args.divide_type
+        # Group settings using top20 or best
         self.how_to_group = args.how_to_group
+        # X axis in hyperparameter plots
         self.hyperparam_for_sensitivity = args.hyperparam_for_sensitivity
+        # Dictionary with all data in nested format
+        # Example: { ReverseKL: {
+        #               entr_0.1: { index_1: [run_1, run_2...], index_2: [run_1, run_2...]}
+        #               entr_0.01: { index_5: [run_1, run_2...]}
+        #               }
+        #           }
+        # (obs: has additional level hor hyperparameter sensitivity plots)
         self.all_data = OrderedDict()
+        # Flags
         self.has_started_iterating = False
         self.loaded = False
+        # Stores curve (i.e. processed) data to be saved to file (or which was loaded from file)
         self.generator_data = []
 
     def add(self, agent, ag_params, index, data):
+        # Adds new data to self.all_data (see example dict in __init__)
         if self.has_started_iterating:
             raise AssertionError("Trying to add data to a PlotDataObj that is already being iterated over")
         if self.loaded:
             raise AssertionError("Trying to add data to a PlotDataObj that was loaded from file")
+        # Creates agent dict if inexistent
         if agent not in self.all_data:
             self.all_data[agent] = OrderedDict()
+
+        # These if statements create or select the dictionary where indexes and runs will be added
+        # Option 1: No divide type, use only agent names
         if self.divide_type is None:
             if self.hyperparam_for_sensitivity is not None:
-                raise NotImplementedError
+                raise NotImplementedError("Sensitivity plots only work with divide_type not None")
             curr_dict = self.all_data[agent]
         else:
+            # Creates divide_type (i.e. entropy) dict if inexistent
             if ag_params[self.divide_type] not in self.all_data[agent]:
                 self.all_data[agent][ag_params[self.divide_type]] = OrderedDict()
-            if self.hyperparam_for_sensitivity is not None:
+            # Option 2: Use agent names and divide_type (i.e. entropy)
+            if self.hyperparam_for_sensitivity is None:
+                curr_dict = self.all_data[agent][ag_params[self.divide_type]]
+            else:
+            # Option 3: Use agent names, divide_type and sensitivity hyperparameter
+                # Creates sensitivity hyperparameter dict if non-existent
                 if ag_params[self.hyperparam_for_sensitivity] not in self.all_data[agent][ag_params[self.divide_type]]:
                     self.all_data[agent][ag_params[self.divide_type]][ag_params[self.hyperparam_for_sensitivity]] = OrderedDict()
                 curr_dict = self.all_data[agent][ag_params[self.divide_type]][ag_params[self.hyperparam_for_sensitivity]]
+                # Stores new hyperparameters in shared list args.all_hyper (this is where the X
+                # axis is obtained for sensitivity plots)
                 if ag_params[self.hyperparam_for_sensitivity] not in self.args.all_hyper:
                     bisect.insort(self.args.all_hyper, ag_params[self.hyperparam_for_sensitivity])
-            else:
-                curr_dict = self.all_data[agent][ag_params[self.divide_type]]
+
+        # Insert index and runs in selected dict
         if index not in curr_dict:
             curr_dict[index] = []
         curr_dict[index].append(data)
         
     def load(self, pickle_data):
+        # Load preprocessed data from file, as opposed to using multiple self.add calls.
+        # This function is called by PlotManager
         self.loaded = True
         self.generator_data = pickle_data['generator_data']
         self.args.all_hyper = pickle_data['all_hyper']
 
     def iterate(self):
+        # Generator function
+        # Processes data from self.all_data and returns it in plot-ready format
         self.has_started_iterating = True
+        # If data was loaded from preprocessed file, simply read the list
+        # and return iteratively
         if self.loaded:
             for output in self.generator_data:
                 yield output
+        # Else, process and return iteratively
         else:
             for agent in self.all_data.keys():
+                # Option 1, only agent names are used for grouping settings and runs
                 if self.divide_type is None:
                     mean, stderr = self.group(self.all_data[agent])
                     curve_id = agent
                     self.generator_data.append((curve_id, mean, stderr))
                     yield curve_id, mean, stderr
                 else:
+                    # Option 2, agent names and divide_type (e.g. entropy) are used
+                    # for grouping settings and runs
                     if self.hyperparam_for_sensitivity is None:
                         for divide_param in self.all_data[agent].keys():
                             mean, stderr = self.group(self.all_data[agent][divide_param])
@@ -93,47 +138,69 @@ class PlotDataObj:
                             self.generator_data.append((curve_id, mean, stderr))
                             yield curve_id, mean, stderr
                     else:
+                        # Option 3, agent names, divide_type (e.g. entropy) and sensitivity
+                        # hyperparameter are used for grouping settings and runs
                         for divide_param in sorted(self.all_data[agent].keys()):
+                            # Only the [agent][divide_param] dict is passed, so that the entire
+                            # X axis is generated at once
                             mean, stderr = self.group_sensitivity(self.all_data[agent][divide_param])
                             curve_id = "_".join([agent, str(divide_param)])
                             self.generator_data.append((curve_id, mean, stderr))
                             yield curve_id, mean, stderr
 
     def group(self, data_dict):
+        # Receives data from settings and runs and groups it, returning mean and stderr
+        # Example input: { index_1: [run_1, run_2...], index_2: [run_1, run_2...]}
+
+        # Converts run list to np array
         for k,v in data_dict.items():
             data_dict[k] = np.stack(v, axis=0)
         auc_pct = self.auc_pct
         def _get_means(k_AND_v_arr_list):
+            # Returns index and mean of all runs for that index
             k = k_AND_v_arr_list[0]
             v_arr_list = k_AND_v_arr_list[1]
             return k, np.mean(v_arr_list,axis = 0)
         def _get_auc(k_AND_mean_arr):
+            # Returns index and last (self.auc)% of AUC of mean of all runs for that index
             k = k_AND_mean_arr[0]
             mean_arr = k_AND_mean_arr[1]
             size = mean_arr.size
-            return k, np.sum(mean_arr[int(size * auc_pct):])
+            return k, np.mean(mean_arr[int(size * auc_pct):])
 
+        # Get dict with (setting: mean of runs) entries
         all_means = OrderedDict(map(_get_means, data_dict.items()))
         size = next(iter(all_means.values())).size
+        # Get dict with (setting: (self.auc)% of AUC of mean of runs) entries
         all_auc = OrderedDict(map(_get_auc, all_means.items()))
         all_auc_k, all_auc_v = np.array(list(all_auc.keys())), np.array(list(all_auc.values()))
+        # Sorts (to get top 20% or best)
         argsorted_auc_v = np.argsort(all_auc_v)
         sorted_auc_k, sorted_auc_v = all_auc_k[argsorted_auc_v], all_auc_v[argsorted_auc_v]
 
+        # Selects output settings
         if self.how_to_group == 'best':
             out_k = [sorted_auc_k[-1]]
         elif self.how_to_group == 'top20':
             out_k = sorted_auc_k[int(sorted_auc_k.size * 0.8):]
 
+        # Filters the input data_dict with out_k
         nested_output_runs = list(map(lambda it: it[1], filter(lambda it: it[0] in out_k, data_dict.items())))
-        output_runs = np.concatenate(nested_output_runs,axis=0)
+        # Converts to (-1, size) format
+        output_runs = np.concatenate(nested_output_runs, axis=0)
+        # If bar plots or sensitivity plots, get the mean of the (self.auc)% of AUC of all settings and runs
+        # corresponding to out_k
         if self.args.bar or self.hyperparam_for_sensitivity is not None:
             output_auc = np.mean(output_runs[:, int(auc_pct * size):], axis=1)
             return np.mean(output_auc), np.std(output_auc) / np.sqrt(output_runs.shape[0])
+        # Else (e.g. benchmark plots), just return the mean of the returns
+        # (each step corresponds to returns of nearby episodes)
         else:
             return np.mean(output_runs, axis=0), np.std(output_runs, axis=0) / np.sqrt(output_runs.shape[0])
 
     def group_sensitivity(self, ag_AND_scale_all_hypers_dict):
+        # Receives dict corresponding to current (agent, divide_type) and, for each hyperparameter,
+        # obtains the AUC
         out_auc = np.zeros([len(self.args.all_hyper)])
         out_stderr = np.zeros([len(self.args.all_hyper)])
         for h_idx, h in enumerate(self.args.all_hyper):

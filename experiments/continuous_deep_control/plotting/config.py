@@ -3,6 +3,7 @@ from matplotlib import ticker
 from utils.main_utils import tryeval
 
 def split_key(key):
+    # gets "<agent>_<divider>" string and returns agent and divider
     key = key.split("_")
     agent = key[0]
     if len(key) > 1:
@@ -42,6 +43,8 @@ class PlotConfig:
     def __init__(self, args):
         self.args = args
 
+    # Formatters and labels
+    # These need to be called again to get new formatters when limits change
     @property
     def y_formatter(self):
         return self.formatter('y_lim')
@@ -59,6 +62,7 @@ class PlotConfig:
         return self.label(self.x_str, 'x_lim')
 
     def formatter(self, attr):
+        # Returns formatter based on difference between the attr entries (which are the axis limits)
         def _normalized(x, pos):
             if getattr(self, attr) is not None:
                 _max = getattr(self, attr)[1]
@@ -127,6 +131,7 @@ class CMPlotConfig(PlotConfig):
                         }
 
     def get_color(self, key):
+        # Returns color based on curve id
         divide_type = self.args.divide_type
         agent, divider = split_key(key)
 
@@ -175,6 +180,7 @@ class BenchmarksPlotConfig(PlotConfig):
     }
 
     def get_color(self, key):
+        # Returns color based on curve id
         divide_type = self.args.divide_type
         agent, divider = split_key(key)
         if divide_type is None:
@@ -211,13 +217,18 @@ class BenchmarksBarPlotConfig(BenchmarksPlotConfig):
         "nbins": 5,
     }
 
+    # Only 2 X positions will be shown, one is the RKL and the other is the FKL
     @property
     def x_formatter(self):
         return ticker.FuncFormatter(lambda x, pos: "RKL" if x == 0 else "FKL")
 
+    # Ticks are evenly spread in x_axis to correspond to the groups of bars for RKL and FKL
     xticks = [0.0, intra_offset + 2* width + inter_offset]
     yticks_pct = [0.0, 0.25, 0.5, 0.75, 1.0]
 
+    # Bar positions
+    # values are adjusted to allow for 2 clusters of bars (RKL and FKL),
+    # which are separated with some whitespace
     x_axis_dict = {
         "ReverseKL": {
             "low": width/2. + intra_offset/2.,
@@ -230,6 +241,7 @@ class BenchmarksBarPlotConfig(BenchmarksPlotConfig):
     }
 
     def get_x_position(self, key):
+        # Command line args are passed on __init__
         assert self.args.divide_type == 'all_high_all_low'
         agent, divider = split_key(key)
         return self.x_axis_dict[agent][divider]

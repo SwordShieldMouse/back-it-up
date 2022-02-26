@@ -18,9 +18,12 @@ def main(args=None):
         else:
             return "_".join([obj.args.env_name, obj.exit_type])
 
+    def get_sync_id_f(obj, plot_id):
+        return plot_id.split("_").index(obj.exit_type)
+
     input_regex_groups = ["setting", "run", "exit_type"]
 
-    for plot_id in file_processor.iterate_input_files(input_file_patt_f, input_regex_groups, get_plot_id_f):
+    for plot_id in file_processor.iterate_input_files(input_file_patt_f, input_regex_groups, get_plot_id_f, get_sync_id_f):
         data = np.loadtxt(file_processor.full_fname, delimiter=',')
         manager.add(plot_id, file_processor.agent_name, file_processor.ag_params, file_processor.setting, data)
 

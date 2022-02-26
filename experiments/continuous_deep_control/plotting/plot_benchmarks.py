@@ -17,9 +17,12 @@ def main(args=None):
         else:
             return obj.args.env_name
 
+    def get_sync_id_f(obj, plot_id):
+        return plot_id.split("_").index(obj.args.env_name)
+
     input_regex_groups = ["setting", "run"]
 
-    for plot_id in file_processor.iterate_input_files(input_file_patt_f, input_regex_groups, get_plot_id_f):
+    for plot_id in file_processor.iterate_input_files(input_file_patt_f, input_regex_groups, get_plot_id_f, get_sync_id_f):
         if not manager.load_existing_data(plot_id):
             data = file_processor.load_and_unroll_current_file()
             manager.add(plot_id, file_processor.agent_name, file_processor.ag_params, file_processor.setting, data)

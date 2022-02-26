@@ -1804,10 +1804,10 @@ class GridMapEnv(object):
             raise GridMapException("Map is None.")
 
         if ( not os.path.isdir( self.workingDir ) ):
-            os.makedirs( self.workingDir )
+            os.makedirs( self.workingDir, exist_ok=True )
 
         if ( not os.path.isdir( self.renderDir ) ):
-            os.makedirs( self.renderDir )
+            os.makedirs( self.renderDir, exist_ok=True )
 
         # Close render, if there are any.
         self.close_render()

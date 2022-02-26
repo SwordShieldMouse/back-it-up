@@ -39,17 +39,19 @@ class FileProcessing:
         with open(self.args.env_json_fname, "r") as f:
             self.env_params = json.load(f, object_pairs_hook=OrderedDict)
 
-    def iterate_input_files(self, input_file_patt_f, input_file_regex_groups, get_plot_id_f):
+    def iterate_input_files(self, input_file_patt_f, input_file_regex_groups, get_plot_id_f, get_sync_id_f):
         # This function searches the results directory (provided in self.args)
         # and looks for files following input_file_patt_f. The list input_file_regex_groups
         # is used to extract values from the filenames (e.g. setting, run number...).
         # get_plot_id_f is a function used to return the plot identifier (which is unique
-        # inside each environment, bu not accross environments).
+        # inside each environment, but not accross environments).
         #
         # The function is a generator, and returns a plot_id each time. The other variables
         # corresponding to the returned  plot_id iterate (e.g. agent_name, run, setting, ag_params)
         # can be accessed via the FileProcessing object parameters and can be used, for example
         # to call self.load_and_unroll_current_file between subsequent iterations
+        #
+        # get_sync_id_f is a function used for getting the id used for syncing different y axis
         args = self.args
         for self.agent_name in args.agent_names:
             # Filters files using input regex pattern
@@ -83,6 +85,8 @@ class FileProcessing:
                 # Gets plot id using input function and current iterate parameters
                 # (saved as the current object's attributes)
                 plot_id = get_plot_id_f(self)
+
+                self.sync_idx = get_sync_id_f(self)
                 self.sync_idx = plot_id.split("_").index(args.env_name)
 
                 yield plot_id

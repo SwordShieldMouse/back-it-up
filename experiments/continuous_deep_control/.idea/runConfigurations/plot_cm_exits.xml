@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="plotting.plot_cm_exits" />
-    <option name="PARAMETERS" value="EasyContinuousWorld --separate_agent_plots --how_to_group top20 --config_class CMPlotConfig" />
+    <option name="PARAMETERS" value="EasyNonObstContinuousWorld --separate_agent_plots --how_to_group best --config_class CMPlotConfig" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />

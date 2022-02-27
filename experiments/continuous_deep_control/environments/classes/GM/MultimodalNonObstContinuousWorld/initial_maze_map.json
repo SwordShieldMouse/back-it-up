@@ -1,38 +1,38 @@
 {
   "cols": 9,
   "endingBlockIdx": [
-    6,
+    8,
     8
   ],
   "endingPoint": [
     8.5,
-    6.5
+    8.5
   ],
   "haveMisleadingBlock": true,
   "misleadingPoint_list": [
-    [0.5, 2.5], [6.5, 6.5], [8.5, 4.5], [2.5, 6.5]
+    [0.5, 0.5], [8.5, 0.5], [0.5, 8.5]
   ],
   "misleadingBlockIdx_list": [
-    [2, 0], [6,6], [4,8], [6,2]
+    [0, 0], [0,8], [8,0]
   ],
   "haveEndingBlock": true,
   "haveStartingBlock": true,
   "name": "9_by_9_map",
-  "obstacleIndices": [ [5,5],[5,6],[5,7],[5,8],[6,5],[7,5]
+  "obstacleIndices": [
   ],
   "origin": [
     0,
     0
   ],
-  "outOfBoundValue": -50,
+  "outOfBoundValue": -20,
   "rows": 9,
   "startingBlockIdx": [
-    0,
+    4,
     4
   ],
   "startingPoint": [
     4.5,
-    0.5
+    4.5
   ],
   "stepSize": [
     1,
@@ -40,7 +40,7 @@
   ],
   "valueEndingBlock": 5000,
   "valueNormalBlock": -1,
-  "valueObstacleBlock": -50,
+  "valueObstacleBlock": -20,
   "valueStartingBlock": -1,
   "valueMisleadingBlock": 0
 }

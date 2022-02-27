@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="1fcd29e1-ba7c-4ceb-8e9d-f659c19c8df6" name="cedar">
+        <fileTransfer rootFolder="/home/hugoluis" accessType="SFTP" host="cedar.computecanada.ca" port="22" sshConfigId="34aee9f1-936a-49a4-88ff-4deea028a554" sshConfig="hugoluis@cedar.computecanada.ca:22" authAgent="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="100000" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

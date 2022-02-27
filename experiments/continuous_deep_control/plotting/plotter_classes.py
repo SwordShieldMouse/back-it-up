@@ -471,6 +471,6 @@ class PlotManager:
             elif synchronize_y_options["mode"] == "from_file":
                 new_ymin, new_ymax = max_dict[sync_value]
             plotter.update_y_lim((new_ymin, new_ymax))
-        # Save max info for syncing of posterior calls 
+        # Save max info for syncing of posterior calls
         if "save_max" in synchronize_y_options:
             pickle.dump(out_max, open(os.path.join(self.args.preprocessed_dir, "{}_max_data.pkl".format(self.call_id)), "wb"))

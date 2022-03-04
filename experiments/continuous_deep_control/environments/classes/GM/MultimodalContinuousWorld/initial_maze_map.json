@@ -10,10 +10,10 @@
   ],
   "haveMisleadingBlock": true,
   "misleadingPoint_list": [
-    [0.5, 2.5], [6.5, 6.5], [8.5, 4.5], [2.5, 6.5]
+    [0.5, 2.5], [8.5, 4.5], [8.5,0.5], [0.5, 8.5]
   ],
   "misleadingBlockIdx_list": [
-    [2, 0], [6,6], [4,8], [6,2]
+    [2, 0], [4,8], [0,8], [8,0]
   ],
   "haveEndingBlock": true,
   "haveStartingBlock": true,
@@ -42,5 +42,5 @@
   "valueNormalBlock": -1,
   "valueObstacleBlock": -50,
   "valueStartingBlock": -1,
-  "valueMisleadingBlock": 0
+  "valueMisleadingBlock": 30
 }

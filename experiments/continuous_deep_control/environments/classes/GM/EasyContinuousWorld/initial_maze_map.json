@@ -48,5 +48,5 @@
   "valueNormalBlock": -1,
   "valueObstacleBlock": -50,
   "valueStartingBlock": -1,
-  "valueMisleadingBlock": 0
+  "valueMisleadingBlock": 30
 }

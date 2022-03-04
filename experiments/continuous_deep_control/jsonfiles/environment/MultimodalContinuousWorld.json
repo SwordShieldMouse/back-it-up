@@ -3,7 +3,7 @@
 
     "TotalMilSteps": 0.5,
     "EpisodeSteps": 500000,
-    "TimeoutSteps": 100,
+    "TimeoutSteps": 50,
     "XAxisSteps": 100,
     "XAxisFormatingSteps": 100000,
 

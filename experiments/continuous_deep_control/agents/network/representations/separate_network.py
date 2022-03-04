@@ -2,9 +2,11 @@ import torch
 torch.set_default_dtype(torch.float32)
 import torch.nn as nn
 
+import numpy as np
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import MultivariateNormal
+from torch.distributions import Categorical
 
 
 class ValueNetwork(nn.Module):
@@ -84,16 +86,19 @@ class PolicyNetwork(nn.Module):
 
         self.linear2 = nn.Sequential(*linear2)
 
-        self.mean_linear = nn.Linear(layer_dim, action_dim)
-        self.mean_linear.weight.data.uniform_(-init_w, init_w)
-        self.mean_linear.bias.data.uniform_(-init_w, init_w)
+        self.layer_dim, self.action_dim, self.init_w = layer_dim, action_dim, init_w
 
-        self.log_std_linear = nn.Linear(layer_dim, action_dim)
-        self.log_std_linear.weight.data.uniform_(-init_w, init_w)
-        self.log_std_linear.bias.data.uniform_(-init_w, init_w)
-
-        self.action_dim = action_dim
+        self._create_output_layer()
         self.action_scale = action_scale
+
+    def _create_output_layer(self):
+        self.mean_linear = nn.Linear(self.layer_dim, self.action_dim)
+        self.mean_linear.weight.data.uniform_(-self.init_w, self.init_w)
+        self.mean_linear.bias.data.uniform_(-self.init_w, self.init_w)
+
+        self.log_std_linear = nn.Linear(self.layer_dim, self.action_dim)
+        self.log_std_linear.weight.data.uniform_(-self.init_w, self.init_w)
+        self.log_std_linear.bias.data.uniform_(-self.init_w, self.init_w)
 
     def forward(self, state):
         x = F.relu(self.linear1(state))
@@ -204,3 +209,126 @@ class PolicyNetwork(nn.Module):
 
         action = action.detach().cpu().numpy()
         return action[0]
+
+class PolicyNetworkGMM(PolicyNetwork):
+    def __init__(self, *args, n_gmm_components=5, **kwargs):
+        self.n_gmm_components = n_gmm_components
+        # self.gmm_components is not returned in self.parameters()
+        self.gmm_components = torch.nn.init.uniform_(torch.empty((n_gmm_components,), requires_grad=True), -1.0, 1.0)
+        super(PolicyNetworkGMM, self).__init__(*args, **kwargs)
+
+    def _create_output_layer(self):
+        self.mean_linear = nn.Linear(self.layer_dim, self.action_dim * self.n_gmm_components)
+        self.mean_linear.weight.data.uniform_(-self.init_w, self.init_w)
+        self.mean_linear.bias.data.uniform_(-self.init_w, self.init_w)
+
+        self.log_std_linear = nn.Linear(self.layer_dim, self.action_dim * self.n_gmm_components)
+        self.log_std_linear.weight.data.uniform_(-self.init_w, self.init_w)
+        self.log_std_linear.bias.data.uniform_(-self.init_w, self.init_w)
+
+    def forward(self, state):
+        mean, std = super(PolicyNetworkGMM, self).forward(state)
+        mean = torch.reshape(mean, list(mean.shape[:-1]) + [self.n_gmm_components, self.action_dim] )
+        std = torch.reshape(std, list(std.shape[:-1]) + [self.n_gmm_components, self.action_dim])
+        return mean, std
+
+
+    def evaluate(self, state, epsilon=1e-6, no_grad=None):
+        all_pre_mean, all_std = self.forward(state)
+        batch_size = int(all_pre_mean.shape[0])
+
+        latent_dist = Categorical(logits=self.gmm_components)
+        sampled_latent = latent_dist.sample(list(all_pre_mean.shape[:-2]))
+
+        all_normals = self.get_distribution(all_pre_mean, all_std)
+
+        this_pre_mean = all_pre_mean[range(batch_size), sampled_latent]
+        this_std = all_std[range(batch_size), sampled_latent]
+        normal = self.get_distribution(this_pre_mean, this_std)
+
+        raw_action = normal.sample()
+        action = torch.tanh(raw_action)
+
+        all_log_probs = all_normals.log_prob(raw_action.unsqueeze(1))
+        if self.action_dim == 1:
+            all_log_probs.squeeze_(-1)
+
+        log_prob = torch.logsumexp(all_log_probs + self.gmm_components, dim=-1)
+        log_prob -= torch.logsumexp(self.gmm_components, dim=-1)
+        if len(log_prob.shape) == 1:
+            log_prob.unsqueeze_(-1)
+
+        log_prob -= torch.log(self.action_scale * (1 - action.pow(2)) + epsilon).sum(dim=-1, keepdim=True)
+
+        # scale to correct range
+        action = action * self.action_scale
+
+        mean = torch.tanh(this_pre_mean) * self.action_scale
+        return action, log_prob, raw_action, this_pre_mean, mean, this_std
+
+    def evaluate_multiple(self, state, num_actions, epsilon=1e-6, no_grad=None):
+        # state: (batch_size, state_dim)
+        all_pre_mean, all_std = self.forward(state)
+        batch_size = int(all_pre_mean.shape[0])
+
+        latent_dist = Categorical(logits=self.gmm_components)
+        sampled_latent = latent_dist.sample(list(all_pre_mean.shape[:-2]) + [num_actions])
+        all_normals = self.get_distribution(all_pre_mean, all_std)
+
+        unr_sampled_latent = sampled_latent.reshape(-1)
+        repeated_idxs = np.concatenate([[i] * num_actions for i in range(batch_size)])
+        unr_this_pre_mean = all_pre_mean[repeated_idxs, unr_sampled_latent, :]
+        unr_this_std = all_std[repeated_idxs, unr_sampled_latent, :]
+        this_pre_mean = unr_this_pre_mean.reshape([batch_size, num_actions, -1])
+        this_std = unr_this_std.reshape([batch_size, num_actions, -1])
+        normal = self.get_distribution(this_pre_mean, this_std)
+
+        raw_action = normal.sample()
+        action = torch.tanh(raw_action)
+
+        all_log_probs = all_normals.log_prob(raw_action.permute(1,0,2).unsqueeze(2))
+        if self.action_dim == 1:
+            all_log_probs.squeeze_(-1)
+        all_log_probs = all_log_probs.permute(1,0,2)
+
+        log_prob = torch.logsumexp(all_log_probs + self.gmm_components, dim=-1)
+        log_prob -= torch.logsumexp(self.gmm_components, dim=-1)
+
+        if len(log_prob.shape) == 2:
+            log_prob.unsqueeze_(-1)
+
+        log_prob -= torch.log(self.action_scale * (1 - action.pow(2)) + epsilon).sum(dim=-1, keepdim=True)
+
+        log_prob = log_prob.squeeze(-1)  # (batch_size, num_actions)
+
+        # scale to correct range
+        action = action * self.action_scale
+
+        return action, log_prob, None, None, None, None
+
+    def get_logprob(self, states, tiled_actions, epsilon = 1e-6):
+        raise NotImplementedError
+
+    def get_action(self, state):
+        raise NotImplementedError
+
+if __name__ == "__main__":
+    test_p = [(32, 3, 7, 128),(1, 3, 7, 128),(32, 1, 7, 128),(32, 3, 1, 128),(32, 3, 7, 1),(1, 1, 1, 1)]
+
+    for batch_size, state_size, action_size, num_actions in test_p:
+        state_batch = torch.ones([batch_size, state_size])
+        # Regular
+        reg_nn = PolicyNetwork(state_size, action_size, num_actions, 1)
+        actions_single, log_pdfs_single, _, _, _, _ = reg_nn.evaluate(state_batch)
+        actions_mult, log_pdfs_mult, _, _, _, _ = reg_nn.evaluate_multiple(state_batch, num_actions)
+        # GMM
+        gmm_nn = PolicyNetworkGMM(state_size, action_size, num_actions, 1)
+        gmm_actions_single, gmm_log_pdfs_single, _, _, _, _ = gmm_nn.evaluate(state_batch)
+        gmm_actions_mult, gmm_log_pdfs_mult, _, _, _, _ = gmm_nn.evaluate_multiple(state_batch, num_actions)
+        # print("Single:\n\tAction: {} X {}\n\tLogprob: {} x {}".format(actions_single.shape, gmm_actions_single.shape, log_pdfs_single.shape, gmm_log_pdfs_single.shape))
+        # print("Mult:\n\tAction: {} X {}\n\tLogprob: {} x {}".format(actions_mult.shape, gmm_actions_mult.shape,log_pdfs_mult.shape,gmm_log_pdfs_mult.shape))
+        assert(actions_single.shape == gmm_actions_single.shape)
+        assert(log_pdfs_single.shape == gmm_log_pdfs_single.shape)
+        assert(actions_mult.shape == gmm_actions_mult.shape)
+        assert(log_pdfs_mult.shape == gmm_log_pdfs_mult.shape)
+

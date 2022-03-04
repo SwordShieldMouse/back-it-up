@@ -36,13 +36,8 @@ class ForwardKLNetwork(BaseNetwork):
         # create network
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0], config.n_hidden)
-        self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, config.n_hidden)
-        self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim, config.n_hidden)
-
-        self.pi_net = self.pi_net.to(self.pi_net.device)
-        self.q_net = self.q_net.to(self.q_net.device)
-        self.v_net = self.v_net.to(self.v_net.device)
+        self._initialize_policy_network(config)
+        self._initialize_value_networks(config)
 
         if self.use_target:
             self.target_v_net = ValueNetwork(self.state_dim, config.actor_critic_dim)
@@ -50,12 +45,6 @@ class ForwardKLNetwork(BaseNetwork):
             # copy to target_v_net
             for target_param, param in zip(self.target_v_net.parameters(), self.v_net.parameters()):
                 target_param.data.copy_(param.data)
-
-
-        # optimizer
-        self.pi_optimizer = optim.RMSprop(self.pi_net.parameters(), lr=self.learning_rate[0])
-        self.q_optimizer = optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate[1])
-        self.v_optimizer = optim.RMSprop(self.v_net.parameters(), lr=self.learning_rate[1])
 
         dtype = torch.float32
 
@@ -116,6 +105,20 @@ class ForwardKLNetwork(BaseNetwork):
             print("Num. Integration points: {}".format(self.intgrl_actions_len))
         elif self.optim_type == 'wis':
             print("WIS points: {}".format(self.n_action_points))
+
+    def _initialize_policy_network(self, config):
+        self.pi_net = PolicyNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0], config.n_hidden)
+        self.pi_net = self.pi_net.to(self.pi_net.device)
+        # optimizer
+        self.pi_optimizer = optim.RMSprop(self.pi_net.parameters(), lr=self.learning_rate[0])
+
+    def _initialize_value_networks(self, config):
+        self.q_net = SoftQNetwork(self.state_dim, self.action_dim, config.actor_critic_dim, config.n_hidden)
+        self.v_net = ValueNetwork(self.state_dim, config.actor_critic_dim, config.n_hidden)
+        self.q_net = self.q_net.to(self.q_net.device)
+        self.v_net = self.v_net.to(self.v_net.device)
+        self.q_optimizer = optim.RMSprop(self.q_net.parameters(), lr=self.learning_rate[1])
+        self.v_optimizer = optim.RMSprop(self.v_net.parameters(), lr=self.learning_rate[1])
 
     def sample_action(self, state_batch):
         state_batch = torch.FloatTensor(state_batch).to(self.device)
@@ -227,15 +230,18 @@ class ForwardKLNetwork(BaseNetwork):
             self.q_optimizer.zero_grad()
             self.v_optimizer.zero_grad()
             self.pi_optimizer.zero_grad()
+            if hasattr(self, 'pi_gmm_optimizer'):
+                self.pi_gmm_optimizer.zero_grad()
 
             q_value_loss.backward(retain_graph=True)
             value_loss.backward(retain_graph=True)
             policy_loss.backward()
 
-
             self.q_optimizer.step()
             self.v_optimizer.step()
             self.pi_optimizer.step()
+            if hasattr(self, 'pi_gmm_optimizer'):
+                self.pi_gmm_optimizer.step()
         else:
             self.pi_optimizer.zero_grad()
             policy_loss.backward()
@@ -265,3 +271,18 @@ class ForwardKLNetwork(BaseNetwork):
         mean = mean.detach().cpu().numpy()
         std = std.detach().cpu().numpy()
         return lambda action: 1/(std * np.sqrt(2 * np.pi)) * np.exp(- (action - mean)**2 / (2 * std**2))
+
+
+class ForwardKL_GMM_Network(ForwardKLNetwork):
+    def _initialize_policy_network(self, config):
+        self.pi_net = PolicyNetworkGMM(self.state_dim, self.action_dim, config.actor_critic_dim, self.action_max[0], config.n_hidden,n_gmm_components=config.n_gmm_components)
+        self.pi_net = self.pi_net.to(self.pi_net.device)
+        self.pi_net.gmm_components = self.pi_net.gmm_components.to(self.pi_net.device).detach().requires_grad_(True)
+        # optimizer
+        self.pi_optimizer = optim.RMSprop(self.pi_net.parameters(), lr=self.learning_rate[0])
+        self.pi_gmm_optimizer = optim.RMSprop([self.pi_net.gmm_components], lr=self.config.gmm_lr)
+
+    def update_network(self, *args, **kwargs):
+        # self.pi_gmm_optimizer.zero_grad()
+        super(ForwardKL_GMM_Network, self).update_network(*args, **kwargs)
+        # self.pi_gmm_optimizer.step()

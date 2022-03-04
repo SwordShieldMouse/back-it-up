@@ -25,6 +25,10 @@ def create_agent(agent_string, config):
         from agents.ForwardKL import ForwardKL
         return ForwardKL(config)
 
+    elif agent_string == 'ForwardKL_GMM':
+        from agents.ForwardKL import ForwardKL_GMM
+        return ForwardKL_GMM(config)
+
     else:
         print("Don't know this agent")
         exit(0)

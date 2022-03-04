@@ -17,7 +17,11 @@ class ForwardKL_Network_Manager(BaseNetwork_Manager):
         self.use_target = config.use_target
 
         # define network
-        self.network = forwardkl_network.ForwardKLNetwork(config)
+        self._init_network(config)
+        self.network = self._init_network(config)
+
+    def _init_network(self, config):
+        return forwardkl_network.ForwardKLNetwork(config)
 
     def take_action(self, state, is_train, is_start):
 
@@ -56,12 +60,20 @@ class ForwardKL_Network_Manager(BaseNetwork_Manager):
             self.network.update_target_network()
 
 
+class ForwardKL_GMM_Network_Manager(ForwardKL_Network_Manager):
+    def _init_network(self, config):
+        return forwardkl_network.ForwardKL_GMM_Network(config)
+
 class ForwardKL(BaseAgent):
     def __init__(self, config):
         network_manager = ForwardKL_Network_Manager(config)
         super(ForwardKL, self).__init__(config, network_manager)
 
 
+class ForwardKL_GMM(BaseAgent):
+    def __init__(self, config):
+        network_manager = ForwardKL_GMM_Network_Manager(config)
+        super(ForwardKL_GMM, self).__init__(config, network_manager)
 
 
 

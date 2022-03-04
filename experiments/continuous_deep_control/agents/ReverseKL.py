@@ -59,4 +59,14 @@ class ReverseKL(BaseAgent):
     def __init__(self, config):
         network_manager = ReverseKL_Network_Manager(config)
         super(ReverseKL, self).__init__(config, network_manager)
+        
+class ReverseKL_GMM_Network_Manager(ReverseKL_Network_Manager):
+    def _init_network(self, config):
+        return reversekl_network.ReverseKL_GMM_Network(config)
+
+
+class ReverseKL_GMM(BaseAgent):
+    def __init__(self, config):
+        network_manager = ReverseKL_GMM_Network_Manager(config)
+        super(ReverseKL_GMM, self).__init__(config, network_manager)
 

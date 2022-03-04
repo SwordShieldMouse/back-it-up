@@ -4,13 +4,13 @@
         "actor_critic_dim": [128],
         "n_hidden": [1],
 
-        "pi_lr": [1e-1,1e-2,1e-3,1e-4,1e-5],
-        "qf_vf_lr": [1e-1,1e-2,1e-3,1e-4,1e-5],
+        "pi_lr": [1e-3],
+        "qf_vf_lr": [1e-3],
 
         "sample_for_eval": [false],
         "use_true_q": [false],
 
-        "entropy_scale": [100,10,1,1e-1,1e-2],
+        "entropy_scale": [1e-1],
 
         "l_param": [6],
         "N_param": [64],

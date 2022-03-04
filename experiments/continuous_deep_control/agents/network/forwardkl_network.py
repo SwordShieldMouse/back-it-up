@@ -230,8 +230,6 @@ class ForwardKLNetwork(BaseNetwork):
             self.q_optimizer.zero_grad()
             self.v_optimizer.zero_grad()
             self.pi_optimizer.zero_grad()
-            if hasattr(self, 'pi_gmm_optimizer'):
-                self.pi_gmm_optimizer.zero_grad()
 
             q_value_loss.backward(retain_graph=True)
             value_loss.backward(retain_graph=True)
@@ -240,8 +238,6 @@ class ForwardKLNetwork(BaseNetwork):
             self.q_optimizer.step()
             self.v_optimizer.step()
             self.pi_optimizer.step()
-            if hasattr(self, 'pi_gmm_optimizer'):
-                self.pi_gmm_optimizer.step()
         else:
             self.pi_optimizer.zero_grad()
             policy_loss.backward()
@@ -283,6 +279,7 @@ class ForwardKL_GMM_Network(ForwardKLNetwork):
         self.pi_gmm_optimizer = optim.RMSprop([self.pi_net.gmm_components], lr=self.config.gmm_lr)
 
     def update_network(self, *args, **kwargs):
-        # self.pi_gmm_optimizer.zero_grad()
+        assert self.optim_type == "wis"
+        self.pi_gmm_optimizer.zero_grad()
         super(ForwardKL_GMM_Network, self).update_network(*args, **kwargs)
-        # self.pi_gmm_optimizer.step()
+        self.pi_gmm_optimizer.step()

@@ -29,6 +29,10 @@ def create_agent(agent_string, config):
         from agents.ForwardKL import ForwardKL_GMM
         return ForwardKL_GMM(config)
 
+    elif agent_string == 'ReverseKL_GMM':
+        from agents.ReverseKL import ReverseKL_GMM
+        return ReverseKL_GMM(config)
+
     else:
         print("Don't know this agent")
         exit(0)

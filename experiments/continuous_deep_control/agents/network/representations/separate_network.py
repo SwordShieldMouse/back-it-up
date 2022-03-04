@@ -253,8 +253,7 @@ class PolicyNetworkGMM(PolicyNetwork):
         if self.action_dim == 1:
             all_log_probs.squeeze_(-1)
 
-        log_prob = torch.logsumexp(all_log_probs + self.gmm_components, dim=-1)
-        log_prob -= torch.logsumexp(self.gmm_components, dim=-1)
+        log_prob = torch.logsumexp(all_log_probs + self.gmm_components, dim=-1) - torch.logsumexp(self.gmm_components, dim=-1)
         if len(log_prob.shape) == 1:
             log_prob.unsqueeze_(-1)
 
@@ -291,8 +290,7 @@ class PolicyNetworkGMM(PolicyNetwork):
             all_log_probs.squeeze_(-1)
         all_log_probs = all_log_probs.permute(1,0,2)
 
-        log_prob = torch.logsumexp(all_log_probs + self.gmm_components, dim=-1)
-        log_prob -= torch.logsumexp(self.gmm_components, dim=-1)
+        log_prob = torch.logsumexp(all_log_probs + self.gmm_components, dim=-1) - torch.logsumexp(self.gmm_components, dim=-1)
 
         if len(log_prob.shape) == 2:
             log_prob.unsqueeze_(-1)

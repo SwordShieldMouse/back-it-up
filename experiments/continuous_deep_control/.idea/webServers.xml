@@ -16,6 +16,13 @@
           </advancedOptions>
         </fileTransfer>
       </webServer>
+      <webServer id="6ae522d1-8a4c-4603-a535-8e95b5decbcc" name="narval">
+        <fileTransfer rootFolder="/home/hugoluis" accessType="SFTP" host="narval.computecanada.ca" port="22" sshConfigId="fcff9e3d-1841-49db-a484-dcc28d8a4067" sshConfig="hugoluis@narval.computecanada.ca:22" authAgent="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="100000" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
     </option>
   </component>
 </project>

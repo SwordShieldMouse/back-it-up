@@ -12,6 +12,6 @@
 # TODO: REMOVE THIS
 rm -rf results
 . $HOME/my_cc_scripts/custom_commands.sh
-CC_MY_SINGULARITY_EXEC pipenv run python -m helper_scripts.debug_find_error_runs > $HOME/my_cc_scripts/sbatch_files/${CLUSTER_NAME}.txt
-CC_SBATCH_FROM_FILE --time 4:00:00 --mem_per_cpu 8G
+CC_MY_SINGULARITY_EXEC pipenv run python -m helper_scripts.debug_find_error_runs > $HOME/my_cc_scripts/sbatch_files/${CLUSTER_NAME}_2.txt
+CC_SBATCH_FROM_FILE --time 4:00:00 --mem_per_cpu 8G --file $HOME/my_cc_scripts/sbatch_files/${CLUSTER_NAME}_2.txt
 

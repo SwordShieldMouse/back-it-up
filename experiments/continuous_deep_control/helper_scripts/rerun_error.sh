@@ -5,7 +5,7 @@
 #SBATCH --error=./slurm_logs/rerun_error.err
 #SBATCH --array=1-1
 #SBATCH --time=30:00
-#SBATCH --mem_per_cpu=2G
+#SBATCH --mem-per-cpu=2G
 #SBATCH --account=def-whitem
 #SBATCH --dependency=singleton
 

@@ -1,0 +1,12 @@
+{
+    "environment": "MultimodalContinuousWorld",
+
+    "TotalMilSteps": 0.0001,
+    "EpisodeSteps": 50,
+    "TimeoutSteps": 50,
+    "XAxisSteps": 100,
+    "XAxisFormatingSteps": 100000,
+
+    "EvalIntervalMilSteps": 0.5,
+    "EvalEpisodes": 1
+}

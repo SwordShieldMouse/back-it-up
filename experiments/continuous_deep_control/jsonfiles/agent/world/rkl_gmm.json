@@ -27,6 +27,6 @@
         "n_action_points": [32],
 
         "n_gmm_components": [5],
-        "gmm_lr": [0.1]
+        "gmm_lr": [0.1,0.01,0.001]
     }
 }

@@ -3,6 +3,7 @@ import os
 import argparse
 from parsers.main_parser import MainParser
 from helper_scripts.debug_translate_setn_to_params import return_setting_and_run
+import json
 
 input_parser = argparse.ArgumentParser()
 input_parser.add_argument("--path_to_command_file",type=str,default='helper_scripts/commands.txt')
@@ -15,7 +16,6 @@ lines = f.readlines()
 file_parser = MainParser()
 get_fname = lambda full_fname : os.path.splitext(os.path.basename(full_fname))[0]
 
-full_agent_name_dict = {'fkl': 'ForwardKL', 'rkl': 'ReverseKL'}
 
 for line in lines:
     line = line.rstrip("\n")
@@ -25,7 +25,8 @@ for line in lines:
     file_args = match.group('command_args')
     file_args = file_parser.parse_args(file_args.split())
 
-    agent = full_agent_name_dict[get_fname(file_args.agent_json)]
+    agent_args = json.load(open(file_args.agent_json,"r"))
+    agent = agent_args["agent"]
     env = get_fname(file_args.env_json)
     index = file_args.index
 

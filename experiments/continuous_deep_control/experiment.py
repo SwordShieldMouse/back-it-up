@@ -81,7 +81,7 @@ class Experiment(object):
                 train_ep_time -= self.eval_session_time
 
             self.cum_train_time += train_ep_time
-            print("Train:: ep: " + str(self.episode_count) + ", r: " + str(self.episode_reward) + ", n_steps: " + str(self.episode_step_count) + ", elapsed: " + time.strftime("%H:%M:%S", time.gmtime(train_ep_time)))            
+            print("Train:: ep: " + str(self.episode_count) + ", r: " + str(self.episode_reward) + ", n_steps: " + str(self.episode_step_count) + ", elapsed: " + time.strftime("%H:%M:%S", time.gmtime(train_ep_time)) + ', Step:{}'.format(self.total_step_count) )
 
             if not force_terminated: 
                 self.train_rewards_per_episode.append(self.episode_reward)
@@ -122,6 +122,9 @@ class Experiment(object):
                     self.save_data()
                     self.last_time_saved = time.time()
                     print("#########SAVED#########")
+
+            if self.episode_step_count > 10000 and self.episode_step_count % 10000 == 0:
+                print('Current step: {}/{}'.format(self.total_step_count, self.train_environment.TOTAL_STEPS_LIMIT))
 
             if self.is_maze and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:
                 netsave_dir = os.path.join(self.netsave_data_bdir,os.path.splitext(self.save_data_fname)[0], '{}'.format(self.total_step_count))

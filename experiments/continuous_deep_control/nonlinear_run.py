@@ -6,6 +6,7 @@ from experiment import Experiment
 import shutil
 from lockfile import LockFile
 import torch
+import sys
 
 import numpy as np
 import json
@@ -19,6 +20,19 @@ from parsers.main_parser import MainParser
 from utils.main_utils import get_sweep_parameters, create_agent
 #from torch.utils.tensorboard import SummaryWriter
 
+class Unbuffered(object):
+   def __init__(self, stream):
+       self.stream = stream
+   def write(self, data):
+       self.stream.write(data)
+       self.stream.flush()
+   def writelines(self, datas):
+       self.stream.writelines(datas)
+       self.stream.flush()
+   def __getattr__(self, attr):
+       return getattr(self.stream, attr)
+
+sys.stdout = Unbuffered(sys.stdout)
 
 def main(args=None):
     # parse arguments

@@ -123,8 +123,8 @@ class Experiment(object):
                     self.last_time_saved = time.time()
                     print("#########SAVED#########")
 
-            if self.episode_step_count > 10000 and self.episode_step_count % 10000 == 0:
-                print('Current step: {}/{}'.format(self.total_step_count, self.train_environment.TOTAL_STEPS_LIMIT))
+            if self.episode_step_count > 1000 and self.episode_step_count % 1000 == 0:
+                print('Ongoing episode, Step: {}/{}'.format(self.total_step_count, self.train_environment.TOTAL_STEPS_LIMIT))
 
             if self.is_maze and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:
                 netsave_dir = os.path.join(self.netsave_data_bdir,os.path.splitext(self.save_data_fname)[0], '{}'.format(self.total_step_count))

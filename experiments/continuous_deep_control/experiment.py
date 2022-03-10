@@ -123,7 +123,7 @@ class Experiment(object):
                     self.last_time_saved = time.time()
                     print("#########SAVED#########")
 
-            if self.episode_step_count > 1000 and self.episode_step_count % 1000 == 0:
+            if self.episode_step_count >= 1000 and self.episode_step_count % 1000 == 0:
                 print('\t\tOngoing episode, Step: {}/{}'.format(self.total_step_count, int(self.train_environment.TOTAL_STEPS_LIMIT)))
 
             if self.is_maze and self.total_step_count % self.steps_per_netsave == 0 and self.no_netsave is False:

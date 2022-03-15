@@ -41,9 +41,11 @@ class PlotDataObj:
     # in plot-ready format (the x and y in matplotlib .plot functions).
     #
     # There is one PlotDataObj for each plot (with possibly many curves)
-    def __init__(self, args):
+    def __init__(self, args, plot_id):
         self.args = args
         self.auc_pct = 0.5
+        # Plot identifier
+        self.plot_id = plot_id
         # Which parameter to use to group settings in curves
         self.divide_type = args.divide_type
         # Group settings using top20 or best
@@ -124,29 +126,29 @@ class PlotDataObj:
             for agent in self.all_data.keys():
                 # Option 1, only agent names are used for grouping settings and runs
                 if self.divide_type is None:
+                    self.cur_curve_id = agent
                     mean, stderr = self.group(self.all_data[agent])
-                    curve_id = agent
-                    self.generator_data.append((curve_id, mean, stderr))
-                    yield curve_id, mean, stderr
+                    self.generator_data.append((self.cur_curve_id, mean, stderr))
+                    yield self.cur_curve_id, mean, stderr
                 else:
                     # Option 2, agent names and divide_type (e.g. entropy) are used
                     # for grouping settings and runs
                     if self.hyperparam_for_sensitivity is None:
                         for divide_param in self.all_data[agent].keys():
+                            self.cur_curve_id = "_".join([agent, str(divide_param)])
                             mean, stderr = self.group(self.all_data[agent][divide_param])
-                            curve_id = "_".join([agent, str(divide_param)])
-                            self.generator_data.append((curve_id, mean, stderr))
-                            yield curve_id, mean, stderr
+                            self.generator_data.append((self.cur_curve_id, mean, stderr))
+                            yield self.cur_curve_id, mean, stderr
                     else:
                         # Option 3, agent names, divide_type (e.g. entropy) and sensitivity
                         # hyperparameter are used for grouping settings and runs
                         for divide_param in sorted(self.all_data[agent].keys()):
+                            self.cur_curve_id = "_".join([agent, str(divide_param)])
                             # Only the [agent][divide_param] dict is passed, so that the entire
                             # X axis is generated at once
                             mean, stderr = self.group_sensitivity(self.all_data[agent][divide_param])
-                            curve_id = "_".join([agent, str(divide_param)])
-                            self.generator_data.append((curve_id, mean, stderr))
-                            yield curve_id, mean, stderr
+                            self.generator_data.append((self.cur_curve_id, mean, stderr))
+                            yield self.cur_curve_id, mean, stderr
 
     def group(self, data_dict):
         # Receives data from settings and runs and groups it, returning mean and stderr
@@ -184,6 +186,10 @@ class PlotDataObj:
         elif self.how_to_group == 'top20':
             out_k = sorted_auc_k[int(sorted_auc_k.size * 0.8):]
 
+        # Logs best setting
+        if self.args.log_best_setting:
+            self.log_best_setting(out_k[-1])
+
         # Filters the input data_dict with out_k
         nested_output_runs = list(map(lambda it: it[1], filter(lambda it: it[0] in out_k, data_dict.items())))
         # Converts to (-1, size) format
@@ -210,11 +216,31 @@ class PlotDataObj:
             out_stderr[h_idx] = stderr
         return out_auc, out_stderr
 
+    def log_best_setting(self, best_setting):
+        # Saves the best setting to results/_info directory
+        if not os.path.isdir(self.args.info_logdir):
+            os.makedirs(self.args.info_logdir, exist_ok=True)
+        ofname = os.path.join(self.args.info_logdir, 'best_sett.pkl')
+        if os.path.isfile(ofname):
+            r_f = open(ofname, "rb")
+            o_d = pickle.load(r_f)
+            r_f.close()
+        else:
+            o_d = {}
+        if self.plot_id not in o_d:
+            o_d[self.plot_id] = {}
+        o_d[self.plot_id][self.cur_curve_id] = best_setting
+        w_f = open(ofname, "wb")
+        pickle.dump(obj=o_d, file=w_f)
+        w_f.close()
+
 class Plotter:
     # Class responsible for plotting, there is one Plotter for each plot (with
     # possibly many curves)
     def __init__(self, call_id, plot_id, args, env_params):
         self.args = args
+        # Plot identifier
+        self.plot_id = plot_id
         # self.config is an object with information such as fontsizes, colors...
         self.config = args.config_class(args)
         # The bar plots are normalized
@@ -371,7 +397,7 @@ class PlotManager:
         # this entry will have a 'data' element with the PlotDataObj and a 'plotter'
         # element, with the Plotter (the second one is created during plotting)
         if plot_id not in self.plot_dict:
-            self.plot_dict[plot_id] = {'data': PlotDataObj(self.args)}
+            self.plot_dict[plot_id] = {'data': PlotDataObj(self.args, plot_id)}
         self.plot_dict[plot_id]['data'].add(*f_args, **f_kwargs)
         
     def load_existing_data(self, plot_id):
@@ -383,7 +409,7 @@ class PlotManager:
             full_fname = os.path.join(self.args.preprocessed_dir, "{}.pkl".format("_".join([self.call_id, plot_id])))
             if os.path.isfile(full_fname):
                 if plot_id not in self.plot_dict:
-                    self.plot_dict[plot_id] = {'data': PlotDataObj(self.args)}
+                    self.plot_dict[plot_id] = {'data': PlotDataObj(self.args, plot_id)}
                     self.plot_dict[plot_id]['data'].load(pickle.load(open(full_fname,'rb')))
                 return True
         return False

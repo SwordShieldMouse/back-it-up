@@ -14,7 +14,7 @@ class PlotParser:
         self.cwd = os.getcwd()
         self.parser = argparse.ArgumentParser()
         self.parser.add_argument('env_name', type=str)
-        self.parser.add_argument('--agent_names', type=str, nargs="+", choices=["ForwardKL","ReverseKL"], default=["ForwardKL","ReverseKL"])
+        self.parser.add_argument('--agent_names', type=str, nargs="+", choices=["ForwardKL","ReverseKL","GMMForwardKL","GMMReverseKL"], default=["ForwardKL","ReverseKL"])
         self.parser.add_argument('--root_dir', type=str, default=self.cwd, help="Base project directory (path to experiments/continuous_deep_control)")
         self.parser.add_argument('--how_to_group', type=str, default='best', choices=['best', 'top20'], help="How to group settings corresponding to the same point in the plotted curve")
         self.parser.add_argument('--results_root_dir', type=str, default=os.path.join(self.cwd, "results"), help="Where results are stored")
@@ -25,6 +25,7 @@ class PlotParser:
         self.parser.add_argument('--config_class', type=str, default='PlotConfig', choices=['PlotConfig', 'BenchmarksPlotConfig','CMPlotConfig','BenchmarksBarPlotConfig','HyperSensPlotConfig'], help="Which class to use to get plot config (e.g linewidth, colors...)")
         self.parser.add_argument('--normalize', action="store_true", help="Whether to normalize Y axis")
         self.parser.add_argument('--bar', action="store_true", help="Set to true for the bar plots")
+        self.parser.add_argument('--log_best_setting', action="store_true", help="Whether to log the best setting")
 
     def parse_args(self, args):
         args = self.parser.parse_args(args)
@@ -42,6 +43,9 @@ class PlotParser:
         args.plot_dir = os.path.join(args.results_root_dir, '_plots')
         # Where all plots are stored
         args.env_results_dir = os.path.join(args.results_dir, args.env_name)
+        # Where desired info (e.g. best setting) is logged
+        args.base_info_logdir = os.path.join(args.results_root_dir, "_info")
+        args.info_logdir = os.path.join(args.base_info_logdir, args.env_name)
         if args.no_divide_type:
             args.divide_type = None
         return args

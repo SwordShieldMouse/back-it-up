@@ -23,7 +23,7 @@ def main(args=None):
 
     input_regex_groups = ["setting", "run", "exit_type"]
 
-    for plot_id in file_processor.iterate_input_files(input_file_patt_f, input_regex_groups, get_plot_id_f, get_sync_id_f):
+    for en, plot_id in enumerate(file_processor.iterate_input_files(input_file_patt_f, input_regex_groups, get_plot_id_f, get_sync_id_f)):
         data = np.loadtxt(file_processor.full_fname, delimiter=',')
         manager.add(plot_id, file_processor.agent_name, file_processor.ag_params, file_processor.setting, data)
 

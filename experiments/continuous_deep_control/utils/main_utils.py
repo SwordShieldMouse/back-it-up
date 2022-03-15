@@ -25,11 +25,11 @@ def create_agent(agent_string, config):
         from agents.ForwardKL import ForwardKL
         return ForwardKL(config)
 
-    elif agent_string == 'ForwardKL_GMM':
+    elif agent_string == 'GMMForwardKL':
         from agents.ForwardKL import ForwardKL_GMM
         return ForwardKL_GMM(config)
 
-    elif agent_string == 'ReverseKL_GMM':
+    elif agent_string == 'GMMReverseKL':
         from agents.ReverseKL import ReverseKL_GMM
         return ReverseKL_GMM(config)
 

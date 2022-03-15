@@ -1,5 +1,5 @@
 {
-    "agent": "ReverseKL_GMM",
+    "agent": "GMMReverseKL",
     "sweeps": {
         "actor_critic_dim": [128],
         "n_hidden": [1],

@@ -87,7 +87,6 @@ class FileProcessing:
                 plot_id = get_plot_id_f(self)
 
                 self.sync_idx = get_sync_id_f(self, plot_id)
-                self.sync_idx = plot_id.split("_").index(args.env_name)
 
                 yield plot_id
 

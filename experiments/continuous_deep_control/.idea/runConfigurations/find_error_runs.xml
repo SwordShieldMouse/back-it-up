@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="helper_scripts.debug_find_error_runs" />
-    <option name="PARAMETERS" value="" />
+    <option name="PARAMETERS" value="--results_dir results/5_seed_gridworld_broad_sweep/_results" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />

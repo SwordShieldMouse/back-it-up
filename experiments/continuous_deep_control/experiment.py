@@ -186,6 +186,7 @@ class Experiment(object):
             force_terminated = False
         return force_terminated
 
+    # TODO: update this function to run saving/reloading with GMM
     def link_variables_and_names(self):
         #Diverse counters
         self.sr_diverse_names = ['cum_eval_time', 'cum_train_time', 'total_step_count', 'episode_count','train_cum_steps', 'train_rewards_per_episode', 'train_start_time', 'eval_session_time', 'episode_reward', 'episode_step_count','obs','Aold','right_exit_count','bad_exit_count','right_exit_global_count','bad_exit_global_count']
@@ -223,6 +224,7 @@ class Experiment(object):
         self.sr_all_names = self.sr_diverse_names + self.sr_nets_names + self.sr_optimizers_names + self.sr_buffer_names + self.sr_pkl_episode_names + self.sr_episode_names + self.sr_random_state_names
         self.sr_all_vars = self.sr_diverse_vars + self.sr_nets_vars + self.sr_optimizers_vars + self.sr_buffer_vars +  self.sr_pkl_episode_vars + self.sr_episode_vars + self.sr_random_state_vars
 
+    # TODO: update this function to run saving/reloading with GMM
     def save_data(self):
 
         sr_all_vars_state_dicts = [getattr(self, n) for n in self.sr_diverse_names] + [a.state_dict() for a in self.sr_nets_vars] + [a.state_dict() for a in self.sr_optimizers_vars] + [pickle.dumps(a) for a in self.sr_buffer_vars] + [pickle.dumps(a) for a in self.sr_pkl_episode_vars] + [getattr(self.agent.network_manager,n) for n in self.sr_episode_names] + [np.random.get_state(), torch.get_rng_state()]
@@ -235,6 +237,7 @@ class Experiment(object):
         torch.save(out_dict, out_temp_fname)
         os.rename(out_temp_fname, out_fname)
 
+    # TODO: update this function to run saving/reloading with GMM
     def save_nets_custom_path(self, cpath):
 
         sr_nets_names = ['pi_net', 'q_net', 'v_net']
@@ -248,8 +251,9 @@ class Experiment(object):
         out_fname = os.path.join(cpath, self.save_data_fname)
 
         torch.save(out_dict, out_temp_fname)
-        os.rename(out_temp_fname, out_fname)        
+        os.rename(out_temp_fname, out_fname)
 
+    # TODO: update this function to run saving/reloading with GMM
     def load_data(self):
         in_fname = os.path.join(self.save_data_bdir, self.save_data_fname)
         if os.path.isfile(in_fname):

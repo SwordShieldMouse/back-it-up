@@ -122,11 +122,11 @@ class CMPlotConfig(PlotConfig):
 
     entropy_color_dict = {
                         1000.: 'blue',
-                        100.: 'orange',
+                        100.: 'yellow',
                         10.: 'green',
                         1.: 'red',
                         0.1: 'purple',
-                        0.01: 'yellow',
+                        0.01: 'orange',
                         0.001: 'magenta',
                         }
 

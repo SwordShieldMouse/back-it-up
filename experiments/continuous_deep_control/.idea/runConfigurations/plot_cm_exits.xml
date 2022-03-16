@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="plotting.plot_cm_exits" />
-    <option name="PARAMETERS" value="EasyContinuousWorld --separate_agent_plots --how_to_group best --config_class CMPlotConfig --agent_names GMMForwardKL GMMReverseKL ForwardKL ReverseKL --log_best_setting" />
+    <option name="PARAMETERS" value="MultimodalContinuousWorld --separate_agent_plots --how_to_group best --config_class CMPlotConfig --agent_names ForwardKL ReverseKL GMMForwardKL GMMReverseKL --results_root_dir results/30_seed_gridworld_narrow_sweep" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />

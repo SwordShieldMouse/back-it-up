@@ -6,19 +6,19 @@ unimodal_nsettings = 125
 gmm_nsettings = 375
 ##### Generate 5-seed sweep for FKL and RKL on EasyContinuousWorld and MultimodalContinuousWorld
 for i in range(unimodal_nsettings * 5, unimodal_nsettings * 10):
-    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/EasyContinuousWorld.json --agent_json jsonfiles/agent/world/fkl.json --index {}' >> commands.txt".format(i))
-    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/EasyContinuousWorld.json --agent_json jsonfiles/agent/world/rkl.json --index {}' >> commands.txt".format(i))
+    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/EasyContinuousWorld.json --agent_json jsonfiles/agent/world/fkl.json --index {}' >> helper_scripts/commands.txt".format(i))
+    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/EasyContinuousWorld.json --agent_json jsonfiles/agent/world/rkl.json --index {}' >> helper_scripts/commands.txt".format(i))
 
-    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/MultimodalContinuousWorld.json --agent_json jsonfiles/agent/world/fkl.json --index {}' >> commands.txt".format(i))
-    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/MultimodalContinuousWorld.json --agent_json jsonfiles/agent/world/rkl.json --index {}' >> commands.txt".format(i))
+    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/MultimodalContinuousWorld.json --agent_json jsonfiles/agent/world/fkl.json --index {}' >> helper_scripts/commands.txt".format(i))
+    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/MultimodalContinuousWorld.json --agent_json jsonfiles/agent/world/rkl.json --index {}' >> helper_scripts/commands.txt".format(i))
 
 ##### Generate 5-seed sweep for FKL GMM and RKL GMM on EasyContinuousWorld and MultimodalContinuousWorld
 for i in range(gmm_nsettings * 5, gmm_nsettings * 10):
-    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/EasyContinuousWorld.json --agent_json jsonfiles/agent/world/fkl_gmm.json --index {}' >> commands.txt".format(i))
-    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/EasyContinuousWorld.json --agent_json jsonfiles/agent/world/rkl_gmm.json --index {}' >> commands.txt".format(i))
+    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/EasyContinuousWorld.json --agent_json jsonfiles/agent/world/fkl_gmm.json --index {}' >> helper_scripts/commands.txt".format(i))
+    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/EasyContinuousWorld.json --agent_json jsonfiles/agent/world/rkl_gmm.json --index {}' >> helper_scripts/commands.txt".format(i))
 
-    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/MultimodalContinuousWorld.json --agent_json jsonfiles/agent/world/fkl_gmm.json --index {}' >> commands.txt".format(i))
-    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/MultimodalContinuousWorld.json --agent_json jsonfiles/agent/world/rkl_gmm.json --index {}' >> commands.txt".format(i))
+    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/MultimodalContinuousWorld.json --agent_json jsonfiles/agent/world/fkl_gmm.json --index {}' >> helper_scripts/commands.txt".format(i))
+    os.system("echo 'pipenv run python nonlinear_run.py --env_json jsonfiles/environment/MultimodalContinuousWorld.json --agent_json jsonfiles/agent/world/rkl_gmm.json --index {}' >> helper_scripts/commands.txt".format(i))
 
 ###### Generate 30-seed sweep for FKL GMM, RKL GMM, FKL and RKL on EasyContinuousWorld and MultimodalContinuousWorld
 # desired_temps = [10., 1., 0.1, 0.01]

@@ -8,6 +8,8 @@ from .config import *
 import os
 import functools
 import bisect
+from pathos.multiprocessing import ProcessingPool as Pool
+from multiprocessing import Array
 
 
 def expand_limits(pct, low_lim, high_lim):
@@ -19,6 +21,35 @@ def expand_limits(pct, low_lim, high_lim):
     new_high = mean_point + new_delta / 2.
     new_low = mean_point - new_delta / 2.
     return new_low, new_high
+
+def _stderr(array, axis):
+    return np.std(array, axis=axis) / np.sqrt(array.shape[axis])
+
+def _boots_std(array, axis):
+    # Only simple version compatible with our purposes is implemented
+    # For a more complete version, use scipy.stats.bootstrap
+    # (available for scipy 1.8.0 onwards, which requires Python 3.8, our
+    # current code uses Python 3.6)
+    assert axis == 0
+    assert len(array.shape) in [1,2]
+    return_scalar = len(array.shape) == 1
+    if return_scalar:
+        array = np.expand_dims(array, -1)
+    n_samples = 1000
+    def f(i):
+        x = np.random.choice(array[:, i], size=array.shape[0] * n_samples, replace=True)
+        x = np.reshape(x, [n_samples, array.shape[0]])
+        i_th_med_arr = np.median(x, axis=1)
+        i_th_med_std = np.std(i_th_med_arr)
+        return i_th_med_std
+    with Pool(10) as pool:
+        l = list(range(array.shape[1]))
+        output = np.array(pool.map(f, l))
+    if return_scalar:
+        return output[0]
+    else:
+        return output
+
 
 class ExtremePoint:
     # Class to store maximum/minimum of many input values
@@ -150,6 +181,26 @@ class PlotDataObj:
                             self.generator_data.append((self.cur_curve_id, mean, stderr))
                             yield self.cur_curve_id, mean, stderr
 
+    @property
+    def center(self):
+    # How different runs will be grouped
+        if self.args.mean_or_median == 'mean':
+            return np.mean
+        elif self.args.mean_or_median == 'median':
+            return np.median
+        else:
+            raise NotImplementedError
+
+    @property
+    def spread(self):
+    # How different runs will be grouped
+        if self.args.mean_or_median == 'mean':
+            return _stderr
+        elif self.args.mean_or_median == 'median':
+            return _boots_std
+        else:
+            raise NotImplementedError
+
     def group(self, data_dict):
         # Receives data from settings and runs and groups it, returning mean and stderr
         # Example input: { index_1: [run_1, run_2...], index_2: [run_1, run_2...]}
@@ -158,11 +209,11 @@ class PlotDataObj:
         for k,v in data_dict.items():
             data_dict[k] = np.stack(v, axis=0)
         auc_pct = self.auc_pct
-        def _get_means(k_AND_v_arr_list):
-            # Returns index and mean of all runs for that index
+        def _get_center(k_AND_v_arr_list):
+            # Returns index and mean/median of all runs for that index
             k = k_AND_v_arr_list[0]
             v_arr_list = k_AND_v_arr_list[1]
-            return k, np.mean(v_arr_list,axis = 0)
+            return k, self.center(v_arr_list,axis = 0)
         def _get_auc(k_AND_mean_arr):
             # Returns index and last (self.auc)% of AUC of mean of all runs for that index
             k = k_AND_mean_arr[0]
@@ -171,7 +222,7 @@ class PlotDataObj:
             return k, np.mean(mean_arr[int(size * auc_pct):])
 
         # Get dict with (setting: mean of runs) entries
-        all_means = OrderedDict(map(_get_means, data_dict.items()))
+        all_means = OrderedDict(map(_get_center, data_dict.items()))
         size = next(iter(all_means.values())).size
         # Get dict with (setting: (self.auc)% of AUC of mean of runs) entries
         all_auc = OrderedDict(map(_get_auc, all_means.items()))
@@ -198,11 +249,11 @@ class PlotDataObj:
         # corresponding to out_k
         if self.args.bar or self.hyperparam_for_sensitivity is not None:
             output_auc = np.mean(output_runs[:, int(auc_pct * size):], axis=1)
-            return np.mean(output_auc), np.std(output_auc) / np.sqrt(output_runs.shape[0])
+            return self.center(output_auc), self.spread(output_auc, axis=0)
         # Else (e.g. benchmark plots), just return the mean of the returns
         # (each step corresponds to returns of nearby episodes)
         else:
-            return np.mean(output_runs, axis=0), np.std(output_runs, axis=0) / np.sqrt(output_runs.shape[0])
+            return self.center(output_runs, axis=0), self.spread(output_runs, axis=0)
 
     def group_sensitivity(self, ag_AND_scale_all_hypers_dict):
         # Receives dict corresponding to current (agent, divide_type) and, for each hyperparameter,

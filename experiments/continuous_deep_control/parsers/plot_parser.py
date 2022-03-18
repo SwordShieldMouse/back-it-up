@@ -26,6 +26,7 @@ class PlotParser:
         self.parser.add_argument('--normalize', action="store_true", help="Whether to normalize Y axis")
         self.parser.add_argument('--bar', action="store_true", help="Set to true for the bar plots")
         self.parser.add_argument('--log_best_setting', action="store_true", help="Whether to log the best setting")
+        self.parser.add_argument('--mean_or_median', type=str, choices=['mean','median'], default='mean' ,help="Use mean or median when grouping different runs")
 
     def parse_args(self, args):
         args = self.parser.parse_args(args)

@@ -3,21 +3,21 @@
   <component name="WebServers">
     <option name="servers">
       <webServer id="1fcd29e1-ba7c-4ceb-8e9d-f659c19c8df6" name="cedar">
-        <fileTransfer rootFolder="/home/hugoluis" accessType="SFTP" host="cedar.computecanada.ca" port="22" sshConfigId="8d429de8-73de-4738-8dab-2a0a16acb74a" sshConfig="hugoluis@cedar.computecanada.ca:22" authAgent="true">
+        <fileTransfer rootFolder="/home/hugoluis" accessType="SFTP" host="cedar.computecanada.ca" port="22" sshConfigId="34aee9f1-936a-49a4-88ff-4deea028a554" sshConfig="hugoluis@cedar.computecanada.ca:22" authAgent="true">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="100000" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
         </fileTransfer>
       </webServer>
-      <webServer id="91877d03-951c-4df3-805f-63e77ba39751" name="graham">
-        <fileTransfer rootFolder="/home/hugoluis" accessType="SFTP" host="graham.computecanada.ca" port="22" sshConfigId="9c8345c5-50f3-444b-a368-811a4fceabc5" sshConfig="hugoluis@graham.computecanada.ca:22 agent" authAgent="true">
+      <webServer id="91877d03-951c-4df3-805f-63e77ba39751" name="graham (project level)">
+        <fileTransfer rootFolder="/home/hugoluis" accessType="SFTP" host="graham.computecanada.ca" port="22" sshConfigId="61bf68d3-1af0-4307-8d19-2e5531d99941" sshConfig="hugoluis@graham.computecanada.ca:22 agent" authAgent="true">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="100000" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
         </fileTransfer>
       </webServer>
       <webServer id="6ae522d1-8a4c-4603-a535-8e95b5decbcc" name="narval">
-        <fileTransfer rootFolder="/home/hugoluis" accessType="SFTP" host="narval.computecanada.ca" port="22" sshConfigId="fcff9e3d-1841-49db-a484-dcc28d8a4067" sshConfig="hugoluis@narval.computecanada.ca:22" authAgent="true">
+        <fileTransfer rootFolder="/home/hugoluis" accessType="SFTP" sshConfigId="fcff9e3d-1841-49db-a484-dcc28d8a4067" sshConfig="hugoluis@narval.computecanada.ca:22">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="100000" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>

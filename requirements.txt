@@ -44,6 +44,6 @@ termcolor==1.1.0
 torch==1.4.0
 torchvision==0.5.0
 virtualenv==15.1.0
-Werkzeug==1.0.1
+Werkzeug==2.2.3
 wrapt==1.12.1
 zipp==3.1.0
